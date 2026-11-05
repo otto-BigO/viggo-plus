@@ -19,8 +19,10 @@ func render(_ px: Int) -> Data {
     shadow.set()
     NSColor.black.setFill(); path.fill()
     NSGraphicsContext.current?.restoreGraphicsState()
-    NSGradient(colors: [NSColor(calibratedRed: 0.32, green: 0.56, blue: 1.0, alpha: 1),
-                        NSColor(calibratedRed: 0.28, green: 0.25, blue: 0.86, alpha: 1)])!
+    // Viggo blue (#285FB0), slightly lighter at the top and deeper at the bottom.
+    NSGradient(colors: [NSColor(srgbRed: 0x30/255, green: 0x6A/255, blue: 0xBD/255, alpha: 1),
+                        NSColor(srgbRed: 0x28/255, green: 0x5F/255, blue: 0xB0/255, alpha: 1),
+                        NSColor(srgbRed: 0x1F/255, green: 0x4E/255, blue: 0x96/255, alpha: 1)])!
         .draw(in: path, angle: -90)
 
     // Big "V"
@@ -35,7 +37,7 @@ func render(_ px: Int) -> Data {
     let bRect = NSRect(x: rect.maxX - b * 1.22, y: rect.maxY - b * 1.22, width: b, height: b)
     NSColor.white.setFill(); NSBezierPath(ovalIn: bRect).fill()
     let plusCfg = NSImage.SymbolConfiguration(pointSize: b * 0.62, weight: .black)
-        .applying(.init(paletteColors: [NSColor(calibratedRed: 0.30, green: 0.42, blue: 0.95, alpha: 1)]))
+        .applying(.init(paletteColors: [NSColor(srgbRed: 0x28/255, green: 0x5F/255, blue: 0xB0/255, alpha: 1)]))
     if let plus = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)?.withSymbolConfiguration(plusCfg) {
         let ps = plus.size
         plus.draw(in: NSRect(x: bRect.midX - ps.width / 2, y: bRect.midY - ps.height / 2, width: ps.width, height: ps.height))
