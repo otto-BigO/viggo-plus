@@ -73,8 +73,11 @@ final class WebAutoLogin: NSObject, WKNavigationDelegate {
           var f = document.querySelector('form.unknown-user') || document.querySelector('form');
           if (!f) return 'noform';
           var u = f.querySelector('input[name="UserName"]'); var p = f.querySelector('input[name="Password"]');
-          u.value = \(js(username)); p.value = \(js(password));
-          f.submit(); return 'ok';
+          u.focus(); u.value = \(js(username)); u.dispatchEvent(new Event('input', {bubbles:true}));
+          p.focus(); p.value = \(js(password)); p.dispatchEvent(new Event('input', {bubbles:true}));
+          var b = f.querySelector('button[type="submit"], input[type="submit"]');
+          if (b) { b.click(); } else if (f.requestSubmit) { f.requestSubmit(); } else { f.submit(); }
+          return 'ok';
         })()
         """
         webView.evaluateJavaScript(script) { r, _ in

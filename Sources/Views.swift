@@ -395,6 +395,9 @@ struct AccountTab: View {
                             Button("Fjern") { state.forgetSavedLogin() }
                         }
                         Toggle("Lås op med Touch ID ved start", isOn: $p.useTouchID)
+                        if let until = p.mainLoginUntil {
+                            Text("Slettes automatisk \(DateUtil.day(until))").font(.caption).foregroundStyle(.secondary)
+                        }
                     } else {
                         Text("Gem dit SkoleIT-login, så logger Viggo+ selv ind igen i stedet for at spørge dig.")
                             .font(.caption).foregroundStyle(.secondary)
@@ -567,6 +570,7 @@ struct NotificationsTab: View {
 
 struct FriendsTab: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
     @State private var editing: Friend?
     @State private var adding = false
 
@@ -585,7 +589,7 @@ struct FriendsTab: View {
                             let (txt, col): (String, Color) = {
                                 if f.savedUsername != nil {
                                     switch f.loginVerified {
-                                    case true?: return ("Gemt login virker · logger selv ind igen", .green)
+                                    case true?: return ("Logger selv ind igen\(f.savedUntil.map { " · til \(DateUtil.day($0))" } ?? "")", .green)
                                     case false?: return ("Gemt login virker ikke", .red)
                                     case nil: return ("Login gemt · ikke verificeret", .orange)
                                     }
@@ -626,6 +630,17 @@ struct FriendsTab: View {
             }
         }
         .formStyle(.grouped)
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Text("Gemte logins slettes efter")
+                Picker("", selection: $p.loginDays) {
+                    Text("7 dage").tag(7); Text("30 dage").tag(30); Text("90 dage").tag(90)
+                }.labelsHidden().fixedSize()
+                Spacer()
+            }
+            .font(.caption)
+            .padding(.horizontal, 20).padding(.bottom, 10)
+        }
         .sheet(item: $editing) { f in FriendLoginSheet(friend: f) }
         .sheet(isPresented: $adding) { AddFriendSheet() }
     }

@@ -7,6 +7,8 @@ final class Prefs: ObservableObject {
 
     @Published var username: String { didSet { d.set(username, forKey: "username") } }
     @Published var hasPassword: Bool { didSet { d.set(hasPassword, forKey: "hasPassword") } }
+    @Published var loginDays: Int { didSet { d.set(loginDays, forKey: "loginDays") } }
+    @Published var mainLoginUntil: Date? { didSet { d.set(mainLoginUntil, forKey: "mainLoginUntil") } }
     @Published var useTouchID: Bool { didSet { d.set(useTouchID, forKey: "useTouchID") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
     @Published var importSchedule: Bool { didSet { d.set(importSchedule, forKey: "importSchedule") } }
@@ -28,7 +30,7 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "useTouchID": true, "imported": false, "importSchedule": true, "importHomework": true,
+            "useTouchID": true, "loginDays": 30, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
@@ -37,6 +39,8 @@ final class Prefs: ObservableObject {
         username = d.string(forKey: "username") ?? ""
         hasPassword = d.bool(forKey: "hasPassword")
         useTouchID = d.bool(forKey: "useTouchID")
+        loginDays = d.integer(forKey: "loginDays")
+        mainLoginUntil = d.object(forKey: "mainLoginUntil") as? Date
         imported = d.bool(forKey: "imported")
         importSchedule = d.bool(forKey: "importSchedule")
         importHomework = d.bool(forKey: "importHomework")

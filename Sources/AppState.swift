@@ -28,6 +28,31 @@ final class AppState: ObservableObject {
     /// Unlocked once per app run with Touch ID or the Mac password.
     private var vaultUnlocked = false
 
+    var loginExpiry: Date { DateUtil.add(.day, prefs.loginDays, Date()) }
+
+    /// Deletes saved passwords whose period has run out.
+    func expireSavedLogins() {
+        let now = Date()
+        if prefs.hasPassword, let until = prefs.mainLoginUntil, until < now {
+            Keychain.delete(account: prefs.username)
+            prefs.hasPassword = false
+            prefs.mainLoginUntil = nil
+            password = nil
+            Notifier.shared.post("Viggo+: gemt login udløbet", "Dit gemte login er slettet efter \(prefs.loginDays) dage.")
+        }
+        var changed = false
+        for i in friends.indices {
+            if friends[i].savedUsername != nil, let until = friends[i].savedUntil, until < now {
+                Keychain.delete(account: friends[i].keychainAccount)
+                friends[i].savedUsername = nil
+                friends[i].loginVerified = nil
+                friends[i].savedUntil = nil
+                changed = true
+            }
+        }
+        if changed { saveFriends() }
+    }
+
     func unlockVault(_ reason: String) async -> Bool {
         if vaultUnlocked { return true }
         vaultUnlocked = await Biometrics.unlock(reason: reason)
@@ -57,6 +82,7 @@ final class AppState: ObservableObject {
         Notifier.shared.setup()
         CookieJar.restore()
         loadFriends()
+        expireSavedLogins()
         calendarAccess = await calSync.requestAccess()
         if calendarAccess, !prefs.imported, !UserDefaults.standard.bool(forKey: "cleanedAutoImport") {
             for name in Config.allCalendars { try? calSync.remove(named: name) }
@@ -75,6 +101,7 @@ final class AppState: ObservableObject {
 
     private func onTick() {
         tick = Date()
+        expireSavedLogins()
         if Date().timeIntervalSince(lastAttempt) >= Config.pollInterval {
             Task { await sync() }
         } else if Date().timeIntervalSince(lastPing) >= 4 * 60 {
@@ -125,6 +152,7 @@ final class AppState: ObservableObject {
             prefs.username = username
             Keychain.save(pw, account: username)
             prefs.hasPassword = true
+            prefs.mainLoginUntil = loginExpiry
             password = pw
             needsLogin = false
             loginMessage = "Logget ind ✓"
@@ -150,6 +178,7 @@ final class AppState: ObservableObject {
                 self.prefs.username = creds.username
                 Keychain.save(creds.password, account: creds.username)
                 self.prefs.hasPassword = true
+                self.prefs.mainLoginUntil = self.loginExpiry
                 self.password = creds.password
             }
             self.needsLogin = false
@@ -241,6 +270,7 @@ final class AppState: ObservableObject {
                 Keychain.save(creds.password, account: f.keychainAccount)
                 f.savedUsername = creds.username
                 f.loginVerified = true
+                f.savedUntil = self.loginExpiry
                 if let i = self.friends.firstIndex(where: { $0.id == f.id }) { self.friends[i] = f }
                 self.saveFriends()
                 self.friendMessage = "\(f.firstName) er tilføjet ✓ Login gemt i nøgleringen"
@@ -288,6 +318,7 @@ final class AppState: ObservableObject {
             Keychain.save(pw, account: f.keychainAccount)
             f.savedUsername = username
             f.loginVerified = true
+            f.savedUntil = loginExpiry
             if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i] = f }
             saveFriends()
         }
@@ -306,6 +337,7 @@ final class AppState: ObservableObject {
         if let i = friends.firstIndex(where: { $0.id == f.id }) {
             friends[i].savedUsername = username
             friends[i].loginVerified = nil
+            friends[i].savedUntil = loginExpiry
         }
         saveFriends()
         friendMessage = "Login gemt i nøgleringen. Tryk Verificér for at teste det."
@@ -346,6 +378,7 @@ final class AppState: ObservableObject {
         if let i = friends.firstIndex(where: { $0.id == f.id }) {
             friends[i].savedUsername = nil
             friends[i].loginVerified = nil
+            friends[i].savedUntil = nil
         }
         saveFriends()
     }
