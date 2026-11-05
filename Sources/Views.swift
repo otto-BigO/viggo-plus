@@ -76,12 +76,16 @@ struct DayList: View {
     var body: some View {
         if items.isEmpty {
             Text(empty).font(.system(size: 12)).foregroundStyle(.secondary)
+        } else if items.count <= 7 {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(items) { EventRow(e: $0, now: now) }
+            }
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(items) { EventRow(e: $0, now: now) }
                 }
-            }.frame(maxHeight: 230)
+            }.frame(height: 230)
         }
     }
 }
@@ -145,6 +149,8 @@ struct MenuView: View {
                                        expired: state.friendExpired.contains(f.id)) { state.selectedFriend = f.id }
                         }
                     }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
                 }
             }
 
