@@ -13,19 +13,23 @@ final class WebLogin: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     private var captured: Credentials?
 
     /// Picks up what is typed into Viggo's own password form (only on the Viggo login page).
+    /// Remembers what is typed into a username + password form on any page of the login flow
+    /// (Viggo, UNI-Login or SkoleIT). Uses input events because SkoleIT submits via script.
     private static let captureJS = """
-    document.addEventListener('submit', function (e) {
-      var f = e.target; if (!f || !f.querySelector) return;
-      var u = f.querySelector('input[name="UserName"]'), p = f.querySelector('input[name="Password"]');
-      if (u && p && u.value && p.value) {
-        window.webkit.messageHandlers.viggoCreds.postMessage({ u: u.value, p: p.value });
+    (function(){
+      function grab(){
+        var p = document.querySelector('input[type="password"]'); if (!p || !p.value) return;
+        var f = p.form || document;
+        var u = f.querySelector('input[name="UserName"], input[type="email"], input[name*="user" i], input[id*="user" i], input[type="text"]');
+        if (u && u.value) window.webkit.messageHandlers.viggoCreds.postMessage({ u: u.value, p: p.value });
       }
-    }, true);
+      ['input','change','submit','keyup'].forEach(function(t){ document.addEventListener(t, grab, true); });
+      document.addEventListener('click', function(){ setTimeout(grab, 0); }, true);
+    })();
     """
 
     func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.frameInfo.request.url?.host == Config.baseURL.host,
-              let d = message.body as? [String: String], let u = d["u"], let p = d["p"] else { return }
+        guard let d = message.body as? [String: String], let u = d["u"], let p = d["p"] else { return }
         captured = Credentials(username: u, password: p)
     }
 
@@ -37,7 +41,7 @@ final class WebLogin: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let cfg = WKWebViewConfiguration()
         cfg.websiteDataStore = store
         cfg.userContentController.add(WeakHandler(self), name: "viggoCreds")
-        cfg.userContentController.addUserScript(WKUserScript(source: WebLogin.captureJS, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        cfg.userContentController.addUserScript(WKUserScript(source: WebLogin.captureJS, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
         let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 720), configuration: cfg)
         wv.navigationDelegate = self
         wv.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
@@ -58,7 +62,7 @@ final class WebLogin: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
               !url.path.lowercased().contains("/account/") else { return }
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
             Task { @MainActor in
-                let viggo = cookies.filter { $0.domain.contains("viggo.dk") }
+                let viggo = cookies
                 let creds = self.captured
                 self.captured = nil
                 self.webView?.configuration.userContentController.removeScriptMessageHandler(forName: "viggoCreds")

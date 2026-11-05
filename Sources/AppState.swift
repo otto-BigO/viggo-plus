@@ -91,6 +91,7 @@ final class AppState: ObservableObject {
         if prefs.hasPassword && !prefs.username.isEmpty { await unlockPassword() }
         await sync()
         if needsLogin { openSettings() }
+        Task { await self.diagnoseAll() }
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.onTick() }
         }
@@ -118,6 +119,19 @@ final class AppState: ObservableObject {
             let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
             if (try? await c.ping()) != nil { CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id)) }
         }
+    }
+
+    func diagnoseAll() async {
+        var lines = ["--- diagnose \(Date())", await client.diagnose()]
+        for f in friends {
+            let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
+            c.tag = "friend:\(f.firstName)"
+            lines.append(await c.diagnose())
+        }
+        let main2 = await client.diagnose()
+        lines.append(main2 + " (main again after friend)")
+        let text = lines.joined(separator: "\n") + "\n"
+        if let h = try? FileHandle(forWritingTo: ViggoClient.logURL) { h.seekToEndOfFile(); h.write(Data(text.utf8)); try? h.close() }
     }
 
     func forgetSavedLogin() {
@@ -164,7 +178,8 @@ final class AppState: ObservableObject {
 
     /// Browser-style login for your own account; cookies go into the shared session.
     private func mainWebLogin(username: String, password: String) async throws {
-        let cookies = try await WebAutoLogin.login(username: username, password: password)
+        let cookies = try await WebAutoLogin.login(cookies: HTTPCookieStorage.shared.cookies ?? [],
+                                                   username: username, password: password)
         cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
         CookieJar.save()
     }
@@ -203,6 +218,11 @@ final class AppState: ObservableObject {
 
     private func withRelogin<T>(_ op: () async throws -> T) async throws -> T {
         do { return try await op() } catch ViggoError.notLoggedIn {
+            if let jar = try? await WebAutoLogin.login(cookies: HTTPCookieStorage.shared.cookies ?? []) {
+                jar.forEach { HTTPCookieStorage.shared.setCookie($0) }
+                CookieJar.save()
+                if let r = try? await op() { return r }
+            }
             if password == nil && prefs.hasPassword { await unlockPassword() }
             guard let pw = password, !prefs.username.isEmpty else {
                 needsLogin = true
@@ -355,7 +375,8 @@ final class AppState: ObservableObject {
         friendMessage = "Tester \(f.firstName)s login…"
         var ok = false
         do {
-            let client = ViggoClient(cookies: try await WebAutoLogin.login(username: user, password: pw))
+            let client = ViggoClient(cookies: try await WebAutoLogin.login(
+                cookies: CookieJar.read(CookieJar.friendURL(f.id)), username: user, password: pw))
             let prof = try await client.fetchProfile()
             if prof.id == f.viggoID {
                 ok = true
@@ -403,10 +424,21 @@ final class AppState: ObservableObject {
                 CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
                 friendExpired.remove(f.id)
             } catch ViggoError.notLoggedIn {
+                if let jar = try? await WebAutoLogin.login(cookies: CookieJar.read(CookieJar.friendURL(f.id))) {
+                    let c2 = ViggoClient(cookies: jar)
+                    if let ev = try? await c2.fetchEvents(weeksBack: 0, weeksAhead: 1) {
+                        friendEvents[f.id] = ev
+                        friendHomework[f.id] = (try? await c2.fetchHomework()) ?? friendHomework[f.id] ?? []
+                        CookieJar.write(c2.cookies, to: CookieJar.friendURL(f.id))
+                        friendExpired.remove(f.id)
+                        continue
+                    }
+                }
                 if let user = f.savedUsername, await unlockVault("logge dine venner ind på Viggo igen"),
                    let pw = Keychain.load(account: f.keychainAccount) {
                     do {
-                        let client = ViggoClient(cookies: try await WebAutoLogin.login(username: user, password: pw))
+                        let client = ViggoClient(cookies: try await WebAutoLogin.login(
+                cookies: CookieJar.read(CookieJar.friendURL(f.id)), username: user, password: pw))
                         friendEvents[f.id] = try await client.fetchEvents(weeksBack: 0, weeksAhead: 1)
                         friendHomework[f.id] = (try? await client.fetchHomework()) ?? friendHomework[f.id] ?? []
                         CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))

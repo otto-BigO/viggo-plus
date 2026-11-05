@@ -194,7 +194,7 @@ enum CookieJar {
     }
 
     static func write(_ cookies: [HTTPCookie], to url: URL) {
-        let props = cookies.filter { $0.domain.contains("viggo.dk") }.compactMap { c -> [String: Any]? in
+        let props = cookies.compactMap { c -> [String: Any]? in
             guard let p = c.properties else { return nil }
             return Dictionary(uniqueKeysWithValues: p.map { ($0.key.rawValue, $0.value) })
         }

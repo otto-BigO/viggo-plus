@@ -18,6 +18,19 @@ final class ViggoClient {
 
     var cookies: [HTTPCookie] { session.configuration.httpCookieStorage?.cookies ?? [] }
 
+    var tag = "main"
+
+    func diagnose() async -> String {
+        let req = URLRequest(url: URL(string: "/Basic/HomeworkAndAssignment", relativeTo: base)!.absoluteURL)
+        do {
+            let (data, resp) = try await session.data(for: req)
+            let html = String(decoding: data, as: UTF8.self)
+            let who = Parser.profile(html).map { "\($0.id) \($0.name)" } ?? "no-profile"
+            let names = cookies.map { "\($0.name)" }.sorted().joined(separator: ",")
+            return "[\(tag)] \((resp as? HTTPURLResponse)?.statusCode ?? 0) \(resp.url?.path ?? "?") \(who) cookies=\(names)"
+        } catch { return "[\(tag)] error \(error)" }
+    }
+
     /// Keeps the server session alive.
     func ping() async throws { _ = try await get("/Basic/Ping") }
 
@@ -38,7 +51,11 @@ final class ViggoClient {
     private func get(_ path: String) async throws -> Data {
         let req = URLRequest(url: URL(string: path, relativeTo: base)!.absoluteURL)
         let (data, resp) = try await session.data(for: req)
-        if let u = resp.url, u.path.lowercased().contains("/account/login") { throw ViggoError.notLoggedIn }
+        let code0 = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        if code0 >= 300 || resp.url?.path.lowercased().contains("/account") == true {
+            log("[\(tag)] GET \(path) -> \(code0) \(resp.url?.path ?? "?")")
+        }
+        if let u = resp.url, u.path.lowercased().contains("/account") { throw ViggoError.notLoggedIn }
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(code) else { throw ViggoError.unexpected("HTTP \(code)") }
         return data
