@@ -10,3 +10,11 @@ swiftc -O -parse-as-library -target arm64-apple-macosx14.0 \
 codesign --force --sign - --identifier com.ottobigo.ViggoPlus \
     --requirements '=designated => identifier "com.ottobigo.ViggoPlus"' "$APP"
 echo "Built $APP"
+
+if [ "$1" = "install" ]; then
+    pkill -x ViggoPlus 2>/dev/null; sleep 1
+    rm -rf "/Applications/Viggo+.app"
+    cp -R "$APP" "/Applications/Viggo+.app"
+    open "/Applications/Viggo+.app"
+    echo "Installed /Applications/Viggo+.app"
+fi
