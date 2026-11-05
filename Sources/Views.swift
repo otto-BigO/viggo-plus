@@ -377,8 +377,31 @@ struct AccountTab: View {
                         Button("Log ud", role: .destructive) { state.logout() }
                     }
                 }
-                if p.hasPassword {
-                    Section { Toggle("Lås gemt login op med Touch ID ved start", isOn: $p.useTouchID) }
+                Section("Automatisk login") {
+                    if p.hasPassword {
+                        HStack {
+                            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Logger selv ind igen når sessionen udløber")
+                                Text(p.username).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Fjern") { state.forgetSavedLogin() }
+                        }
+                        Toggle("Lås op med Touch ID ved start", isOn: $p.useTouchID)
+                    } else {
+                        Text("Gem dit SkoleIT-login, så logger Viggo+ selv ind igen i stedet for at spørge dig.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        TextField("Brugernavn (fx brugernavn)", text: $username)
+                        SecureField("Adgangskode", text: $password)
+                        HStack {
+                            Button("Gem login") { Task { await state.saveLogin(username: username, password: password); password = "" } }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(username.isEmpty || password.isEmpty)
+                            Spacer()
+                            Text(state.loginMessage).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             } else {
                 Section("Log ind") {

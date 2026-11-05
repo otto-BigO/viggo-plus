@@ -33,6 +33,7 @@ final class AppState: ObservableObject {
     private var password: String?
     private var snapshot = Snapshot.load()
     private var lastAttempt = Date.distantPast
+    private var lastPing = Date()
     private var timer: Timer?
     private var settingsWindow: NSWindow?
     private let webLogin = WebLogin()
@@ -66,8 +67,29 @@ final class AppState: ObservableObject {
 
     private func onTick() {
         tick = Date()
-        if Date().timeIntervalSince(lastAttempt) >= Config.pollInterval { Task { await sync() } }
+        if Date().timeIntervalSince(lastAttempt) >= Config.pollInterval {
+            Task { await sync() }
+        } else if Date().timeIntervalSince(lastPing) >= 4 * 60 {
+            lastPing = Date()
+            Task { await keepAlive() }
+        }
         checkBriefs()
+    }
+
+    /// Pings Viggo every few minutes so sessions don't time out; logs in again if they did.
+    func keepAlive() async {
+        do { try await client.ping() } catch ViggoError.notLoggedIn { await sync() } catch {}
+        for f in friends where !friendExpired.contains(f.id) {
+            let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
+            if (try? await c.ping()) != nil { CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id)) }
+        }
+    }
+
+    func forgetSavedLogin() {
+        Keychain.delete(account: prefs.username)
+        prefs.hasPassword = false
+        password = nil
+        loginMessage = ""
     }
 
     func unlockPassword() async {

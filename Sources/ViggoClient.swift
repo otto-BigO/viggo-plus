@@ -18,6 +18,9 @@ final class ViggoClient {
 
     var cookies: [HTTPCookie] { session.configuration.httpCookieStorage?.cookies ?? [] }
 
+    /// Keeps the server session alive.
+    func ping() async throws { _ = try await get("/Basic/Ping") }
+
     func fetchProfile() async throws -> Profile {
         let html = String(decoding: try await get("/Basic/HomeworkAndAssignment"), as: UTF8.self)
         guard let p = Parser.profile(html) else { throw ViggoError.notLoggedIn }
