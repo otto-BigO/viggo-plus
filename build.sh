@@ -12,7 +12,7 @@ codesign --force --sign - --identifier com.ottobigo.ViggoPlus \
 echo "Built $APP"
 
 if [ "$1" = "install" ]; then
-    pkill -x ViggoPlus 2>/dev/null; sleep 1
+    pkill -x ViggoPlus 2>/dev/null || true; sleep 1
     rm -rf "/Applications/Viggo+.app"
     cp -R "$APP" "/Applications/Viggo+.app"
     open "/Applications/Viggo+.app"
