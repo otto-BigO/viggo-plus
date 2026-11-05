@@ -488,8 +488,10 @@ final class AppState: ObservableObject {
     func openSettings() {
         if settingsWindow == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView().environmentObject(self)))
-            w.title = "Viggo+ indstillinger"
-            w.styleMask = [.titled, .closable]
+            w.title = "Viggo+"
+            w.styleMask = [.titled, .closable, .fullSizeContentView]
+            w.titlebarAppearsTransparent = true
+            w.toolbarStyle = .unified
             w.isReleasedWhenClosed = false
             w.center()
             settingsWindow = w

@@ -270,15 +270,79 @@ struct MyPanel: View {
 
 // MARK: - Settings (tabs)
 
-struct SettingsView: View {
-    var body: some View {
-        TabView {
-            AccountTab().tabItem { Label("Konto", systemImage: "person.crop.circle") }
-            CalendarTab().tabItem { Label("Kalender", systemImage: "calendar") }
-            NotificationsTab().tabItem { Label("Notifikationer", systemImage: "bell") }
-            FriendsTab().tabItem { Label("Venner", systemImage: "person.2") }
+enum SettingsPage: String, CaseIterable, Identifiable {
+    case konto = "Konto", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
+    var id: String { rawValue }
+    var icon: String {
+        switch self {
+        case .konto: return "person.fill"
+        case .kalender: return "calendar"
+        case .notifikationer: return "bell.badge.fill"
+        case .venner: return "person.2.fill"
         }
-        .frame(width: 460, height: 480)
+    }
+    var color: Color {
+        switch self {
+        case .konto: return .gray
+        case .kalender: return .orange
+        case .notifikationer: return .red
+        case .venner: return .blue
+        }
+    }
+}
+
+struct SettingsIcon: View {
+    let symbol: String
+    let color: Color
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 22, height: 22)
+            .background(RoundedRectangle(cornerRadius: 5.5, style: .continuous).fill(color.gradient))
+    }
+}
+
+struct SettingsView: View {
+    @EnvironmentObject var state: AppState
+    @State private var page: SettingsPage? = .konto
+
+    var body: some View {
+        NavigationSplitView {
+            List(selection: $page) {
+                if let prof = state.profile, !state.needsLogin {
+                    HStack(spacing: 10) {
+                        Avatar(url: prof.image, size: 34)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(prof.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                            Text("Viggo-konto").font(.system(size: 10)).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .tag(SettingsPage.konto)
+                }
+                Section {
+                    ForEach(SettingsPage.allCases) { pg in
+                        Label { Text(pg.rawValue) } icon: { SettingsIcon(symbol: pg.icon, color: pg.color) }
+                            .tag(pg)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 220)
+            .toolbar(removing: .sidebarToggle)
+        } detail: {
+            Group {
+                switch page ?? .konto {
+                case .konto: AccountTab()
+                case .kalender: CalendarTab()
+                case .notifikationer: NotificationsTab()
+                case .venner: FriendsTab()
+                }
+            }
+            .navigationTitle((page ?? .konto).rawValue)
+        }
+        .frame(width: 680, height: 500)
     }
 }
 
