@@ -247,34 +247,59 @@ final class AppState: ObservableObject {
     }
 
     /// The friend types their own SkoleIT login so Viggo+ can log them in again by itself.
+    /// Saves the login (Touch ID / Mac password protected) whether or not it works yet.
     func saveFriendLogin(_ f: Friend, username raw: String, password pw: String) async -> Bool {
         let username = AppState.normalize(raw)
-        let client = ViggoClient(cookies: [])
-        do {
-            try await client.login(username: username, password: pw)
-            let prof = try await client.fetchProfile()
-            guard prof.id == f.viggoID else { friendMessage = "Det login hører ikke til \(f.firstName)"; return false }
-            guard await unlockVault("gemme \(f.firstName)s login i nøgleringen") else {
-                friendMessage = "Ikke gemt: Touch ID / kode blev afbrudt"
-                return false
-            }
-            Keychain.save(pw, account: f.keychainAccount)
-            if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i].savedUsername = username }
-            saveFriends()
-            CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
-            friendExpired.remove(f.id)
-            friendMessage = "Login virker ✓ Gemt i nøgleringen, låst med Touch ID"
-            await syncFriends()
-            return true
-        } catch {
-            friendMessage = error.localizedDescription
+        guard await unlockVault("gemme \(f.firstName)s login i nøgleringen") else {
+            friendMessage = "Ikke gemt: Touch ID / kode blev afbrudt"
             return false
         }
+        Keychain.save(pw, account: f.keychainAccount)
+        if let i = friends.firstIndex(where: { $0.id == f.id }) {
+            friends[i].savedUsername = username
+            friends[i].loginVerified = nil
+        }
+        saveFriends()
+        friendMessage = "Login gemt i nøgleringen. Tryk Verificér for at teste det."
+        return true
+    }
+
+    /// Tests the saved login against Viggo.
+    func verifyFriendLogin(_ f: Friend) async {
+        guard let user = f.savedUsername else { return }
+        guard await unlockVault("teste \(f.firstName)s gemte login"),
+              let pw = Keychain.load(account: f.keychainAccount) else {
+            friendMessage = "Afbrudt"
+            return
+        }
+        friendMessage = "Tester \(f.firstName)s login…"
+        let client = ViggoClient(cookies: [])
+        var ok = false
+        do {
+            try await client.login(username: user, password: pw)
+            let prof = try await client.fetchProfile()
+            if prof.id == f.viggoID {
+                ok = true
+                CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
+                friendExpired.remove(f.id)
+                friendMessage = "\(f.firstName)s login virker ✓"
+            } else {
+                friendMessage = "Login virker, men hører til \(prof.name), ikke \(f.firstName)"
+            }
+        } catch {
+            friendMessage = "\(f.firstName): \(error.localizedDescription)"
+        }
+        if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i].loginVerified = ok }
+        saveFriends()
+        if ok { await syncFriends() }
     }
 
     func forgetFriendLogin(_ f: Friend) {
         Keychain.delete(account: f.keychainAccount)
-        if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i].savedUsername = nil }
+        if let i = friends.firstIndex(where: { $0.id == f.id }) {
+            friends[i].savedUsername = nil
+            friends[i].loginVerified = nil
+        }
         saveFriends()
     }
 

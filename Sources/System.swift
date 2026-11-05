@@ -221,6 +221,7 @@ struct Friend: Codable, Identifiable, Equatable {
     var name: String
     var image: URL?
     var savedUsername: String?
+    var loginVerified: Bool? = nil
     var keychainAccount: String { "friend-\(id.uuidString)" }
     var firstName: String { name.components(separatedBy: " ").first ?? name }
 }

@@ -581,18 +581,30 @@ struct FriendsTab: View {
                         Avatar(url: f.image, size: 32)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(f.name)
-                            Text(expired ? "Login udløbet" : f.savedUsername != nil ? "Logger selv ind igen" : "Skema synket")
-                                .font(.caption)
-                                .foregroundStyle(expired ? .orange : f.savedUsername != nil ? .green : .secondary)
+                            let (txt, col): (String, Color) = {
+                                if f.savedUsername != nil {
+                                    switch f.loginVerified {
+                                    case true?: return ("Gemt login virker · logger selv ind igen", .green)
+                                    case false?: return ("Gemt login virker ikke", .red)
+                                    case nil: return ("Login gemt · ikke verificeret", .orange)
+                                    }
+                                }
+                                return expired ? ("Login udløbet", .orange) : ("Skema synket", .secondary)
+                            }()
+                            Text(txt).font(.caption).foregroundStyle(col)
                         }
                         Spacer()
-                        if expired {
+                        if f.savedUsername != nil && f.loginVerified != true {
+                            Button("Verificér") { Task { await state.verifyFriendLogin(f) } }
+                        } else if expired {
                             Button("Log ind igen") { state.addFriend(relogin: f) }
                         }
                         Menu {
                             if f.savedUsername == nil {
                                 Button("Gem login…") { editing = f }
                             } else {
+                                Button("Verificér login") { Task { await state.verifyFriendLogin(f) } }
+                                Button("Skift gemt login…") { editing = f }
                                 Button("Fjern gemt login") { state.forgetFriendLogin(f) }
                             }
                             Divider()
@@ -634,12 +646,12 @@ struct FriendLoginSheet: View {
                     Text("Lad \(friend.firstName) selv skrive sit SkoleIT-login.").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            TextField("Brugernavn (fx emilie1234)", text: $username).textFieldStyle(.roundedBorder)
+            TextField("Brugernavn", text: $username).textFieldStyle(.roundedBorder)
             if !username.isEmpty {
                 Text("Logger ind som \(AppState.normalize(username))").font(.caption).foregroundStyle(.secondary)
             }
             SecureField("Adgangskode", text: $password).textFieldStyle(.roundedBorder)
-            Label("Tjekkes mod Viggo først. Virker det, gemmes det i nøgleringen og låses med Touch ID eller din Mac-kode.",
+            Label("Gemmes i nøgleringen og låses med Touch ID eller din Mac-kode. Test det bagefter med Verificér.",
                   systemImage: "touchid")
                 .font(.caption).foregroundStyle(.secondary)
             if !state.friendMessage.isEmpty && !working { Text(state.friendMessage).font(.caption).foregroundStyle(.orange) }
