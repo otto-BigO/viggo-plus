@@ -219,6 +219,13 @@ struct MyPanel: View {
                 Text("I morgen: \(first.title) kl. \(DateUtil.hm(first.start)) · \(tomorrow.count) punkter")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
+            let evening = state.afterSchool(now)
+            if !evening.isEmpty {
+                SectionHeader(title: "Resten af dagen")
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(evening) { EventRow(e: $0, now: now) }
+                }
+            }
             if !state.dutyTonight.isEmpty {
                 Text("Aftenvagt: \(state.dutyTonight.joined(separator: ", "))")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
@@ -271,11 +278,12 @@ struct MyPanel: View {
 // MARK: - Settings (tabs)
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case konto = "Konto", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
+    case konto = "Konto", menubar = "Menubar", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .konto: return "person.fill"
+        case .menubar: return "menubar.rectangle"
         case .kalender: return "calendar"
         case .notifikationer: return "bell.badge.fill"
         case .venner: return "person.2.fill"
@@ -284,6 +292,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .konto: return .gray
+        case .menubar: return .indigo
         case .kalender: return .orange
         case .notifikationer: return .red
         case .venner: return .blue
@@ -335,6 +344,7 @@ struct SettingsView: View {
             Group {
                 switch page ?? .konto {
                 case .konto: AccountTab()
+                case .menubar: MenubarTab()
                 case .kalender: CalendarTab()
                 case .notifikationer: NotificationsTab()
                 case .venner: FriendsTab()
@@ -387,6 +397,35 @@ struct AccountTab: View {
                     Toggle("Lås op med Touch ID ved start", isOn: $p.useTouchID)
                 }
             }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct MenubarTab: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
+    var body: some View {
+        Form {
+            Section {
+                Toggle(isOn: $p.menubarRoutine) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Vis hverdag efter skoletid").font(.headline)
+                        Text("Når dagens sidste time er slut, viser menubaren fx \"Aftensmad 18:00\" og \"Godnat 22:15\".")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+            }
+            Section("Hvad skal vises") {
+                if state.routineTitles.isEmpty {
+                    Text("Log ind for at se listen").font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(state.routineTitles, id: \.self) { t in
+                    Toggle(t, isOn: Binding(get: { state.inMenubar(t) }, set: { state.toggleMenubar(t, $0) }))
+                }
+            }
+            .disabled(!p.menubarRoutine)
         }
         .formStyle(.grouped)
     }

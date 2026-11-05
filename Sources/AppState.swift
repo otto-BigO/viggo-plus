@@ -305,15 +305,45 @@ final class AppState: ObservableObject {
         return homework.filter { $0.day >= today }
     }
 
+    static let eveningDefaults = ["aftensmad", "stilletime", "fællessamling", "område", "værelse", "godnat"]
+
+    func inMenubar(_ title: String) -> Bool {
+        if let picked = prefs.menubarItems { return picked.contains(title) }
+        let l = title.lowercased()
+        return AppState.eveningDefaults.contains { l.contains($0) } && !l.hasPrefix("tjek") && !l.contains("hovedrengøring")
+    }
+
+    func toggleMenubar(_ t: String, _ on: Bool) {
+        var cur = Set(routineTitles.filter { inMenubar($0) })
+        if on { cur.insert(t) } else { cur.remove(t) }
+        prefs.menubarItems = cur.sorted()
+    }
+
+    /// Everyday items left today, shown once lessons are over.
+    func afterSchool(_ now: Date) -> [ViggoEvent] {
+        guard prefs.menubarRoutine else { return [] }
+        let school = events.filter { ($0.kind == .lesson || $0.kind == .event) && DateUtil.cal.isDate($0.start, inSameDayAs: now) }
+        if let lastEnd = school.map(\.end).max(), lastEnd > now { return [] }
+        return events.filter {
+            $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now) && $0.end > now && inMenubar($0.title)
+        }
+    }
+
     var menuTitle: String {
         let now = tick
         let today = items(on: now).filter { $0.kind == .lesson || $0.kind == .event }
-        func short(_ s: String) -> String { s.count > 16 ? String(s.prefix(15)) + "…" : s }
         if let cur = today.first(where: { $0.start <= now && $0.end > now }) {
-            return "\(short(cur.title)) → \(DateUtil.hm(cur.end))"
+            return "\(cur.shortTitle) → \(DateUtil.hm(cur.end))"
         }
         if let next = today.first(where: { $0.start > now }) {
-            return "\(short(next.title)) \(DateUtil.hm(next.start))"
+            return "\(next.shortTitle) \(DateUtil.hm(next.start))"
+        }
+        let evening = afterSchool(now)
+        if let cur = evening.first(where: { $0.start <= now }) {
+            return "\(cur.shortTitle) → \(DateUtil.hm(cur.end))"
+        }
+        if let next = evening.first {
+            return "\(next.shortTitle) \(DateUtil.hm(next.start))"
         }
         return ""
     }

@@ -20,6 +20,18 @@ struct ViggoEvent: Codable, Hashable, Identifiable {
         return t
     }
     var link: URL { URL(string: "/Shared/Events/Details/?id=\(id)", relativeTo: Config.baseURL)!.absoluteURL }
+
+    /// Short label for the menubar ("Alle på eget område" → "På område").
+    var shortTitle: String {
+        let l = title.lowercased()
+        if l.contains("eget område") { return "På område" }
+        if l.contains("eget værelse") { return "På værelse" }
+        if l.hasPrefix("godnat") { return "Godnat" }
+        if l.contains("fællessamling") { return "Fællessamling" }
+        if l.hasPrefix("stilletime") { return "Stilletime" }
+        if l.hasPrefix("tjek af") { return "Værelsestjek" }
+        return title.count > 16 ? String(title.prefix(15)) + "…" : title
+    }
 }
 
 struct Homework: Codable, Hashable, Identifiable {
@@ -79,13 +91,10 @@ enum Parser {
             case ("birthday", _): kind = .birthday
             case ("guard", _): kind = .duty
             case (_, 0): kind = .lesson
-            case (_, 1): kind = .routine
             default: kind = .event
             }
             let lower = (o["name"] as? String ?? "").lowercased()
-            let routineWords = ["morgenmad", "middag", "aftensmad", "rengøring", "godnat", "stilletime",
-                                "tjek af", "oprydning", "eget værelse", "eget område", "morgensamling"]
-            let finalKind = (kind == .event || kind == .lesson) && routineWords.contains { lower.contains($0) } ? .routine : kind
+            let finalKind: EventKind = (kind == .event || kind == .lesson) && Parser.isRoutine(lower) ? .routine : kind
             let teachers = (o["usersWithSubstitutes"] as? [[String: Any]] ?? []).compactMap {
                 ($0["user"] as? [String: Any])?["fullName"] as? String
             }.filter { !$0.isEmpty }
@@ -105,6 +114,11 @@ enum Parser {
                 kind: finalKind, teachers: teachers, groups: groups)
         }
     }
+
+    static let routineWords = ["morgenmad", "middag", "aftensmad", "rengøring", "godnat", "stilletime",
+                               "tjek af", "oprydning", "eget værelse", "eget område", "morgensamling",
+                               "fællessamling", "aflever", "telefon"]
+    static func isRoutine(_ lower: String) -> Bool { routineWords.contains { lower.contains($0) } }
 
     static let months = ["jan": 1, "feb": 2, "mar": 3, "apr": 4, "maj": 5, "jun": 6,
                          "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dec": 12]

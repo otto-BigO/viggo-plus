@@ -13,6 +13,9 @@ final class Prefs: ObservableObject {
     @Published var importHomework: Bool { didSet { d.set(importHomework, forKey: "importHomework") } }
     @Published var importEvents: Bool { didSet { d.set(importEvents, forKey: "importEvents") } }
     @Published var showBirthdays: Bool { didSet { d.set(showBirthdays, forKey: "showBirthdays") } }
+    @Published var menubarRoutine: Bool { didSet { d.set(menubarRoutine, forKey: "menubarRoutine") } }
+    /// nil until the user picks; then the exact titles to show in the menubar after school.
+    @Published var menubarItems: [String]? { didSet { d.set(menubarItems, forKey: "menubarItems") } }
     @Published var includedRoutines: [String] { didSet { d.set(includedRoutines, forKey: "includedRoutines") } }
     @Published var lessonAlarmMinutes: Int { didSet { d.set(lessonAlarmMinutes, forKey: "lessonAlarmMinutes") } }
     @Published var homeworkAlarm: Bool { didSet { d.set(homeworkAlarm, forKey: "homeworkAlarm") } }
@@ -26,7 +29,7 @@ final class Prefs: ObservableObject {
     private init() {
         d.register(defaults: [
             "useTouchID": true, "imported": false, "importSchedule": true, "importHomework": true,
-            "importEvents": true, "showBirthdays": false, "includedRoutines": [String](),
+            "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
             "morningHour": 7, "eveningHour": 20,
@@ -39,6 +42,8 @@ final class Prefs: ObservableObject {
         importHomework = d.bool(forKey: "importHomework")
         importEvents = d.bool(forKey: "importEvents")
         showBirthdays = d.bool(forKey: "showBirthdays")
+        menubarRoutine = d.bool(forKey: "menubarRoutine")
+        menubarItems = d.stringArray(forKey: "menubarItems")
         includedRoutines = d.stringArray(forKey: "includedRoutines") ?? []
         lessonAlarmMinutes = d.integer(forKey: "lessonAlarmMinutes")
         homeworkAlarm = d.bool(forKey: "homeworkAlarm")
