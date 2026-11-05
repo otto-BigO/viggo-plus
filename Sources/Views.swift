@@ -634,7 +634,10 @@ struct FriendLoginSheet: View {
                     Text("Lad \(friend.firstName) selv skrive sit SkoleIT-login.").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            TextField("Brugernavn", text: $username).textFieldStyle(.roundedBorder)
+            TextField("Brugernavn (fx emilie1234)", text: $username).textFieldStyle(.roundedBorder)
+            if !username.isEmpty {
+                Text("Logger ind som \(AppState.normalize(username))").font(.caption).foregroundStyle(.secondary)
+            }
             SecureField("Adgangskode", text: $password).textFieldStyle(.roundedBorder)
             Label("Tjekkes mod Viggo først. Virker det, gemmes det i nøgleringen og låses med Touch ID eller din Mac-kode.",
                   systemImage: "touchid")
