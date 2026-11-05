@@ -220,5 +220,7 @@ struct Friend: Codable, Identifiable, Equatable {
     var viggoID: Int
     var name: String
     var image: URL?
+    var savedUsername: String?
+    var keychainAccount: String { "friend-\(id.uuidString)" }
     var firstName: String { name.components(separatedBy: " ").first ?? name }
 }

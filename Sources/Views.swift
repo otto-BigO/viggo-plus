@@ -561,6 +561,8 @@ struct NotificationsTab: View {
 
 struct FriendsTab: View {
     @EnvironmentObject var state: AppState
+    @State private var editing: Friend?
+
     var body: some View {
         Form {
             Section {
@@ -568,26 +570,36 @@ struct FriendsTab: View {
                     Text("Ingen venner tilføjet endnu").foregroundStyle(.secondary)
                 }
                 ForEach(state.friends) { f in
+                    let expired = state.friendExpired.contains(f.id)
                     HStack(spacing: 10) {
                         Avatar(url: f.image, size: 32)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(f.name)
-                            Text(state.friendExpired.contains(f.id) ? "Login udløbet" : "Skema synket")
+                            Text(expired ? "Login udløbet" : f.savedUsername != nil ? "Logger selv ind igen" : "Skema synket")
                                 .font(.caption)
-                                .foregroundStyle(state.friendExpired.contains(f.id) ? .orange : .secondary)
+                                .foregroundStyle(expired ? .orange : f.savedUsername != nil ? .green : .secondary)
                         }
                         Spacer()
-                        if state.friendExpired.contains(f.id) {
+                        if expired {
                             Button("Log ind igen") { state.addFriend(relogin: f) }
                         }
-                        Button(role: .destructive) { state.removeFriend(f) } label: { Image(systemName: "trash") }
-                            .buttonStyle(.borderless)
+                        Menu {
+                            if f.savedUsername == nil {
+                                Button("Gem login…") { editing = f }
+                            } else {
+                                Button("Fjern gemt login") { state.forgetFriendLogin(f) }
+                            }
+                            Divider()
+                            Button("Fjern ven", role: .destructive) { state.removeFriend(f) }
+                        } label: { Image(systemName: "ellipsis.circle") }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
                     }
                 }
             }
             Section {
                 Button("Tilføj ven…") { state.addFriend() }.buttonStyle(.borderedProminent)
-                Text("Din ven logger selv ind i et privat vindue. Kun skemaet hentes, og det bliver på din Mac.")
+                Text("Din ven logger selv ind i et privat vindue. Kun skema og lektier hentes, og det bliver på din Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 if !state.friendMessage.isEmpty {
                     Text(state.friendMessage).font(.caption)
@@ -595,5 +607,48 @@ struct FriendsTab: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(item: $editing) { f in FriendLoginSheet(friend: f) }
+    }
+}
+
+struct FriendLoginSheet: View {
+    @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    let friend: Friend
+    @State private var username = ""
+    @State private var password = ""
+    @State private var working = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Avatar(url: friend.image, size: 40)
+                VStack(alignment: .leading) {
+                    Text("Automatisk login for \(friend.firstName)").font(.headline)
+                    Text("Lad \(friend.firstName) selv skrive sit SkoleIT-login.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            TextField("Brugernavn", text: $username).textFieldStyle(.roundedBorder)
+            SecureField("Adgangskode", text: $password).textFieldStyle(.roundedBorder)
+            Text("Gemmes kun i nøgleringen på denne Mac.").font(.caption).foregroundStyle(.secondary)
+            if !state.friendMessage.isEmpty && !working { Text(state.friendMessage).font(.caption).foregroundStyle(.orange) }
+            HStack {
+                Spacer()
+                Button("Annuller") { dismiss() }
+                Button("Gem") {
+                    working = true
+                    Task {
+                        let ok = await state.saveFriendLogin(friend, username: username, password: password)
+                        working = false
+                        password = ""
+                        if ok { dismiss() }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(username.isEmpty || password.isEmpty || working)
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
     }
 }

@@ -238,7 +238,36 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// The friend types their own SkoleIT login so Viggo+ can log them in again by itself.
+    func saveFriendLogin(_ f: Friend, username raw: String, password pw: String) async -> Bool {
+        let username = AppState.normalize(raw)
+        let client = ViggoClient(cookies: [])
+        do {
+            try await client.login(username: username, password: pw)
+            let prof = try await client.fetchProfile()
+            guard prof.id == f.viggoID else { friendMessage = "Det login hører ikke til \(f.firstName)"; return false }
+            Keychain.save(pw, account: f.keychainAccount)
+            if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i].savedUsername = username }
+            saveFriends()
+            CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
+            friendExpired.remove(f.id)
+            friendMessage = "\(f.firstName) logger nu selv ind igen ✓"
+            await syncFriends()
+            return true
+        } catch {
+            friendMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func forgetFriendLogin(_ f: Friend) {
+        Keychain.delete(account: f.keychainAccount)
+        if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i].savedUsername = nil }
+        saveFriends()
+    }
+
     func removeFriend(_ f: Friend) {
+        Keychain.delete(account: f.keychainAccount)
         friends.removeAll { $0.id == f.id }
         friendEvents[f.id] = nil
         friendHomework[f.id] = nil
@@ -257,6 +286,16 @@ final class AppState: ObservableObject {
                 CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
                 friendExpired.remove(f.id)
             } catch ViggoError.notLoggedIn {
+                if let user = f.savedUsername, let pw = Keychain.load(account: f.keychainAccount) {
+                    do {
+                        try await client.login(username: user, password: pw)
+                        friendEvents[f.id] = try await client.fetchEvents(weeksBack: 0, weeksAhead: 1)
+                        friendHomework[f.id] = (try? await client.fetchHomework()) ?? friendHomework[f.id] ?? []
+                        CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
+                        friendExpired.remove(f.id)
+                        continue
+                    } catch {}
+                }
                 friendExpired.insert(f.id)
             } catch {}
         }
