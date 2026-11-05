@@ -102,6 +102,9 @@ struct PersonChip: View {
                 Avatar(url: url, size: 30)
                     .overlay(Circle().stroke(selected ? Color.accentColor : .clear, lineWidth: 2).padding(-2))
                     .opacity(expired ? 0.4 : 1)
+                    .overlay(alignment: .topTrailing) {
+                        if expired { Circle().fill(.orange).frame(width: 9, height: 9).overlay(Circle().stroke(.background, lineWidth: 1.5)) }
+                    }
                 Text(label).font(.system(size: 10, weight: selected ? .semibold : .regular)).lineLimit(1)
             }
             .frame(width: 48)
@@ -132,7 +135,12 @@ struct MenuView: View {
             }
 
             if state.needsLogin {
-                Button("Log ind på Viggo…") { state.loginWithBrowser() }.buttonStyle(.borderedProminent)
+                HStack {
+                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
+                    Text("Du er logget ud af Viggo").font(.system(size: 12))
+                    Spacer()
+                    Button("Log ind") { state.loginWithBrowser() }.buttonStyle(.borderedProminent).controlSize(.small)
+                }
             }
             if !state.status.isEmpty {
                 Text(state.status).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
@@ -365,9 +373,6 @@ struct SettingsView: View {
 
 struct AccountTab: View {
     @EnvironmentObject var state: AppState
-    @ObservedObject var p = Prefs.shared
-    @State private var username = Prefs.shared.username.replacingOccurrences(of: Config.loginDomain, with: "")
-    @State private var password = ""
 
     var body: some View {
         Form {
@@ -383,51 +388,19 @@ struct AccountTab: View {
                         Button("Log ud", role: .destructive) { state.logout() }
                     }
                 }
-                Section("Automatisk login") {
-                    if p.hasPassword {
-                        HStack {
-                            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("Logger selv ind igen når sessionen udløber")
-                                Text(p.username).font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button("Fjern") { state.forgetSavedLogin() }
-                        }
-                        Toggle("Lås op med Touch ID ved start", isOn: $p.useTouchID)
-                        if let until = p.mainLoginUntil {
-                            Text("Slettes automatisk \(DateUtil.day(until))").font(.caption).foregroundStyle(.secondary)
-                        }
-                    } else {
-                        Text("Gem dit SkoleIT-login, så logger Viggo+ selv ind igen i stedet for at spørge dig.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        TextField("Brugernavn (fx brugernavn)", text: $username)
-                        SecureField("Adgangskode", text: $password)
-                        HStack {
-                            Button("Gem login") { Task { await state.saveLogin(username: username, password: password); password = "" } }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(username.isEmpty || password.isEmpty)
-                            Spacer()
-                            Text(state.loginMessage).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
+                Section {
+                    Label("Viggo+ holder dig logget ind så længe appen kører. Udløber sessionen alligevel, får du en notifikation og logger ind igen med ét klik.",
+                          systemImage: "checkmark.shield")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             } else {
                 Section("Log ind") {
                     Button("Åbn Viggo-login…") { state.loginWithBrowser() }.buttonStyle(.borderedProminent)
-                    Text("UNI-Login, SkoleIT eller adgangskode. Når sessionen udløber, får du besked.")
+                    Text("UNI-Login, SkoleIT eller adgangskode, præcis som på hjemmesiden.")
                         .font(.caption).foregroundStyle(.secondary)
-                }
-                Section("Eller gem SkoleIT-login (logger selv ind igen)") {
-                    TextField("Brugernavn (fx brugernavn)", text: $username)
-                    SecureField("Adgangskode", text: $password)
-                    HStack {
-                        Button("Gem og log ind") { Task { await state.saveLogin(username: username, password: password); password = "" } }
-                            .disabled(username.isEmpty || password.isEmpty)
-                        Spacer()
-                        Text(state.loginMessage).font(.caption).foregroundStyle(.secondary)
+                    if !state.loginMessage.isEmpty {
+                        Text(state.loginMessage).font(.caption)
                     }
-                    Toggle("Lås op med Touch ID ved start", isOn: $p.useTouchID)
                 }
             }
         }
@@ -570,9 +543,6 @@ struct NotificationsTab: View {
 
 struct FriendsTab: View {
     @EnvironmentObject var state: AppState
-    @ObservedObject var p = Prefs.shared
-    @State private var editing: Friend?
-    @State private var adding = false
 
     var body: some View {
         Form {
@@ -583,46 +553,24 @@ struct FriendsTab: View {
                 ForEach(state.friends) { f in
                     let expired = state.friendExpired.contains(f.id)
                     HStack(spacing: 10) {
-                        Avatar(url: f.image, size: 32)
+                        Avatar(url: f.image, size: 32).opacity(expired ? 0.5 : 1)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(f.name)
-                            let (txt, col): (String, Color) = {
-                                if f.savedUsername != nil {
-                                    switch f.loginVerified {
-                                    case true?: return ("Logger selv ind igen\(f.savedUntil.map { " · til \(DateUtil.day($0))" } ?? "")", .green)
-                                    case false?: return ("Gemt login virker ikke", .red)
-                                    case nil: return ("Login gemt · ikke verificeret", .orange)
-                                    }
-                                }
-                                return expired ? ("Login udløbet", .orange) : ("Skema synket", .secondary)
-                            }()
-                            Text(txt).font(.caption).foregroundStyle(col)
+                            Text(expired ? "Skal logge ind igen" : "Logget ind")
+                                .font(.caption).foregroundStyle(expired ? .orange : .green)
                         }
                         Spacer()
-                        if f.savedUsername != nil && f.loginVerified != true {
-                            Button("Verificér") { Task { await state.verifyFriendLogin(f) } }
-                        } else if expired {
-                            Button("Log ind igen") { state.addFriend(relogin: f) }
+                        if expired {
+                            Button("Log ind igen") { state.addFriend(relogin: f) }.buttonStyle(.borderedProminent)
                         }
-                        Menu {
-                            if f.savedUsername == nil {
-                                Button("Gem login…") { editing = f }
-                            } else {
-                                Button("Verificér login") { Task { await state.verifyFriendLogin(f) } }
-                                Button("Skift gemt login…") { editing = f }
-                                Button("Fjern gemt login") { state.forgetFriendLogin(f) }
-                            }
-                            Divider()
-                            Button("Fjern ven", role: .destructive) { state.removeFriend(f) }
-                        } label: { Image(systemName: "ellipsis.circle") }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
+                        Button(role: .destructive) { state.removeFriend(f) } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless)
                     }
                 }
             }
             Section {
-                Button("Tilføj ven…") { state.friendMessage = ""; adding = true }.buttonStyle(.borderedProminent)
-                Text("Din ven logger selv ind i et privat vindue. Kun skema og lektier hentes, og det bliver på din Mac.")
+                Button("Tilføj ven…") { state.addFriend() }.buttonStyle(.borderedProminent)
+                Text("Din ven logger selv ind på Viggos egen side i et privat vindue (UNI-Login, SkoleIT eller adgangskode). Ingen koder gemmes, kun skema og lektier hentes, og det bliver på din Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 if !state.friendMessage.isEmpty {
                     Text(state.friendMessage).font(.caption)
@@ -630,124 +578,5 @@ struct FriendsTab: View {
             }
         }
         .formStyle(.grouped)
-        .safeAreaInset(edge: .bottom) {
-            HStack {
-                Text("Gemte logins slettes efter")
-                Picker("", selection: $p.loginDays) {
-                    Text("7 dage").tag(7); Text("30 dage").tag(30); Text("90 dage").tag(90)
-                }.labelsHidden().fixedSize()
-                Spacer()
-            }
-            .font(.caption)
-            .padding(.horizontal, 20).padding(.bottom, 10)
-        }
-        .sheet(item: $editing) { f in FriendLoginSheet(friend: f) }
-        .sheet(isPresented: $adding) { AddFriendSheet() }
-    }
-}
-
-struct FriendLoginSheet: View {
-    @EnvironmentObject var state: AppState
-    @Environment(\.dismiss) private var dismiss
-    let friend: Friend
-    @State private var username = ""
-    @State private var password = ""
-    @State private var working = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Avatar(url: friend.image, size: 40)
-                VStack(alignment: .leading) {
-                    Text("Automatisk login for \(friend.firstName)").font(.headline)
-                    Text("Lad \(friend.firstName) selv skrive sit SkoleIT-login.").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            TextField("Brugernavn", text: $username).textFieldStyle(.roundedBorder)
-            if !username.isEmpty {
-                Text("Logger ind som \(AppState.normalize(username))").font(.caption).foregroundStyle(.secondary)
-            }
-            SecureField("Adgangskode", text: $password).textFieldStyle(.roundedBorder)
-            Label("Gemmes i nøgleringen og låses med Touch ID eller din Mac-kode. Test det bagefter med Verificér.",
-                  systemImage: "touchid")
-                .font(.caption).foregroundStyle(.secondary)
-            if !state.friendMessage.isEmpty && !working { Text(state.friendMessage).font(.caption).foregroundStyle(.orange) }
-            HStack {
-                Spacer()
-                Button("Annuller") { dismiss() }
-                Button("Gem") {
-                    working = true
-                    Task {
-                        let ok = await state.saveFriendLogin(friend, username: username, password: password)
-                        working = false
-                        password = ""
-                        if ok { dismiss() }
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(username.isEmpty || password.isEmpty || working)
-            }
-        }
-        .padding(20)
-        .frame(width: 360)
-    }
-}
-
-struct AddFriendSheet: View {
-    @EnvironmentObject var state: AppState
-    @Environment(\.dismiss) private var dismiss
-    @State private var username = ""
-    @State private var password = ""
-    @State private var remember = true
-    @State private var working = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Tilføj ven").font(.title3.bold())
-            Text("Lad din ven selv logge ind. Kun skema og lektier hentes, og det bliver på din Mac.")
-                .font(.caption).foregroundStyle(.secondary)
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("UNI-Login eller adgangskode", systemImage: "globe").font(.headline)
-                    Text("Åbner Viggos egen login-side i et privat vindue.").font(.caption).foregroundStyle(.secondary)
-                    Button("Åbn Viggo-login…") { dismiss(); state.addFriend() }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(4)
-            }
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("SkoleIT-login", systemImage: "person.badge.key").font(.headline)
-                    TextField("Brugernavn", text: $username).textFieldStyle(.roundedBorder)
-                    if !username.isEmpty {
-                        Text("Logger ind som \(AppState.normalize(username))").font(.caption).foregroundStyle(.secondary)
-                    }
-                    SecureField("Adgangskode", text: $password).textFieldStyle(.roundedBorder)
-                    Toggle("Gem i nøgleringen (Touch ID) og log selv ind igen", isOn: $remember)
-                    HStack {
-                        if working { ProgressView().controlSize(.small) }
-                        Text(state.friendMessage).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                        Spacer()
-                        Button("Tilføj") {
-                            working = true
-                            Task {
-                                let ok = await state.addFriendWithPassword(username: username, password: password, remember: remember)
-                                working = false
-                                if ok { password = ""; dismiss() }
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(username.isEmpty || password.isEmpty || working)
-                    }
-                }
-                .padding(4)
-            }
-
-            HStack { Spacer(); Button("Annuller") { dismiss() } }
-        }
-        .padding(20)
-        .frame(width: 400)
     }
 }

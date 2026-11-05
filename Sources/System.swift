@@ -61,7 +61,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         if let s = response.notification.request.content.userInfo["url"] as? String, let u = URL(string: s) {
-            NSWorkspace.shared.open(u)
+            Task { @MainActor in AppState.shared.handle(u) }
         }
         completionHandler()
     }

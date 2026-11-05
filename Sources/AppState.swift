@@ -25,45 +25,26 @@ final class AppState: ObservableObject {
     @Published var friendMessage = ""
     @Published var selectedFriend: UUID?
     private var friendLogin: WebLogin?
-    /// Unlocked once per app run with Touch ID or the Mac password.
-    private var vaultUnlocked = false
 
-    var loginExpiry: Date { DateUtil.add(.day, prefs.loginDays, Date()) }
-
-    /// Deletes saved passwords whose period has run out.
-    func expireSavedLogins() {
-        let now = Date()
-        if prefs.hasPassword, let until = prefs.mainLoginUntil, until < now {
-            Keychain.delete(account: prefs.username)
-            prefs.hasPassword = false
-            prefs.mainLoginUntil = nil
-            password = nil
-            Notifier.shared.post("Viggo+: gemt login udløbet", "Dit gemte login er slettet efter \(prefs.loginDays) dage.")
-        }
-        var changed = false
+    /// Saved passwords are no longer used (SkoleIT/UNI-Login can't take them). Remove any left over.
+    private func purgeSavedPasswords() {
+        guard !UserDefaults.standard.bool(forKey: "purgedPasswords") else { return }
+        if !prefs.username.isEmpty { Keychain.delete(account: prefs.username) }
+        prefs.hasPassword = false
         for i in friends.indices {
-            if friends[i].savedUsername != nil, let until = friends[i].savedUntil, until < now {
-                Keychain.delete(account: friends[i].keychainAccount)
-                friends[i].savedUsername = nil
-                friends[i].loginVerified = nil
-                friends[i].savedUntil = nil
-                changed = true
-            }
+            Keychain.delete(account: friends[i].keychainAccount)
+            friends[i].savedUsername = nil
+            friends[i].loginVerified = nil
+            friends[i].savedUntil = nil
         }
-        if changed { saveFriends() }
-    }
-
-    func unlockVault(_ reason: String) async -> Bool {
-        if vaultUnlocked { return true }
-        vaultUnlocked = await Biometrics.unlock(reason: reason)
-        return vaultUnlocked
+        saveFriends()
+        UserDefaults.standard.set(true, forKey: "purgedPasswords")
     }
 
     let prefs = Prefs.shared
     private let client = ViggoClient()
     private let calSync = CalendarSync()
     private var calendarAccess = false
-    private var password: String?
     private var snapshot = Snapshot.load()
     private var lastAttempt = Date.distantPast
     private var lastPing = Date()
@@ -82,27 +63,24 @@ final class AppState: ObservableObject {
         Notifier.shared.setup()
         CookieJar.restore()
         loadFriends()
-        expireSavedLogins()
+        purgeSavedPasswords()
         calendarAccess = await calSync.requestAccess()
         if calendarAccess, !prefs.imported, !UserDefaults.standard.bool(forKey: "cleanedAutoImport") {
             for name in Config.allCalendars { try? calSync.remove(named: name) }
             UserDefaults.standard.set(true, forKey: "cleanedAutoImport")
         }
-        if prefs.hasPassword && !prefs.username.isEmpty { await unlockPassword() }
         await sync()
         if needsLogin { openSettings() }
-        Task { await self.diagnoseAll() }
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.onTick() }
         }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in await self?.sync() }
+            Task { @MainActor in await self?.keepAlive(); await self?.sync() }
         }
     }
 
     private func onTick() {
         tick = Date()
-        expireSavedLogins()
         if Date().timeIntervalSince(lastAttempt) >= Config.pollInterval {
             Task { await sync() }
         } else if Date().timeIntervalSince(lastPing) >= 4 * 60 {
@@ -112,43 +90,43 @@ final class AppState: ObservableObject {
         checkBriefs()
     }
 
-    /// Pings Viggo every few minutes so sessions don't time out; logs in again if they did.
+    /// Pings Viggo every few minutes so sessions stay alive as long as possible.
     func keepAlive() async {
-        do { try await client.ping() } catch ViggoError.notLoggedIn { await sync() } catch {}
+        lastPing = Date()
+        do { try await client.ping() } catch ViggoError.notLoggedIn { sessionExpired() } catch {}
         for f in friends where !friendExpired.contains(f.id) {
             let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
-            if (try? await c.ping()) != nil { CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id)) }
+            do {
+                try await c.ping()
+                CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id))
+            } catch ViggoError.notLoggedIn {
+                friendSessionExpired(f)
+            } catch {}
         }
     }
 
-    func diagnoseAll() async {
-        var lines = ["--- diagnose \(Date())", await client.diagnose()]
-        for f in friends {
-            let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
-            c.tag = "friend:\(f.firstName)"
-            lines.append(await c.diagnose())
-        }
-        let main2 = await client.diagnose()
-        lines.append(main2 + " (main again after friend)")
-        let text = lines.joined(separator: "\n") + "\n"
-        if let h = try? FileHandle(forWritingTo: ViggoClient.logURL) { h.seekToEndOfFile(); h.write(Data(text.utf8)); try? h.close() }
+    /// Your own session ran out: one notification, and the menubar shows a log-in button.
+    private func sessionExpired() {
+        needsLogin = true
+        guard !expiryNotified, snapshot.initialized else { return }
+        expiryNotified = true
+        Notifier.shared.post("Viggo+: log ind igen", "Din Viggo-session er udløbet. Klik for at logge ind.",
+                             url: URL(string: "viggoplus://login"))
     }
 
-    func forgetSavedLogin() {
-        Keychain.delete(account: prefs.username)
-        prefs.hasPassword = false
-        password = nil
-        loginMessage = ""
+    private func friendSessionExpired(_ f: Friend) {
+        guard !friendExpired.contains(f.id) else { return }
+        friendExpired.insert(f.id)
+        Notifier.shared.post("Viggo+: \(f.firstName) skal logge ind igen", "Klik for at åbne login for \(f.firstName).",
+                             url: URL(string: "viggoplus://friend/\(f.id.uuidString)"))
     }
 
-    func unlockPassword() async {
-        if prefs.useTouchID {
-            guard await Biometrics.unlock(reason: "låse dit Viggo-login op") else {
-                status = "Touch ID afbrudt, bruger gemt session"
-                return
-            }
-        }
-        password = Keychain.load(account: prefs.username)
+    /// Handles clicks on "log ind igen" notifications.
+    func handle(_ url: URL) {
+        guard url.scheme == "viggoplus" else { NSWorkspace.shared.open(url); return }
+        if url.host == "login" { loginWithBrowser() }
+        if url.host == "friend", let id = UUID(uuidString: url.lastPathComponent),
+           let f = friends.first(where: { $0.id == id }) { addFriend(relogin: f) }
     }
 
     // MARK: login
@@ -158,44 +136,12 @@ final class AppState: ObservableObject {
         return t.isEmpty || t.contains("@") ? t : t + Config.loginDomain
     }
 
-    func saveLogin(username raw: String, password pw: String) async {
-        let username = AppState.normalize(raw)
-        loginMessage = "Logger ind…"
-        do {
-            try await mainWebLogin(username: username, password: pw)
-            prefs.username = username
-            Keychain.save(pw, account: username)
-            prefs.hasPassword = true
-            prefs.mainLoginUntil = loginExpiry
-            password = pw
-            needsLogin = false
-            loginMessage = "Logget ind ✓"
-            await sync()
-        } catch {
-            loginMessage = error.localizedDescription
-        }
-    }
-
-    /// Browser-style login for your own account; cookies go into the shared session.
-    private func mainWebLogin(username: String, password: String) async throws {
-        let cookies = try await WebAutoLogin.login(cookies: HTTPCookieStorage.shared.cookies ?? [],
-                                                   username: username, password: password)
-        cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
-        CookieJar.save()
-    }
-
     func loginWithBrowser() {
         loginMessage = "Log ind i vinduet…"
-        webLogin.show { [weak self] cookies, creds in
+        webLogin.show { [weak self] cookies in
             guard let self else { return }
             cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
-            if let creds {
-                self.prefs.username = creds.username
-                Keychain.save(creds.password, account: creds.username)
-                self.prefs.hasPassword = true
-                self.prefs.mainLoginUntil = self.loginExpiry
-                self.password = creds.password
-            }
+            CookieJar.save()
             self.needsLogin = false
             self.expiryNotified = false
             self.loginMessage = "Logget ind via Viggo ✓"
@@ -204,9 +150,6 @@ final class AppState: ObservableObject {
     }
 
     func logout() {
-        Keychain.delete(account: prefs.username)
-        prefs.hasPassword = false
-        password = nil
         HTTPCookieStorage.shared.cookies(for: Config.baseURL)?.forEach { HTTPCookieStorage.shared.deleteCookie($0) }
         CookieJar.clear()
         webLogin.clearCookies()
@@ -218,22 +161,8 @@ final class AppState: ObservableObject {
 
     private func withRelogin<T>(_ op: () async throws -> T) async throws -> T {
         do { return try await op() } catch ViggoError.notLoggedIn {
-            if let jar = try? await WebAutoLogin.login(cookies: HTTPCookieStorage.shared.cookies ?? []) {
-                jar.forEach { HTTPCookieStorage.shared.setCookie($0) }
-                CookieJar.save()
-                if let r = try? await op() { return r }
-            }
-            if password == nil && prefs.hasPassword { await unlockPassword() }
-            guard let pw = password, !prefs.username.isEmpty else {
-                needsLogin = true
-                if !expiryNotified && snapshot.initialized {
-                    expiryNotified = true
-                    Notifier.shared.post("Viggo+: log ind igen", "Din Viggo-session er udløbet. Åbn Viggo+ i menubaren.")
-                }
-                throw ViggoError.notLoggedIn
-            }
-            try await mainWebLogin(username: prefs.username, password: pw)
-            return try await op()
+            sessionExpired()
+            throw ViggoError.notLoggedIn
         }
     }
 
@@ -282,19 +211,8 @@ final class AppState: ObservableObject {
         let login = WebLogin()
         friendLogin = login
         friendMessage = existing == nil ? "Lad din ven logge ind i vinduet…" : "Lad \(existing!.firstName) logge ind igen…"
-        login.show(store: .nonPersistent(), title: existing.map { "\($0.firstName): log ind på Viggo" } ?? "Ven: log ind på Viggo") { [weak self] cookies, creds in
-            Task {
-                guard let self, var f = await self.finishFriend(cookies: cookies) else { return }
-                guard let creds else { return }   // UNI-Login: nothing to save
-                guard await self.unlockVault("gemme \(f.firstName)s login i nøgleringen") else { return }
-                Keychain.save(creds.password, account: f.keychainAccount)
-                f.savedUsername = creds.username
-                f.loginVerified = true
-                f.savedUntil = self.loginExpiry
-                if let i = self.friends.firstIndex(where: { $0.id == f.id }) { self.friends[i] = f }
-                self.saveFriends()
-                self.friendMessage = "\(f.firstName) er tilføjet ✓ Login gemt i nøgleringen"
-            }
+        login.show(store: .nonPersistent(), title: existing.map { "\($0.firstName): log ind på Viggo" } ?? "Ven: log ind på Viggo") { [weak self] cookies in
+            Task { await self?.finishFriend(cookies: cookies) }
         }
     }
 
@@ -322,90 +240,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Add a friend with their SkoleIT / Viggo username and password.
-    func addFriendWithPassword(username raw: String, password pw: String, remember: Bool) async -> Bool {
-        let username = AppState.normalize(raw)
-        friendMessage = "Logger ind…"
-        let client: ViggoClient
-        do {
-            client = ViggoClient(cookies: try await WebAutoLogin.login(username: username, password: pw))
-        } catch {
-            friendMessage = error.localizedDescription
-            return false
-        }
-        guard var f = await finishFriend(cookies: [], client: client) else { return false }
-        if remember, await unlockVault("gemme \(f.firstName)s login i nøgleringen") {
-            Keychain.save(pw, account: f.keychainAccount)
-            f.savedUsername = username
-            f.loginVerified = true
-            f.savedUntil = loginExpiry
-            if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i] = f }
-            saveFriends()
-        }
-        return true
-    }
-
-    /// The friend types their own SkoleIT login so Viggo+ can log them in again by itself.
-    /// Saves the login (Touch ID / Mac password protected) whether or not it works yet.
-    func saveFriendLogin(_ f: Friend, username raw: String, password pw: String) async -> Bool {
-        let username = AppState.normalize(raw)
-        guard await unlockVault("gemme \(f.firstName)s login i nøgleringen") else {
-            friendMessage = "Ikke gemt: Touch ID / kode blev afbrudt"
-            return false
-        }
-        Keychain.save(pw, account: f.keychainAccount)
-        if let i = friends.firstIndex(where: { $0.id == f.id }) {
-            friends[i].savedUsername = username
-            friends[i].loginVerified = nil
-            friends[i].savedUntil = loginExpiry
-        }
-        saveFriends()
-        friendMessage = "Login gemt i nøgleringen. Tryk Verificér for at teste det."
-        return true
-    }
-
-    /// Tests the saved login against Viggo.
-    func verifyFriendLogin(_ f: Friend) async {
-        guard let user = f.savedUsername else { return }
-        guard await unlockVault("teste \(f.firstName)s gemte login"),
-              let pw = Keychain.load(account: f.keychainAccount) else {
-            friendMessage = "Afbrudt"
-            return
-        }
-        friendMessage = "Tester \(f.firstName)s login…"
-        var ok = false
-        do {
-            let client = ViggoClient(cookies: try await WebAutoLogin.login(
-                cookies: CookieJar.read(CookieJar.friendURL(f.id)), username: user, password: pw))
-            let prof = try await client.fetchProfile()
-            if prof.id == f.viggoID {
-                ok = true
-                CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
-                friendExpired.remove(f.id)
-                friendMessage = "\(f.firstName)s login virker ✓"
-            } else {
-                friendMessage = "Login virker, men hører til \(prof.name), ikke \(f.firstName)"
-            }
-        } catch {
-            friendMessage = "\(f.firstName): \(error.localizedDescription)"
-        }
-        if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i].loginVerified = ok }
-        saveFriends()
-        if ok { await syncFriends() }
-    }
-
-    func forgetFriendLogin(_ f: Friend) {
-        Keychain.delete(account: f.keychainAccount)
-        if let i = friends.firstIndex(where: { $0.id == f.id }) {
-            friends[i].savedUsername = nil
-            friends[i].loginVerified = nil
-            friends[i].savedUntil = nil
-        }
-        saveFriends()
-    }
-
     func removeFriend(_ f: Friend) {
-        Keychain.delete(account: f.keychainAccount)
         friends.removeAll { $0.id == f.id }
         friendEvents[f.id] = nil
         friendHomework[f.id] = nil
@@ -416,37 +251,14 @@ final class AppState: ObservableObject {
     }
 
     func syncFriends() async {
-        for f in friends {
-            let client = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
+        for f in friends where !friendExpired.contains(f.id) {
+            let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
             do {
-                friendEvents[f.id] = try await client.fetchEvents(weeksBack: 0, weeksAhead: 1)
-                friendHomework[f.id] = (try? await client.fetchHomework()) ?? friendHomework[f.id] ?? []
-                CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
-                friendExpired.remove(f.id)
+                friendEvents[f.id] = try await c.fetchEvents(weeksBack: 0, weeksAhead: 1)
+                friendHomework[f.id] = (try? await c.fetchHomework()) ?? friendHomework[f.id] ?? []
+                CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id))
             } catch ViggoError.notLoggedIn {
-                if let jar = try? await WebAutoLogin.login(cookies: CookieJar.read(CookieJar.friendURL(f.id))) {
-                    let c2 = ViggoClient(cookies: jar)
-                    if let ev = try? await c2.fetchEvents(weeksBack: 0, weeksAhead: 1) {
-                        friendEvents[f.id] = ev
-                        friendHomework[f.id] = (try? await c2.fetchHomework()) ?? friendHomework[f.id] ?? []
-                        CookieJar.write(c2.cookies, to: CookieJar.friendURL(f.id))
-                        friendExpired.remove(f.id)
-                        continue
-                    }
-                }
-                if let user = f.savedUsername, await unlockVault("logge dine venner ind på Viggo igen"),
-                   let pw = Keychain.load(account: f.keychainAccount) {
-                    do {
-                        let client = ViggoClient(cookies: try await WebAutoLogin.login(
-                cookies: CookieJar.read(CookieJar.friendURL(f.id)), username: user, password: pw))
-                        friendEvents[f.id] = try await client.fetchEvents(weeksBack: 0, weeksAhead: 1)
-                        friendHomework[f.id] = (try? await client.fetchHomework()) ?? friendHomework[f.id] ?? []
-                        CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
-                        friendExpired.remove(f.id)
-                        continue
-                    } catch {}
-                }
-                friendExpired.insert(f.id)
+                friendSessionExpired(f)
             } catch {}
         }
     }
