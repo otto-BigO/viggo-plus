@@ -25,6 +25,14 @@ final class AppState: ObservableObject {
     @Published var friendMessage = ""
     @Published var selectedFriend: UUID?
     private var friendLogin: WebLogin?
+    /// Unlocked once per app run with Touch ID or the Mac password.
+    private var vaultUnlocked = false
+
+    func unlockVault(_ reason: String) async -> Bool {
+        if vaultUnlocked { return true }
+        vaultUnlocked = await Biometrics.unlock(reason: reason)
+        return vaultUnlocked
+    }
 
     let prefs = Prefs.shared
     private let client = ViggoClient()
@@ -246,12 +254,16 @@ final class AppState: ObservableObject {
             try await client.login(username: username, password: pw)
             let prof = try await client.fetchProfile()
             guard prof.id == f.viggoID else { friendMessage = "Det login hører ikke til \(f.firstName)"; return false }
+            guard await unlockVault("gemme \(f.firstName)s login i nøgleringen") else {
+                friendMessage = "Ikke gemt: Touch ID / kode blev afbrudt"
+                return false
+            }
             Keychain.save(pw, account: f.keychainAccount)
             if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i].savedUsername = username }
             saveFriends()
             CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
             friendExpired.remove(f.id)
-            friendMessage = "\(f.firstName) logger nu selv ind igen ✓"
+            friendMessage = "Login virker ✓ Gemt i nøgleringen, låst med Touch ID"
             await syncFriends()
             return true
         } catch {
@@ -286,7 +298,8 @@ final class AppState: ObservableObject {
                 CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
                 friendExpired.remove(f.id)
             } catch ViggoError.notLoggedIn {
-                if let user = f.savedUsername, let pw = Keychain.load(account: f.keychainAccount) {
+                if let user = f.savedUsername, await unlockVault("logge dine venner ind på Viggo igen"),
+                   let pw = Keychain.load(account: f.keychainAccount) {
                     do {
                         try await client.login(username: user, password: pw)
                         friendEvents[f.id] = try await client.fetchEvents(weeksBack: 0, weeksAhead: 1)

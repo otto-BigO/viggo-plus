@@ -636,7 +636,9 @@ struct FriendLoginSheet: View {
             }
             TextField("Brugernavn", text: $username).textFieldStyle(.roundedBorder)
             SecureField("Adgangskode", text: $password).textFieldStyle(.roundedBorder)
-            Text("Gemmes kun i nøgleringen på denne Mac.").font(.caption).foregroundStyle(.secondary)
+            Label("Tjekkes mod Viggo først. Virker det, gemmes det i nøgleringen og låses med Touch ID eller din Mac-kode.",
+                  systemImage: "touchid")
+                .font(.caption).foregroundStyle(.secondary)
             if !state.friendMessage.isEmpty && !working { Text(state.friendMessage).font(.caption).foregroundStyle(.orange) }
             HStack {
                 Spacer()
