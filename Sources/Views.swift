@@ -177,8 +177,6 @@ struct FriendPanel: View {
     let friend: Friend
     let now: Date
     var body: some View {
-        let today = state.friendItems(friend.id, on: now)
-        let tomorrow = state.friendItems(friend.id, on: DateUtil.add(.day, 1, now))
         VStack(alignment: .leading, spacing: 6) {
             if state.friendExpired.contains(friend.id) {
                 HStack {
@@ -187,21 +185,8 @@ struct FriendPanel: View {
                     Button("Log ind igen") { state.addFriend(relogin: friend) }.controlSize(.small)
                 }
             }
-            if let cur = today.first(where: { $0.start <= now && $0.end > now }) {
-                Text("\(friend.firstName) har \(cur.title) nu\(cur.room.isEmpty ? "" : " i \(cur.room)")")
-                    .font(.system(size: 12, weight: .medium))
-            } else if let next = today.first(where: { $0.start > now }) {
-                Text("\(friend.firstName) er fri til \(DateUtil.hm(next.start))")
-                    .font(.system(size: 12, weight: .medium))
-            } else {
-                Text("\(friend.firstName) er fri resten af dagen").font(.system(size: 12, weight: .medium))
-            }
-            SectionHeader(title: "\(friend.firstName) i dag")
-            DayList(items: today, now: now, empty: "Intet i dag")
-            if let first = tomorrow.first {
-                Text("I morgen: \(first.title) kl. \(DateUtil.hm(first.start)) · \(tomorrow.count) punkter")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
+            DayPanel(name: friend.firstName, events: state.friendEvents[friend.id] ?? [],
+                     homework: state.friendHomework[friend.id] ?? [], now: now, showMessages: false)
         }
     }
 }
@@ -210,30 +195,44 @@ struct MyPanel: View {
     @EnvironmentObject var state: AppState
     let now: Date
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            SectionHeader(title: "I dag")
-            DayList(items: state.items(on: now), now: now)
+        DayPanel(name: nil, events: state.events, homework: state.homework, now: now, showMessages: true)
+    }
+}
 
-            let tomorrow = state.items(on: DateUtil.add(.day, 1, now))
+/// Same layout for you and your friends.
+struct DayPanel: View {
+    @EnvironmentObject var state: AppState
+    let name: String?
+    let events: [ViggoEvent]
+    let homework: [Homework]
+    let now: Date
+    let showMessages: Bool
+
+    var body: some View {
+        let today = state.items(on: now, from: events)
+        let tomorrow = state.items(on: DateUtil.add(.day, 1, now), from: events)
+        let evening = state.afterSchool(now, from: events)
+        let hw = homework.filter { $0.day >= DateUtil.startOfDay(now) }
+        VStack(alignment: .leading, spacing: 6) {
+            SectionHeader(title: name.map { "\($0) i dag" } ?? "I dag")
+            DayList(items: today, now: now)
             if let first = tomorrow.first {
                 Text("I morgen: \(first.title) kl. \(DateUtil.hm(first.start)) · \(tomorrow.count) punkter")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            let evening = state.afterSchool(now)
             if !evening.isEmpty {
                 SectionHeader(title: "Resten af dagen")
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(evening) { EventRow(e: $0, now: now) }
                 }
             }
-            if !state.dutyTonight.isEmpty {
+            if name == nil, !state.dutyTonight.isEmpty {
                 Text("Aftenvagt: \(state.dutyTonight.joined(separator: ", "))")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
 
             Divider()
             SectionHeader(title: "Lektier og afleveringer")
-            let hw = state.upcomingHomework
             if hw.isEmpty {
                 Text("Ingen lektier 🙌").font(.system(size: 12)).foregroundStyle(.secondary)
             } else {
@@ -249,26 +248,28 @@ struct MyPanel: View {
                         Spacer()
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture { NSWorkspace.shared.open(h.link) }
+                    .onTapGesture { if name == nil { NSWorkspace.shared.open(h.link) } }
                 }
             }
 
-            Divider()
-            SectionHeader(title: "Seneste beskeder")
-            if state.messages.isEmpty {
-                Text("Ingen beskeder").font(.system(size: 12)).foregroundStyle(.secondary)
-            } else {
-                ForEach(state.messages.prefix(3)) { m in
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack {
-                            Text(m.sender).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                            Spacer()
-                            Text(m.when).font(.system(size: 10)).foregroundStyle(.secondary)
+            if showMessages {
+                Divider()
+                SectionHeader(title: "Seneste beskeder")
+                if state.messages.isEmpty {
+                    Text("Ingen beskeder").font(.system(size: 12)).foregroundStyle(.secondary)
+                } else {
+                    ForEach(state.messages.prefix(3)) { m in
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack {
+                                Text(m.sender).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                                Spacer()
+                                Text(m.when).font(.system(size: 10)).foregroundStyle(.secondary)
+                            }
+                            Text(m.subject).font(.system(size: 12)).lineLimit(1)
                         }
-                        Text(m.subject).font(.system(size: 12)).lineLimit(1)
+                        .contentShape(Rectangle())
+                        .onTapGesture { state.openViggo(m.link) }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { state.openViggo(m.link) }
                 }
             }
         }

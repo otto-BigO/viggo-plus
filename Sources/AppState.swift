@@ -21,6 +21,7 @@ final class AppState: ObservableObject {
     @Published var friends: [Friend] = []
     @Published var friendEvents: [UUID: [ViggoEvent]] = [:]
     @Published var friendExpired: Set<UUID> = []
+    @Published var friendHomework: [UUID: [Homework]] = [:]
     @Published var friendMessage = ""
     @Published var selectedFriend: UUID?
     private var friendLogin: WebLogin?
@@ -206,6 +207,7 @@ final class AppState: ObservableObject {
             if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i] = f } else { friends.append(f) }
             saveFriends()
             friendEvents[f.id] = try await client.fetchEvents(weeksBack: 0, weeksAhead: 1)
+            friendHomework[f.id] = (try? await client.fetchHomework()) ?? []
             CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
             friendExpired.remove(f.id)
             friendMessage = "\(f.firstName) er tilføjet ✓"
@@ -217,6 +219,7 @@ final class AppState: ObservableObject {
     func removeFriend(_ f: Friend) {
         friends.removeAll { $0.id == f.id }
         friendEvents[f.id] = nil
+        friendHomework[f.id] = nil
         friendExpired.remove(f.id)
         if selectedFriend == f.id { selectedFriend = nil }
         try? FileManager.default.removeItem(at: CookieJar.friendURL(f.id))
@@ -228,17 +231,12 @@ final class AppState: ObservableObject {
             let client = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
             do {
                 friendEvents[f.id] = try await client.fetchEvents(weeksBack: 0, weeksAhead: 1)
+                friendHomework[f.id] = (try? await client.fetchHomework()) ?? friendHomework[f.id] ?? []
                 CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
                 friendExpired.remove(f.id)
             } catch ViggoError.notLoggedIn {
                 friendExpired.insert(f.id)
             } catch {}
-        }
-    }
-
-    func friendItems(_ id: UUID, on day: Date) -> [ViggoEvent] {
-        (friendEvents[id] ?? []).filter {
-            ($0.kind == .lesson || $0.kind == .event) && DateUtil.cal.isDate($0.start, inSameDayAs: day)
         }
     }
 
@@ -291,8 +289,8 @@ final class AppState: ObservableObject {
         }
     }
 
-    func items(on day: Date) -> [ViggoEvent] {
-        events.filter { visible($0) && $0.kind != .birthday && DateUtil.cal.isDate($0.start, inSameDayAs: day) }
+    func items(on day: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
+        (list ?? events).filter { visible($0) && $0.kind != .birthday && DateUtil.cal.isDate($0.start, inSameDayAs: day) }
     }
 
     var dutyTonight: [String] {
@@ -320,8 +318,9 @@ final class AppState: ObservableObject {
     }
 
     /// Everyday items left today, shown once lessons are over.
-    func afterSchool(_ now: Date) -> [ViggoEvent] {
+    func afterSchool(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
         guard prefs.menubarRoutine else { return [] }
+        let events = list ?? self.events
         let school = events.filter { ($0.kind == .lesson || $0.kind == .event) && DateUtil.cal.isDate($0.start, inSameDayAs: now) }
         if let lastEnd = school.map(\.end).max(), lastEnd > now { return [] }
         return events.filter {
