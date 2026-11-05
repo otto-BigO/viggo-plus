@@ -33,60 +33,108 @@ struct Avatar: View {
 
 struct SectionHeader: View {
     let title: String
+    @ObservedObject var p = Prefs.shared
     var body: some View {
         Text(title.uppercased())
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(.secondary)
-            .padding(.top, 6)
+            .font(.system(size: 10 * (p.panelLarge ? 1.15 : 1), weight: .semibold))
+            .tracking(0.6)
+            .foregroundStyle(.tertiary)
+            .padding(.top, 4)
     }
 }
 
-struct EventRow: View {
+/// Font sizes that follow the "Stor tekst" setting.
+struct Sz {
+    static var k: CGFloat { Prefs.shared.panelLarge ? 1.18 : 1 }
+    static func f(_ base: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: base * k, weight: w) }
+    static func mono(_ base: CGFloat) -> Font { .system(size: base * k, weight: .regular, design: .monospaced) }
+}
+
+struct TimelineRow: View {
     let e: ViggoEvent
     let now: Date
+    var dividerAbove = false
     var body: some View {
-        let past = e.end < now
         let current = e.start <= now && e.end > now
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(DateUtil.hm(e.start))
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .frame(width: 40, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(e.title).font(.system(size: 13, weight: current ? .semibold : .regular)).lineLimit(1)
+        let past = e.end <= now
+        VStack(alignment: .leading, spacing: 4) {
+            if dividerAbove {
+                HStack(spacing: 6) {
+                    Rectangle().fill(.quaternary).frame(height: 1)
+                    Text("Efter skole").font(Sz.f(9, .medium)).foregroundStyle(.tertiary)
+                    Rectangle().fill(.quaternary).frame(height: 1)
+                }
+                .padding(.vertical, 2)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(DateUtil.hm(e.start))
+                    .font(Sz.mono(12))
+                    .foregroundStyle(current ? Color.accentColor : .secondary)
+                    .frame(width: 42 * Sz.k, alignment: .leading)
+                Text(e.shortTitle)
+                    .font(Sz.f(13, current ? .semibold : .regular))
+                    .lineLimit(1)
+                Spacer(minLength: 6)
                 if !e.room.isEmpty {
-                    Text(e.room).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    Text(e.room).font(Sz.f(11)).foregroundStyle(.tertiary).lineLimit(1)
                 }
             }
-            Spacer()
-            if current {
-                Text("NU").font(.system(size: 9, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.2), in: Capsule())
-            }
+            .opacity(past ? 0.35 : 1)
         }
-        .opacity(past ? 0.4 : 1)
         .contentShape(Rectangle())
     }
 }
 
-struct DayList: View {
-    let items: [ViggoEvent]
+struct NowCard: View {
+    let current: ViggoEvent?
+    let next: ViggoEvent?
     let now: Date
-    var empty = "Intet i dag 🎉"
+    let name: String?
+
+    private func mins(_ a: Date, _ b: Date) -> String {
+        let m = max(0, Int(b.timeIntervalSince(a) / 60.0 + 0.99))
+        return m >= 60 ? "\(m / 60) t \(m % 60) min" : "\(m) min"
+    }
+
     var body: some View {
-        if items.isEmpty {
-            Text(empty).font(.system(size: 12)).foregroundStyle(.secondary)
-        } else if items.count <= 7 {
-            VStack(alignment: .leading, spacing: 5) {
-                ForEach(items) { EventRow(e: $0, now: now) }
-            }
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(items) { EventRow(e: $0, now: now) }
+        VStack(alignment: .leading, spacing: 8) {
+            if let c = current {
+                Text(name.map { "\($0) har nu" } ?? "Nu").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(c.shortTitle).font(Sz.f(19, .bold)).lineLimit(1)
+                    Spacer()
+                    Text("\(mins(now, c.end)) tilbage").font(Sz.f(12, .medium)).foregroundStyle(.secondary)
                 }
-            }.frame(height: 230)
+                ProgressView(value: min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start)))))
+                    .progressViewStyle(.linear).tint(.accentColor)
+                HStack {
+                    if !c.room.isEmpty { Label(c.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
+                    Spacer()
+                    Text("\(DateUtil.hm(c.start))–\(DateUtil.hm(c.end))").font(Sz.mono(11)).foregroundStyle(.secondary)
+                }
+            } else if let n = next {
+                Text(name.map { "\($0) er fri" } ?? "Fri").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(n.shortTitle).font(Sz.f(19, .bold)).lineLimit(1)
+                    Spacer()
+                    Text("om \(mins(now, n.start))").font(Sz.f(12, .medium)).foregroundStyle(.secondary)
+                }
+                if !n.room.isEmpty { Label(n.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
+            } else {
+                Text(name.map { "\($0) har fri resten af dagen" } ?? "Fri resten af dagen 🎉").font(Sz.f(15, .semibold))
+            }
+            if current != nil, let n = next {
+                Divider().opacity(0.5)
+                HStack {
+                    Text("Næste").font(Sz.f(11)).foregroundStyle(.secondary)
+                    Text(n.shortTitle).font(Sz.f(12, .medium)).lineLimit(1)
+                    Spacer()
+                    Text(DateUtil.hm(n.start)).font(Sz.mono(12)).foregroundStyle(.secondary)
+                }
+            }
         }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.primary.opacity(0.06)))
     }
 }
 
@@ -98,14 +146,15 @@ struct PersonChip: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 Avatar(url: url, size: 30)
-                    .overlay(Circle().stroke(selected ? Color.accentColor : .clear, lineWidth: 2).padding(-2))
+                    .overlay(Circle().stroke(selected ? Color.accentColor : .clear, lineWidth: 2).padding(-2.5))
                     .opacity(expired ? 0.4 : 1)
                     .overlay(alignment: .topTrailing) {
                         if expired { Circle().fill(.orange).frame(width: 9, height: 9).overlay(Circle().stroke(.background, lineWidth: 1.5)) }
                     }
-                Text(label).font(.system(size: 10, weight: selected ? .semibold : .regular)).lineLimit(1)
+                Text(label).font(.system(size: 10, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? .primary : .secondary).lineLimit(1)
             }
             .frame(width: 48)
         }
@@ -117,33 +166,32 @@ struct PersonChip: View {
 
 struct MenuView: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
 
     var body: some View {
         let now = state.tick
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
                 if let prof = state.profile { Avatar(url: prof.image, size: 30) }
                 VStack(alignment: .leading, spacing: 0) {
                     Text(state.profile.map { "Hej \($0.name.components(separatedBy: " ").first ?? $0.name)" } ?? "Viggo+")
-                        .font(.system(size: 15, weight: .bold))
-                    Text(DateUtil.longDayF.string(from: now).capitalized).font(.system(size: 11)).foregroundStyle(.secondary)
+                        .font(Sz.f(15, .bold))
+                    Text(DateUtil.longDayF.string(from: now).capitalized).font(Sz.f(11)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if state.syncing { ProgressView().controlSize(.small) }
-                Button { Task { await state.sync() } } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.borderless).help("Synk nu")
             }
 
             if state.needsLogin {
                 HStack {
                     Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
-                    Text("Du er logget ud af Viggo").font(.system(size: 12))
+                    Text("Du er logget ud af Viggo").font(Sz.f(12))
                     Spacer()
                     Button("Log ind") { state.loginWithBrowser() }.buttonStyle(.borderedProminent).controlSize(.small)
                 }
             }
             if !state.status.isEmpty {
-                Text(state.status).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                Text(state.status).font(Sz.f(11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
 
             if !state.friends.isEmpty {
@@ -162,124 +210,118 @@ struct MenuView: View {
                 }
             }
 
-            Divider()
             if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) {
-                FriendPanel(friend: f, now: now)
+                if state.friendExpired.contains(f.id) {
+                    HStack {
+                        Text("\(f.firstName) skal logge ind igen").font(Sz.f(11)).foregroundStyle(.orange)
+                        Spacer()
+                        Button("Log ind igen") { state.addFriend(relogin: f) }.controlSize(.small)
+                    }
+                }
+                DayPanel(name: f.firstName, events: state.friendEvents[f.id] ?? [],
+                         homework: state.friendHomework[f.id] ?? [], now: now)
             } else {
-                MyPanel(now: now)
+                DayPanel(name: nil, events: state.events, homework: state.homework, now: now)
             }
 
-            Divider()
-            HStack {
+            HStack(spacing: 14) {
                 if let s = state.lastSync {
-                    Text("Synket \(DateUtil.hm(s))").font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text("Synket \(DateUtil.hm(s))").font(.system(size: 10)).foregroundStyle(.tertiary)
                 }
                 Spacer()
-                Button("Viggo") { state.openViggo() }.buttonStyle(.borderless)
-                Button("Indstillinger") { state.openSettings() }.buttonStyle(.borderless)
-                Button("Afslut") { NSApp.terminate(nil) }.buttonStyle(.borderless)
+                Button { Task { await state.sync() } } label: { Image(systemName: "arrow.clockwise") }.help("Synk nu")
+                Button { state.openViggo() } label: { Image(systemName: "safari") }.help("Åbn Viggo")
+                Button { state.openSettings() } label: { Image(systemName: "gearshape") }.help("Indstillinger")
+                Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }.help("Afslut")
             }
-            .font(.system(size: 11))
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .font(.system(size: 12))
+            .padding(.top, 2)
         }
-        .padding(12)
-        .frame(width: 320)
-    }
-}
-
-struct FriendPanel: View {
-    @EnvironmentObject var state: AppState
-    let friend: Friend
-    let now: Date
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if state.friendExpired.contains(friend.id) {
-                HStack {
-                    Text("\(friend.firstName)s login er udløbet").font(.system(size: 11)).foregroundStyle(.orange)
-                    Spacer()
-                    Button("Log ind igen") { state.addFriend(relogin: friend) }.controlSize(.small)
-                }
-            }
-            DayPanel(name: friend.firstName, events: state.friendEvents[friend.id] ?? [],
-                     homework: state.friendHomework[friend.id] ?? [], now: now, showMessages: false)
-        }
-    }
-}
-
-struct MyPanel: View {
-    @EnvironmentObject var state: AppState
-    let now: Date
-    var body: some View {
-        DayPanel(name: nil, events: state.events, homework: state.homework, now: now, showMessages: true)
+        .padding(14)
+        .frame(width: 320 * (p.panelLarge ? 1.12 : 1))
     }
 }
 
 /// Same layout for you and your friends.
 struct DayPanel: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
     let name: String?
     let events: [ViggoEvent]
     let homework: [Homework]
     let now: Date
-    let showMessages: Bool
 
     var body: some View {
-        let today = state.items(on: now, from: events)
-        let tomorrow = state.items(on: DateUtil.add(.day, 1, now), from: events)
-        let evening = state.afterSchool(now, from: events)
+        let isMe = name == nil
+        let all = state.timeline(now, from: isMe ? nil : events)
+        let current = all.first { $0.start <= now && $0.end > now }
+        let next = all.first { $0.start > now }
+        let shown = p.panelHidePast ? all.filter { $0.end > now } : all
+        let firstEvening = shown.first { $0.kind == .routine }?.id
+        let hasSchool = shown.contains { $0.kind != .routine }
         let hw = homework.filter { $0.day >= DateUtil.startOfDay(now) }
-        VStack(alignment: .leading, spacing: 6) {
-            SectionHeader(title: name.map { "\($0) i dag" } ?? "I dag")
-            DayList(items: today, now: now)
-            if let first = tomorrow.first {
-                Text("I morgen: \(first.title) kl. \(DateUtil.hm(first.start)) · \(tomorrow.count) punkter")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            if !evening.isEmpty {
-                SectionHeader(title: "Resten af dagen")
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(evening) { EventRow(e: $0, now: now) }
-                }
-            }
-            if name == nil, !state.dutyTonight.isEmpty {
-                Text("Aftenvagt: \(state.dutyTonight.joined(separator: ", "))")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+
+        VStack(alignment: .leading, spacing: 12) {
+            if p.panelNow {
+                NowCard(current: current, next: next, now: now, name: name)
             }
 
-            Divider()
-            SectionHeader(title: "Lektier og afleveringer")
-            if hw.isEmpty {
-                Text("Ingen lektier 🙌").font(.system(size: 12)).foregroundStyle(.secondary)
-            } else {
-                ForEach(hw.prefix(5)) { h in
-                    HStack(spacing: 8) {
-                        Image(systemName: h.done ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(h.done ? .green : .secondary)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(h.title).font(.system(size: 13)).strikethrough(h.done).lineLimit(1)
-                            Text("\(DateUtil.day(h.due))\(h.group.isEmpty ? "" : " · \(h.group)")")
-                                .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                        Spacer()
+            if p.panelTimeline, !shown.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    SectionHeader(title: name.map { "\($0)s dag" } ?? "Resten af dagen")
+                    ForEach(shown) { e in
+                        TimelineRow(e: e, now: now, dividerAbove: hasSchool && e.id == firstEvening)
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { if name == nil { NSWorkspace.shared.open(h.link) } }
                 }
             }
 
-            if showMessages {
-                Divider()
-                SectionHeader(title: "Seneste beskeder")
-                if state.messages.isEmpty {
-                    Text("Ingen beskeder").font(.system(size: 12)).foregroundStyle(.secondary)
-                } else {
-                    ForEach(state.messages.prefix(3)) { m in
+            if p.panelTomorrow, let (first, count) = state.tomorrowFirst(now, from: isMe ? nil : events) {
+                HStack {
+                    Image(systemName: "sunrise").foregroundStyle(.secondary)
+                    Text("I morgen: \(first.shortTitle) kl. \(DateUtil.hm(first.start))").font(Sz.f(12))
+                    Spacer()
+                    Text("\(count) punkter").font(Sz.f(11)).foregroundStyle(.tertiary)
+                }
+            }
+
+            if isMe, p.panelDuty, !state.dutyTonight.isEmpty {
+                HStack(alignment: .top) {
+                    Image(systemName: "person.badge.shield.checkmark").foregroundStyle(.secondary)
+                    Text("Aftenvagt: \(state.dutyTonight.joined(separator: ", "))").font(Sz.f(12))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if p.panelHomework, !hw.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    SectionHeader(title: "Lektier")
+                    ForEach(hw.prefix(5)) { h in
+                        HStack(spacing: 8) {
+                            Image(systemName: h.done ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(h.done ? .green : .secondary)
+                            Text(h.title).font(Sz.f(13)).strikethrough(h.done).lineLimit(1)
+                            Spacer()
+                            Text(DateUtil.day(h.due)).font(Sz.f(11)).foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture { if isMe { NSWorkspace.shared.open(h.link) } }
+                    }
+                }
+            }
+
+            if isMe, p.panelMessages, !state.messages.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    SectionHeader(title: "Beskeder")
+                    ForEach(state.messages.prefix(p.panelMsgCount)) { m in
                         VStack(alignment: .leading, spacing: 1) {
                             HStack {
-                                Text(m.sender).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                                Text(m.sender).font(Sz.f(12, .semibold)).lineLimit(1)
                                 Spacer()
-                                Text(m.when).font(.system(size: 10)).foregroundStyle(.secondary)
+                                Text(m.when).font(Sz.f(10)).foregroundStyle(.tertiary)
                             }
-                            Text(m.subject).font(.system(size: 12)).lineLimit(1)
+                            Text(m.subject).font(Sz.f(12)).foregroundStyle(.secondary).lineLimit(1)
                         }
                         .contentShape(Rectangle())
                         .onTapGesture { state.openViggo(m.link) }
@@ -293,11 +335,12 @@ struct DayPanel: View {
 // MARK: - Settings (tabs)
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case konto = "Konto", menubar = "Menubar", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
+    case konto = "Konto", panel = "Panel", menubar = "Menubar", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .konto: return "person.fill"
+        case .panel: return "rectangle.grid.1x2.fill"
         case .menubar: return "menubar.rectangle"
         case .kalender: return "calendar"
         case .notifikationer: return "bell.badge.fill"
@@ -307,6 +350,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .konto: return .gray
+        case .panel: return .teal
         case .menubar: return .indigo
         case .kalender: return .orange
         case .notifikationer: return .red
@@ -359,6 +403,7 @@ struct SettingsView: View {
             Group {
                 switch page ?? .konto {
                 case .konto: AccountTab()
+                case .panel: PanelTab()
                 case .menubar: MenubarTab()
                 case .kalender: CalendarTab()
                 case .notifikationer: NotificationsTab()
@@ -402,6 +447,34 @@ struct AccountTab: View {
                         Text(state.loginMessage).font(.caption)
                     }
                 }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct PanelTab: View {
+    @ObservedObject var p = Prefs.shared
+    var body: some View {
+        Form {
+            Section("Vis i panelet") {
+                Toggle("Nu-kort (hvad sker der lige nu)", isOn: $p.panelNow)
+                Toggle("Resten af dagen", isOn: $p.panelTimeline)
+                Toggle("I morgen", isOn: $p.panelTomorrow)
+                Toggle("Lektier", isOn: $p.panelHomework)
+                Toggle("Aftenvagt", isOn: $p.panelDuty)
+                Toggle("Beskeder", isOn: $p.panelMessages)
+                if p.panelMessages {
+                    Stepper("Antal beskeder: \(p.panelMsgCount)", value: $p.panelMsgCount, in: 1...5)
+                }
+            }
+            Section("Udseende") {
+                Toggle("Skjul det der er overstået", isOn: $p.panelHidePast)
+                Toggle("Stor tekst", isOn: $p.panelLarge)
+            }
+            Section {
+                Text("Hvilke hverdags-punkter (aftensmad, godnat …) der vises, vælger du under Menubar.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

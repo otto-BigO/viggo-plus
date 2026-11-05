@@ -10,6 +10,15 @@ final class Prefs: ObservableObject {
     @Published var loginDays: Int { didSet { d.set(loginDays, forKey: "loginDays") } }
     @Published var mainLoginUntil: Date? { didSet { d.set(mainLoginUntil, forKey: "mainLoginUntil") } }
     @Published var useTouchID: Bool { didSet { d.set(useTouchID, forKey: "useTouchID") } }
+    @Published var panelNow: Bool { didSet { d.set(panelNow, forKey: "panelNow") } }
+    @Published var panelTimeline: Bool { didSet { d.set(panelTimeline, forKey: "panelTimeline") } }
+    @Published var panelTomorrow: Bool { didSet { d.set(panelTomorrow, forKey: "panelTomorrow") } }
+    @Published var panelDuty: Bool { didSet { d.set(panelDuty, forKey: "panelDuty") } }
+    @Published var panelHomework: Bool { didSet { d.set(panelHomework, forKey: "panelHomework") } }
+    @Published var panelMessages: Bool { didSet { d.set(panelMessages, forKey: "panelMessages") } }
+    @Published var panelHidePast: Bool { didSet { d.set(panelHidePast, forKey: "panelHidePast") } }
+    @Published var panelLarge: Bool { didSet { d.set(panelLarge, forKey: "panelLarge") } }
+    @Published var panelMsgCount: Int { didSet { d.set(panelMsgCount, forKey: "panelMsgCount") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
     @Published var importSchedule: Bool { didSet { d.set(importSchedule, forKey: "importSchedule") } }
     @Published var importHomework: Bool { didSet { d.set(importHomework, forKey: "importHomework") } }
@@ -30,7 +39,7 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "useTouchID": true, "loginDays": 30, "imported": false, "importSchedule": true, "importHomework": true,
+            "useTouchID": true, "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "loginDays": 30, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
@@ -41,6 +50,15 @@ final class Prefs: ObservableObject {
         useTouchID = d.bool(forKey: "useTouchID")
         loginDays = d.integer(forKey: "loginDays")
         mainLoginUntil = d.object(forKey: "mainLoginUntil") as? Date
+        panelNow = d.bool(forKey: "panelNow")
+        panelTimeline = d.bool(forKey: "panelTimeline")
+        panelTomorrow = d.bool(forKey: "panelTomorrow")
+        panelDuty = d.bool(forKey: "panelDuty")
+        panelHomework = d.bool(forKey: "panelHomework")
+        panelMessages = d.bool(forKey: "panelMessages")
+        panelHidePast = d.bool(forKey: "panelHidePast")
+        panelLarge = d.bool(forKey: "panelLarge")
+        panelMsgCount = d.integer(forKey: "panelMsgCount")
         imported = d.bool(forKey: "imported")
         importSchedule = d.bool(forKey: "importSchedule")
         importHomework = d.bool(forKey: "importHomework")

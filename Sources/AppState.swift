@@ -351,6 +351,24 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Today's lessons/events plus the everyday items after school, as one list.
+    func timeline(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
+        let all = list ?? events
+        let school = all.filter { ($0.kind == .lesson || $0.kind == .event) && visibleOrFriend($0, list != nil)
+            && DateUtil.cal.isDate($0.start, inSameDayAs: now) }
+        let lastEnd = school.map(\.end).max() ?? DateUtil.startOfDay(now)
+        let evening = all.filter { $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now)
+            && $0.start >= lastEnd && inMenubar($0.title) }
+        return (school + evening).sorted { $0.start < $1.start }
+    }
+
+    private func visibleOrFriend(_ e: ViggoEvent, _ friend: Bool) -> Bool { friend || visible(e) }
+
+    func tomorrowFirst(_ now: Date, from list: [ViggoEvent]? = nil) -> (ViggoEvent, Int)? {
+        let t = items(on: DateUtil.add(.day, 1, now), from: list)
+        return t.first.map { ($0, t.count) }
+    }
+
     var menuTitle: String {
         let now = tick
         let today = items(on: now).filter { $0.kind == .lesson || $0.kind == .event }
