@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key><string>com.ottobigo.ViggoPlus</string>
+    <key>CFBundleName</key><string>Viggo+</string>
+    <key>CFBundleDisplayName</key><string>Viggo+</string>
+    <key>CFBundleExecutable</key><string>ViggoPlus</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.1</string>
+    <key>CFBundleVersion</key><string>1</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSUIElement</key><true/>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>Viggo+ lægger dit skema, dine lektier og begivenheder ind i Apple Kalender.</string>
+    <key>NSCalendarsUsageDescription</key><string>Viggo+ lægger dit skema, dine lektier og begivenheder ind i Apple Kalender.</string>
+</dict>
+</plist>
