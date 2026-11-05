@@ -143,9 +143,15 @@ final class AppState: ObservableObject {
 
     func loginWithBrowser() {
         loginMessage = "Log ind i vinduet…"
-        webLogin.show { [weak self] cookies in
+        webLogin.show { [weak self] cookies, creds in
             guard let self else { return }
             cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
+            if let creds {
+                self.prefs.username = creds.username
+                Keychain.save(creds.password, account: creds.username)
+                self.prefs.hasPassword = true
+                self.password = creds.password
+            }
             self.needsLogin = false
             self.expiryNotified = false
             self.loginMessage = "Logget ind via Viggo ✓"
@@ -227,8 +233,18 @@ final class AppState: ObservableObject {
         let login = WebLogin()
         friendLogin = login
         friendMessage = existing == nil ? "Lad din ven logge ind i vinduet…" : "Lad \(existing!.firstName) logge ind igen…"
-        login.show(store: .nonPersistent(), title: existing.map { "\($0.firstName): log ind på Viggo" } ?? "Ven: log ind på Viggo") { [weak self] cookies in
-            Task { await self?.finishFriend(cookies: cookies) }
+        login.show(store: .nonPersistent(), title: existing.map { "\($0.firstName): log ind på Viggo" } ?? "Ven: log ind på Viggo") { [weak self] cookies, creds in
+            Task {
+                guard let self, var f = await self.finishFriend(cookies: cookies) else { return }
+                guard let creds else { return }   // UNI-Login: nothing to save
+                guard await self.unlockVault("gemme \(f.firstName)s login i nøgleringen") else { return }
+                Keychain.save(creds.password, account: f.keychainAccount)
+                f.savedUsername = creds.username
+                f.loginVerified = true
+                if let i = self.friends.firstIndex(where: { $0.id == f.id }) { self.friends[i] = f }
+                self.saveFriends()
+                self.friendMessage = "\(f.firstName) er tilføjet ✓ Login gemt i nøgleringen"
+            }
         }
     }
 
