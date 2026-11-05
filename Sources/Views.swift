@@ -568,6 +568,7 @@ struct NotificationsTab: View {
 struct FriendsTab: View {
     @EnvironmentObject var state: AppState
     @State private var editing: Friend?
+    @State private var adding = false
 
     var body: some View {
         Form {
@@ -616,7 +617,7 @@ struct FriendsTab: View {
                 }
             }
             Section {
-                Button("Tilføj ven…") { state.addFriend() }.buttonStyle(.borderedProminent)
+                Button("Tilføj ven…") { state.friendMessage = ""; adding = true }.buttonStyle(.borderedProminent)
                 Text("Din ven logger selv ind i et privat vindue. Kun skema og lektier hentes, og det bliver på din Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 if !state.friendMessage.isEmpty {
@@ -626,6 +627,7 @@ struct FriendsTab: View {
         }
         .formStyle(.grouped)
         .sheet(item: $editing) { f in FriendLoginSheet(friend: f) }
+        .sheet(isPresented: $adding) { AddFriendSheet() }
     }
 }
 
@@ -673,5 +675,64 @@ struct FriendLoginSheet: View {
         }
         .padding(20)
         .frame(width: 360)
+    }
+}
+
+struct AddFriendSheet: View {
+    @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var username = ""
+    @State private var password = ""
+    @State private var remember = true
+    @State private var working = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Tilføj ven").font(.title3.bold())
+            Text("Lad din ven selv logge ind. Kun skema og lektier hentes, og det bliver på din Mac.")
+                .font(.caption).foregroundStyle(.secondary)
+
+            GroupBox {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("UNI-Login eller adgangskode", systemImage: "globe").font(.headline)
+                    Text("Åbner Viggos egen login-side i et privat vindue.").font(.caption).foregroundStyle(.secondary)
+                    Button("Åbn Viggo-login…") { dismiss(); state.addFriend() }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(4)
+            }
+
+            GroupBox {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("SkoleIT-login", systemImage: "person.badge.key").font(.headline)
+                    TextField("Brugernavn", text: $username).textFieldStyle(.roundedBorder)
+                    if !username.isEmpty {
+                        Text("Logger ind som \(AppState.normalize(username))").font(.caption).foregroundStyle(.secondary)
+                    }
+                    SecureField("Adgangskode", text: $password).textFieldStyle(.roundedBorder)
+                    Toggle("Gem i nøgleringen (Touch ID) og log selv ind igen", isOn: $remember)
+                    HStack {
+                        if working { ProgressView().controlSize(.small) }
+                        Text(state.friendMessage).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Spacer()
+                        Button("Tilføj") {
+                            working = true
+                            Task {
+                                let ok = await state.addFriendWithPassword(username: username, password: password, remember: remember)
+                                working = false
+                                if ok { password = ""; dismiss() }
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(username.isEmpty || password.isEmpty || working)
+                    }
+                }
+                .padding(4)
+            }
+
+            HStack { Spacer(); Button("Annuller") { dismiss() } }
+        }
+        .padding(20)
+        .frame(width: 400)
     }
 }

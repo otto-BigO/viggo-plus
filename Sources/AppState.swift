@@ -225,12 +225,13 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func finishFriend(cookies: [HTTPCookie]) async {
+    @discardableResult
+    private func finishFriend(cookies: [HTTPCookie], client given: ViggoClient? = nil) async -> Friend? {
         friendLogin = nil
-        let client = ViggoClient(cookies: cookies)
+        let client = given ?? ViggoClient(cookies: cookies)
         do {
             let prof = try await client.fetchProfile()
-            if prof.id == profile?.id { friendMessage = "Det er din egen konto 🙂"; return }
+            if prof.id == profile?.id { friendMessage = "Det er din egen konto 🙂"; return nil }
             var f = friends.first { $0.viggoID == prof.id } ?? Friend(id: UUID(), viggoID: prof.id, name: prof.name, image: prof.image)
             f.name = prof.name
             f.image = prof.image
@@ -241,9 +242,33 @@ final class AppState: ObservableObject {
             CookieJar.write(client.cookies, to: CookieJar.friendURL(f.id))
             friendExpired.remove(f.id)
             friendMessage = "\(f.firstName) er tilføjet ✓"
+            return f
         } catch {
             friendMessage = "Kunne ikke tilføje: \(error.localizedDescription)"
+            return nil
         }
+    }
+
+    /// Add a friend with their SkoleIT / Viggo username and password.
+    func addFriendWithPassword(username raw: String, password pw: String, remember: Bool) async -> Bool {
+        let username = AppState.normalize(raw)
+        friendMessage = "Logger ind…"
+        let client = ViggoClient(cookies: [])
+        do {
+            try await client.login(username: username, password: pw)
+        } catch {
+            friendMessage = error.localizedDescription
+            return false
+        }
+        guard var f = await finishFriend(cookies: [], client: client) else { return false }
+        if remember, await unlockVault("gemme \(f.firstName)s login i nøgleringen") {
+            Keychain.save(pw, account: f.keychainAccount)
+            f.savedUsername = username
+            f.loginVerified = true
+            if let i = friends.firstIndex(where: { $0.id == f.id }) { friends[i] = f }
+            saveFriends()
+        }
+        return true
     }
 
     /// The friend types their own SkoleIT login so Viggo+ can log them in again by itself.
