@@ -3,6 +3,7 @@ import AppKit
 import SwiftUI
 import EventKit
 import WebKit
+import ServiceManagement
 
 @MainActor
 final class AppState: ObservableObject {
@@ -24,6 +25,9 @@ final class AppState: ObservableObject {
     @Published var friendHomework: [UUID: [Homework]] = [:]
     @Published var friendMessage = ""
     @Published var selectedFriend: UUID?
+    @Published var unreadCount = 0
+    @Published var questionnaireCount = 0
+    private var focusActive: Bool?
     private var friendLogin: WebLogin?
 
     /// Saved passwords are no longer used (SkoleIT/UNI-Login can't take them). Remove any left over.
@@ -61,6 +65,7 @@ final class AppState: ObservableObject {
 
     func start() async {
         Notifier.shared.setup()
+        try? FileManager.default.removeItem(at: CookieJar.dir.appendingPathComponent("login.log"))
         CookieJar.restore()
         loadFriends()
         purgeSavedPasswords()
@@ -81,6 +86,7 @@ final class AppState: ObservableObject {
 
     private func onTick() {
         tick = Date()
+        updateFocus()
         if Date().timeIntervalSince(lastAttempt) >= Config.pollInterval {
             Task { await sync() }
         } else if Date().timeIntervalSince(lastPing) >= 4 * 60 {
@@ -182,6 +188,7 @@ final class AppState: ObservableObject {
             homework = hw
             messages = msg
             if let p = c.profile { profile = p }
+            if let n = try? await c.fetchCounts() { unreadCount = n.unread; questionnaireCount = n.questionnaires }
             needsLogin = false
             if prefs.imported { applyCalendar() }
             Task { await syncFriends() }
@@ -367,6 +374,75 @@ final class AppState: ObservableObject {
     func tomorrowFirst(_ now: Date, from list: [ViggoEvent]? = nil) -> (ViggoEvent, Int)? {
         let t = items(on: DateUtil.add(.day, 1, now), from: list)
         return t.first.map { ($0, t.count) }
+    }
+
+    // MARK: homework, badge, free together, focus, login item
+
+    func toggleHomework(_ h: Homework) {
+        guard let i = homework.firstIndex(where: { $0.id == h.id }) else { return }
+        let newValue = !homework[i].done
+        homework[i].done = newValue
+        Task {
+            do {
+                try await client.setHomework(h.id, done: newValue)
+                if prefs.imported { applyCalendar() }
+            } catch {
+                if let j = homework.firstIndex(where: { $0.id == h.id }) { homework[j].done = !newValue }
+                status = "Kunne ikke gemme lektie: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    var badgeCount: Int { prefs.menubarBadge ? unreadCount + questionnaireCount : 0 }
+
+    /// Gaps today where neither you nor the friend has a lesson or event (from now until 18:00).
+    func freeTogether(with friendEvents: [ViggoEvent], now: Date) -> [(Date, Date)] {
+        let dayStart = DateUtil.cal.date(bySettingHour: 8, minute: 0, second: 0, of: now)!
+        let dayEnd = DateUtil.cal.date(bySettingHour: 18, minute: 0, second: 0, of: now)!
+        let from = max(now, dayStart)
+        guard from < dayEnd else { return [] }
+        func busy(_ list: [ViggoEvent], mine: Bool) -> [(Date, Date)] {
+            list.filter { ($0.kind == .lesson || $0.kind == .event) && (!mine || visible($0))
+                && DateUtil.cal.isDate($0.start, inSameDayAs: now) && $0.end > from && $0.start < dayEnd }
+                .map { (max($0.start, from), min($0.end, dayEnd)) }
+        }
+        let all = (busy(events, mine: true) + busy(friendEvents, mine: false)).sorted { $0.0 < $1.0 }
+        var gaps: [(Date, Date)] = []
+        var cursor = from
+        for (s, e) in all {
+            if s > cursor, s.timeIntervalSince(cursor) >= 15 * 60 { gaps.append((cursor, s)) }
+            cursor = max(cursor, e)
+        }
+        if dayEnd.timeIntervalSince(cursor) >= 15 * 60 { gaps.append((cursor, dayEnd)) }
+        return gaps
+    }
+
+    /// Runs your "focus on/off" Shortcuts when a lesson starts and ends.
+    private func updateFocus() {
+        guard prefs.focusEnabled else { focusActive = nil; return }
+        let now = Date()
+        let inLesson = events.contains { $0.kind == .lesson && $0.start <= now && $0.end > now }
+        defer { focusActive = inLesson }
+        guard let was = focusActive, was != inLesson else { return }
+        runShortcut(inLesson ? prefs.focusOnShortcut : prefs.focusOffShortcut)
+    }
+
+    func runShortcut(_ name: String) {
+        guard !name.isEmpty else { return }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+        p.arguments = ["run", name]
+        try? p.run()
+    }
+
+    var launchAtLogin: Bool {
+        get { SMAppService.mainApp.status == .enabled }
+        set {
+            do {
+                if newValue { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            } catch { status = "Start ved login: \(error.localizedDescription)" }
+            objectWillChange.send()
+        }
     }
 
     var menuTitle: String {

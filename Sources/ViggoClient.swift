@@ -18,19 +18,6 @@ final class ViggoClient {
 
     var cookies: [HTTPCookie] { session.configuration.httpCookieStorage?.cookies ?? [] }
 
-    var tag = "main"
-
-    func diagnose() async -> String {
-        let req = URLRequest(url: URL(string: "/Basic/HomeworkAndAssignment", relativeTo: base)!.absoluteURL)
-        do {
-            let (data, resp) = try await session.data(for: req)
-            let html = String(decoding: data, as: UTF8.self)
-            let who = Parser.profile(html).map { "\($0.id) \($0.name)" } ?? "no-profile"
-            let names = cookies.map { "\($0.name)" }.sorted().joined(separator: ",")
-            return "[\(tag)] \((resp as? HTTPURLResponse)?.statusCode ?? 0) \(resp.url?.path ?? "?") \(who) cookies=\(names)"
-        } catch { return "[\(tag)] error \(error)" }
-    }
-
     /// Keeps the server session alive.
     func ping() async throws { _ = try await get("/Basic/Ping") }
 
@@ -51,10 +38,6 @@ final class ViggoClient {
     private func get(_ path: String) async throws -> Data {
         let req = URLRequest(url: URL(string: path, relativeTo: base)!.absoluteURL)
         let (data, resp) = try await session.data(for: req)
-        let code0 = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        if code0 >= 300 || resp.url?.path.lowercased().contains("/account") == true {
-            log("[\(tag)] GET \(path) -> \(code0) \(resp.url?.path ?? "?")")
-        }
         if let u = resp.url, u.path.lowercased().contains("/account") { throw ViggoError.notLoggedIn }
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(code) else { throw ViggoError.unexpected("HTTP \(code)") }
@@ -68,33 +51,25 @@ final class ViggoClient {
         }.joined(separator: "&").data(using: .utf8)!
     }
 
-    static var logURL: URL { Snapshot.url.deletingLastPathComponent().appendingPathComponent("login.log") }
-    private func log(_ line: String) {
-        let l = "\(Date()) \(line)\n"
-        if let h = try? FileHandle(forWritingTo: ViggoClient.logURL) { h.seekToEndOfFile(); h.write(Data(l.utf8)); try? h.close() }
-        else { try? l.write(to: ViggoClient.logURL, atomically: true, encoding: .utf8) }
+    /// Unread messages and questionnaires waiting for you.
+    func fetchCounts() async throws -> (unread: Int, questionnaires: Int) {
+        let w = String(decoding: try await get("/Basic/Message/HomeWidget?show=20&ajax=1"), as: UTF8.self)
+        let unread = Set(w.matches("Message/Details/(?:\\d+/)?(\\d+)").map { $0[1] }).count
+        let home = String(decoding: try await get("/"), as: UTF8.self)
+        let q = home.firstMatch("Du har (\\d+) spørgeskema").flatMap { Int($0[1]) } ?? 0
+        return (unread, q)
     }
 
-    /// Same login as the account page: the app's own fingerprint first (the one that worked),
-    /// then the page's fingerprint as a fallback.
-    func login(username: String, password: String) async throws {
-        let loginURL = URL(string: "/Basic/Account/Login", relativeTo: base)!.absoluteURL
-        let (pageData, _) = try await session.data(from: loginURL)
-        let pageFP = String(decoding: pageData, as: UTF8.self)
-            .matches("name=\"fingerprint\" value=\"([^\"]+)\"").last?[1]
-        var lastNotice: String?
-        for fp in [fingerprint, pageFP].compactMap({ $0 }) {
-            var req = URLRequest(url: loginURL)
-            req.httpMethod = "POST"
-            req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-            req.httpBody = form(["UserName": username, "Password": password, "returnUrl": "", "fingerprint": fp])
-            let (data, resp) = try await session.data(for: req)
-            let html = String(decoding: data, as: UTF8.self)
-            lastNotice = html.firstMatch("notice\\('(?:warning|error)',\\s*\"([^\"]+)\"")?[1].trimmingCharacters(in: .whitespaces)
-            log("login user=\(username) fp=\(fp == fingerprint ? "app" : "page") final=\(resp.url?.path ?? "?") notice=\(lastNotice ?? "-")")
-            if (try? await get("/Basic/HomeworkAndAssignment")) != nil { log("login ok"); return }
-        }
-        throw lastNotice.map { ViggoError.unexpected($0) } ?? ViggoError.badCredentials
+    /// Same as ticking "Gennemført" on Viggo.
+    func setHomework(_ id: Int, done: Bool) async throws {
+        var req = URLRequest(url: URL(string: "/Basic/HomeworkAndAssignment/SaveStatusChange/\(id)?status=\(done ? 1 : 0)",
+                                      relativeTo: base)!.absoluteURL)
+        req.httpMethod = "PUT"
+        req.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+        let (_, resp) = try await session.data(for: req)
+        if let u = resp.url, u.path.lowercased().contains("/account") { throw ViggoError.notLoggedIn }
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(code) else { throw ViggoError.unexpected("HTTP \(code)") }
     }
 
     func fetchEvents(weeksBack: Int = Config.weeksBack, weeksAhead: Int = Config.weeksAhead) async throws -> [ViggoEvent] {

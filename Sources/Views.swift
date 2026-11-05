@@ -9,8 +9,9 @@ struct ViggoPlusApp: App {
             MenuView().environmentObject(state)
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: "graduationcap.fill")
-                if !state.menuTitle.isEmpty { Text(state.menuTitle) }
+                Image(systemName: state.badgeCount > 0 ? "graduationcap.circle.fill" : "graduationcap.fill")
+                let badge = state.badgeCount > 0 ? "  ✉︎ \(state.badgeCount)" : ""
+                if !state.menuTitle.isEmpty || !badge.isEmpty { Text(state.menuTitle + badge) }
             }
         }
         .menuBarExtraStyle(.window)
@@ -54,6 +55,7 @@ struct TimelineRow: View {
     let e: ViggoEvent
     let now: Date
     var dividerAbove = false
+    var tappable = true
     var body: some View {
         let current = e.start <= now && e.end > now
         let past = e.end <= now
@@ -82,6 +84,8 @@ struct TimelineRow: View {
             .opacity(past ? 0.35 : 1)
         }
         .contentShape(Rectangle())
+        .onTapGesture { if tappable { NSWorkspace.shared.open(e.link) } }
+        .help(tappable ? "Åbn i Viggo" : "")
     }
 }
 
@@ -268,11 +272,28 @@ struct DayPanel: View {
                 NowCard(current: current, next: next, now: now, name: name)
             }
 
+            if let name, p.friendsFreeTogether {
+                let gaps = state.freeTogether(with: events, now: now)
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "person.2.fill").foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Fri sammen med \(name)").font(Sz.f(12, .semibold))
+                        Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen"
+                             : gaps.map { "\(DateUtil.hm($0.0))–\(DateUtil.hm($0.1))" }.joined(separator: " · "))
+                            .font(Sz.mono(11)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.green.opacity(0.08)))
+            }
+
             if p.panelTimeline, !shown.isEmpty {
                 VStack(alignment: .leading, spacing: 7) {
                     SectionHeader(title: name.map { "\($0)s dag" } ?? "Resten af dagen")
                     ForEach(shown) { e in
-                        TimelineRow(e: e, now: now, dividerAbove: hasSchool && e.id == firstEvening)
+                        TimelineRow(e: e, now: now, dividerAbove: hasSchool && e.id == firstEvening, tappable: isMe)
                     }
                 }
             }
@@ -299,16 +320,35 @@ struct DayPanel: View {
                     SectionHeader(title: "Lektier")
                     ForEach(hw.prefix(5)) { h in
                         HStack(spacing: 8) {
-                            Image(systemName: h.done ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(h.done ? .green : .secondary)
-                            Text(h.title).font(Sz.f(13)).strikethrough(h.done).lineLimit(1)
+                            Button {
+                                if isMe && p.panelHomeworkTick { state.toggleHomework(h) }
+                            } label: {
+                                Image(systemName: h.done ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(h.done ? .green : .secondary)
+                                    .font(Sz.f(14))
+                            }
+                            .buttonStyle(.plain)
+                            .help(isMe && p.panelHomeworkTick ? (h.done ? "Markér som ikke færdig" : "Markér som færdig") : "")
+                            Text(h.title).font(Sz.f(13)).strikethrough(h.done).foregroundStyle(h.done ? .secondary : .primary).lineLimit(1)
+                                .onTapGesture { if isMe { NSWorkspace.shared.open(h.link) } }
                             Spacer()
                             Text(DateUtil.day(h.due)).font(Sz.f(11)).foregroundStyle(.tertiary)
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture { if isMe { NSWorkspace.shared.open(h.link) } }
                     }
                 }
+            }
+
+            if isMe, state.questionnaireCount > 0 {
+                Button { state.openViggo(URL(string: "/Shared/Questionnaire/Questionnaires", relativeTo: Config.baseURL)!.absoluteURL) } label: {
+                    HStack {
+                        Image(systemName: "list.clipboard.fill").foregroundStyle(.orange)
+                        Text("\(state.questionnaireCount) spørgeskema\(state.questionnaireCount == 1 ? "" : "er") venter på dig").font(Sz.f(12))
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
 
             if isMe, p.panelMessages, !state.messages.isEmpty {
@@ -335,11 +375,12 @@ struct DayPanel: View {
 // MARK: - Settings (tabs)
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case konto = "Konto", panel = "Panel", menubar = "Menubar", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
+    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .konto: return "person.fill"
+        case .generelt: return "gearshape.fill"
         case .panel: return "rectangle.grid.1x2.fill"
         case .menubar: return "menubar.rectangle"
         case .kalender: return "calendar"
@@ -349,7 +390,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     }
     var color: Color {
         switch self {
-        case .konto: return .gray
+        case .konto: return .blue
+        case .generelt: return .gray
         case .panel: return .teal
         case .menubar: return .indigo
         case .kalender: return .orange
@@ -403,6 +445,7 @@ struct SettingsView: View {
             Group {
                 switch page ?? .konto {
                 case .konto: AccountTab()
+                case .generelt: GeneralTab()
                 case .panel: PanelTab()
                 case .menubar: MenubarTab()
                 case .kalender: CalendarTab()
@@ -453,6 +496,34 @@ struct AccountTab: View {
     }
 }
 
+struct GeneralTab: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Start Viggo+ når Mac'en starter", isOn: Binding(get: { state.launchAtLogin },
+                                                                       set: { state.launchAtLogin = $0 }))
+                Toggle("Vis antal ulæste beskeder og spørgeskemaer i menubaren", isOn: $p.menubarBadge)
+            }
+            Section("Fokus i timerne") {
+                Toggle("Slå fokus til når en time starter, og fra når den slutter", isOn: $p.focusEnabled)
+                TextField("Genvej når timen starter", text: $p.focusOnShortcut)
+                TextField("Genvej når timen slutter", text: $p.focusOffShortcut)
+                HStack {
+                    Button("Test start") { state.runShortcut(p.focusOnShortcut) }
+                    Button("Test slut") { state.runShortcut(p.focusOffShortcut) }
+                    Spacer()
+                    Button("Åbn Genveje") { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app")) }
+                }
+                Text("macOS lader ikke apps slå fokus til direkte. Lav to genveje i Genveje-appen med handlingen \"Indstil fokus\" (fx Forstyr ikke til og fra), og giv dem navnene ovenfor.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
 struct PanelTab: View {
     @ObservedObject var p = Prefs.shared
     var body: some View {
@@ -462,6 +533,9 @@ struct PanelTab: View {
                 Toggle("Resten af dagen", isOn: $p.panelTimeline)
                 Toggle("I morgen", isOn: $p.panelTomorrow)
                 Toggle("Lektier", isOn: $p.panelHomework)
+                if p.panelHomework {
+                    Toggle("Afkryds lektier direkte i panelet", isOn: $p.panelHomeworkTick)
+                }
                 Toggle("Aftenvagt", isOn: $p.panelDuty)
                 Toggle("Beskeder", isOn: $p.panelMessages)
                 if p.panelMessages {
@@ -616,6 +690,7 @@ struct NotificationsTab: View {
 
 struct FriendsTab: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
 
     var body: some View {
         Form {
@@ -640,6 +715,9 @@ struct FriendsTab: View {
                             .buttonStyle(.borderless)
                     }
                 }
+            }
+            Section {
+                Toggle("Vis hvornår I har fri samtidig", isOn: $p.friendsFreeTogether)
             }
             Section {
                 Button("Tilføj ven…") { state.addFriend() }.buttonStyle(.borderedProminent)

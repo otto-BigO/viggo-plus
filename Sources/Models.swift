@@ -16,6 +16,7 @@ struct ViggoEvent: Codable, Hashable, Identifiable {
     var key: String { "\(kind.rawValue)-\(id)" }
     var title: String {
         let t = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.uppercased().hasPrefix("BE10") { return "BE10 · Projekt" }
         if kind == .lesson, let m = t.firstMatch("^\\d+\\s+(.+)$") { return m[1] }
         return t
     }
@@ -43,7 +44,7 @@ struct Homework: Codable, Hashable, Identifiable {
     let end: Date?
     let notes: String
     let author: String
-    let done: Bool
+    var done: Bool
 
     var due: Date { start ?? day }
     var link: URL { URL(string: "/Basic/HomeworkAndAssignment/Details/\(id)/", relativeTo: Config.baseURL)!.absoluteURL }

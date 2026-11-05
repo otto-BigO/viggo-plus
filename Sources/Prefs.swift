@@ -19,6 +19,12 @@ final class Prefs: ObservableObject {
     @Published var panelHidePast: Bool { didSet { d.set(panelHidePast, forKey: "panelHidePast") } }
     @Published var panelLarge: Bool { didSet { d.set(panelLarge, forKey: "panelLarge") } }
     @Published var panelMsgCount: Int { didSet { d.set(panelMsgCount, forKey: "panelMsgCount") } }
+    @Published var menubarBadge: Bool { didSet { d.set(menubarBadge, forKey: "menubarBadge") } }
+    @Published var panelHomeworkTick: Bool { didSet { d.set(panelHomeworkTick, forKey: "panelHomeworkTick") } }
+    @Published var friendsFreeTogether: Bool { didSet { d.set(friendsFreeTogether, forKey: "friendsFreeTogether") } }
+    @Published var focusEnabled: Bool { didSet { d.set(focusEnabled, forKey: "focusEnabled") } }
+    @Published var focusOnShortcut: String { didSet { d.set(focusOnShortcut, forKey: "focusOnShortcut") } }
+    @Published var focusOffShortcut: String { didSet { d.set(focusOffShortcut, forKey: "focusOffShortcut") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
     @Published var importSchedule: Bool { didSet { d.set(importSchedule, forKey: "importSchedule") } }
     @Published var importHomework: Bool { didSet { d.set(importHomework, forKey: "importHomework") } }
@@ -39,7 +45,7 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "useTouchID": true, "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "loginDays": 30, "imported": false, "importSchedule": true, "importHomework": true,
+            "useTouchID": true, "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "loginDays": 30, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
@@ -59,6 +65,12 @@ final class Prefs: ObservableObject {
         panelHidePast = d.bool(forKey: "panelHidePast")
         panelLarge = d.bool(forKey: "panelLarge")
         panelMsgCount = d.integer(forKey: "panelMsgCount")
+        menubarBadge = d.bool(forKey: "menubarBadge")
+        panelHomeworkTick = d.bool(forKey: "panelHomeworkTick")
+        friendsFreeTogether = d.bool(forKey: "friendsFreeTogether")
+        focusEnabled = d.bool(forKey: "focusEnabled")
+        focusOnShortcut = d.string(forKey: "focusOnShortcut") ?? "Viggo Fokus til"
+        focusOffShortcut = d.string(forKey: "focusOffShortcut") ?? "Viggo Fokus fra"
         imported = d.bool(forKey: "imported")
         importSchedule = d.bool(forKey: "importSchedule")
         importHomework = d.bool(forKey: "importHomework")
