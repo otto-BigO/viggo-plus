@@ -45,22 +45,41 @@ final class ViggoClient {
     }
 
     private func form(_ p: [String: String]) -> Data {
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~")
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
         return p.map { k, v in
             "\(k)=\(v.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")"
         }.joined(separator: "&").data(using: .utf8)!
     }
 
+    static var logURL: URL { Snapshot.url.deletingLastPathComponent().appendingPathComponent("login.log") }
+    private func log(_ line: String) {
+        let l = "\(Date()) \(line)\n"
+        if let h = try? FileHandle(forWritingTo: ViggoClient.logURL) { h.seekToEndOfFile(); h.write(Data(l.utf8)); try? h.close() }
+        else { try? l.write(to: ViggoClient.logURL, atomically: true, encoding: .utf8) }
+    }
+
     func login(username: String, password: String) async throws {
         let loginURL = URL(string: "/Basic/Account/Login", relativeTo: base)!.absoluteURL
-        _ = try? await session.data(from: loginURL)
+        let (pageData, _) = try await session.data(from: loginURL)
+        let page = String(decoding: pageData, as: UTF8.self)
+        let fp = page.matches("name=\"fingerprint\" value=\"([^\"]+)\"").last?[1] ?? fingerprint
         var req = URLRequest(url: loginURL)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        req.httpBody = form(["UserName": username, "Password": password, "returnUrl": "", "fingerprint": fingerprint])
-        _ = try await session.data(for: req)
-        do { _ = try await get("/") } catch ViggoError.notLoggedIn { throw ViggoError.badCredentials }
+        req.setValue(base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")), forHTTPHeaderField: "Origin")
+        req.setValue(loginURL.absoluteString, forHTTPHeaderField: "Referer")
+        req.httpBody = form(["UserName": username, "Password": password, "returnUrl": "", "fingerprint": fp])
+        let (data, resp) = try await session.data(for: req)
+        let html = String(decoding: data, as: UTF8.self)
+        let finalURL = resp.url?.absoluteString ?? "?"
+        let notice = html.firstMatch("notice\\('(?:warning|error)',\\s*\"([^\"]+)\"")?[1].trimmingCharacters(in: .whitespaces)
+        log("login user=\(username) status=\((resp as? HTTPURLResponse)?.statusCode ?? 0) final=\(finalURL) notice=\(notice ?? "-")")
+        if let notice { throw ViggoError.unexpected(notice) }
+        do { _ = try await get("/Basic/HomeworkAndAssignment") } catch ViggoError.notLoggedIn {
+            log("login check failed after post")
+            throw ViggoError.badCredentials
+        }
+        log("login ok")
     }
 
     func fetchEvents(weeksBack: Int = Config.weeksBack, weeksAhead: Int = Config.weeksAhead) async throws -> [ViggoEvent] {
