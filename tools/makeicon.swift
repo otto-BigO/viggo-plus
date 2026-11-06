@@ -25,12 +25,13 @@ func render(_ px: Int) -> Data {
                         NSColor(srgbRed: 0x1F/255, green: 0x4E/255, blue: 0x96/255, alpha: 1)])!
         .draw(in: path, angle: -90)
 
-    // Big "V": heavy, wide and slanted, like Viggo's own lettering. Kept clear of the "+" badge.
-    let font = NSFont.systemFont(ofSize: rect.width * 0.54, weight: .black, width: .expanded)
-    let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white, .obliqueness: 0.28]
+    // Big "V"
+    let font = NSFont.systemFont(ofSize: rect.width * 0.62, weight: .heavy)
+    let rounded = NSFont(descriptor: font.fontDescriptor.withDesign(.rounded) ?? font.fontDescriptor, size: font.pointSize) ?? font
+    let attrs: [NSAttributedString.Key: Any] = [.font: rounded, .foregroundColor: NSColor.white]
     let v = NSAttributedString(string: "V", attributes: attrs)
     let vs = v.size()
-    v.draw(at: NSPoint(x: rect.midX - vs.width / 2 - rect.width * 0.08, y: rect.midY - vs.height / 2 - rect.height * 0.05))
+    v.draw(at: NSPoint(x: rect.midX - vs.width / 2 - rect.width * 0.04, y: rect.midY - vs.height / 2 - rect.height * 0.02))
     // "+" badge
     let b = rect.width * 0.26
     let bRect = NSRect(x: rect.maxX - b * 1.22, y: rect.maxY - b * 1.22, width: b, height: b)
