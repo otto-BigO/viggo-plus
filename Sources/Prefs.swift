@@ -3,7 +3,13 @@ import Combine
 
 final class Prefs: ObservableObject {
     static let shared = Prefs()
-    private let d = UserDefaults.standard
+    /// Docs rendering uses a throwaway store with the default settings, so your own settings are untouched.
+    private let d: UserDefaults = {
+        guard CommandLine.arguments.contains("--render-docs") else { return .standard }
+        let suite = "com.ottobigo.ViggoPlus.docs"
+        UserDefaults().removePersistentDomain(forName: suite)
+        return UserDefaults(suiteName: suite)!
+    }()
 
     @Published var username: String { didSet { d.set(username, forKey: "username") } }
     @Published var hasPassword: Bool { didSet { d.set(hasPassword, forKey: "hasPassword") } }

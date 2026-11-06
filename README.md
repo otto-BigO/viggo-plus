@@ -5,8 +5,30 @@
 <h4 align="center">En menubar-app til Viggo på macOS. Dit skema, dine lektier og beskeder, uden at åbne hjemmesiden.</h4>
 
 <p align="center">
-  <img src="docs/icon.png" alt="App-ikon" width="170">
+  <img src="docs/screens/panel.png" alt="Panelet i menubaren" width="320">
+  &nbsp;&nbsp;
+  <img src="docs/screens/panel-friend.png" alt="En vens dag" width="320">
 </p>
+
+## Indstillinger
+
+<p align="center">
+  <img src="docs/screens/settings-panel.png" alt="Panel" width="420">
+  &nbsp;
+  <img src="docs/screens/settings-kalender.png" alt="Kalender" width="420">
+</p>
+<p align="center">
+  <img src="docs/screens/settings-venner.png" alt="Venner" width="420">
+  &nbsp;
+  <img src="docs/screens/settings-generelt.png" alt="Generelt" width="420">
+</p>
+<p align="center">
+  <img src="docs/screens/settings-menubar.png" alt="Menubar" width="420">
+  &nbsp;
+  <img src="docs/screens/settings-notifikationer.png" alt="Notifikationer" width="420">
+</p>
+
+<sub>Billederne bruger opdigtede navne og et opdigtet skema. De laves med `./build.sh && build/Viggo+.app/Contents/MacOS/ViggoPlus --render-docs docs/screens`.</sub>
 
 ## Hvad den gør
 

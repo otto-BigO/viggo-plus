@@ -58,7 +58,11 @@ final class AppState: ObservableObject {
     private var expiryNotified = false
 
     private init() {
-        Task { await start() }
+        if let dir = DocRenderer.outDir {
+            Task { @MainActor in await DocRenderer.run(self, dir: dir) }
+        } else {
+            Task { await start() }
+        }
     }
 
     // MARK: lifecycle

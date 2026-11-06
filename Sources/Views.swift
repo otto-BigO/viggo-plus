@@ -23,9 +23,25 @@ struct ViggoPlusApp: App {
 struct Avatar: View {
     let url: URL?
     var size: CGFloat = 28
+    var name: String? = nil
+
+    private var initials: String {
+        (name ?? "").split(separator: " ").prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased()
+    }
+    private var tint: Color {
+        let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .green]
+        let h = (name ?? "").unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xffff }
+        return palette[h % palette.count]
+    }
+
     var body: some View {
         AsyncImage(url: url) { img in img.resizable().scaledToFill() } placeholder: {
-            Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
+            if initials.isEmpty {
+                Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
+            } else {
+                Circle().fill(tint.gradient)
+                    .overlay(Text(initials).font(.system(size: size * 0.38, weight: .semibold)).foregroundStyle(.white))
+            }
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
@@ -145,13 +161,14 @@ struct NowCard: View {
 struct PersonChip: View {
     let url: URL?
     let label: String
+    var fullName: String? = nil
     let selected: Bool
     var expired = false
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             VStack(spacing: 3) {
-                Avatar(url: url, size: 30)
+                Avatar(url: url, size: 30, name: fullName)
                     .overlay(Circle().stroke(selected ? Color.accentColor : .clear, lineWidth: 2).padding(-2.5))
                     .opacity(expired ? 0.4 : 1)
                     .overlay(alignment: .topTrailing) {
@@ -176,7 +193,7 @@ struct MenuView: View {
         let now = state.tick
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                if let prof = state.profile { Avatar(url: prof.image, size: 30) }
+                if let prof = state.profile { Avatar(url: prof.image, size: 30, name: prof.name) }
                 VStack(alignment: .leading, spacing: 0) {
                     Text(state.profile.map { "Hej \($0.name.components(separatedBy: " ").first ?? $0.name)" } ?? "Viggo+")
                         .font(Sz.f(15, .bold))
@@ -201,11 +218,11 @@ struct MenuView: View {
             if !state.friends.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
-                        PersonChip(url: state.profile?.image, label: "Mig", selected: state.selectedFriend == nil) {
+                        PersonChip(url: state.profile?.image, label: "Mig", fullName: state.profile?.name, selected: state.selectedFriend == nil) {
                             state.selectedFriend = nil
                         }
                         ForEach(state.friends) { f in
-                            PersonChip(url: f.image, label: f.firstName, selected: state.selectedFriend == f.id,
+                            PersonChip(url: f.image, label: f.firstName, fullName: f.name, selected: state.selectedFriend == f.id,
                                        expired: state.friendExpired.contains(f.id)) { state.selectedFriend = f.id }
                         }
                     }
@@ -303,7 +320,7 @@ struct DayPanel: View {
                     Image(systemName: "sunrise").foregroundStyle(.secondary)
                     Text("I morgen: \(first.shortTitle) kl. \(DateUtil.hm(first.start))").font(Sz.f(12))
                     Spacer()
-                    Text("\(count) punkter").font(Sz.f(11)).foregroundStyle(.tertiary)
+                    Text("\(count) \(count == 1 ? "punkt" : "punkter")").font(Sz.f(11)).foregroundStyle(.tertiary)
                 }
             }
 
@@ -377,6 +394,9 @@ struct DayPanel: View {
 enum SettingsPage: String, CaseIterable, Identifiable {
     case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
     var id: String { rawValue }
+    var slug: String {
+        rawValue.lowercased().replacingOccurrences(of: "ø", with: "o").replacingOccurrences(of: "æ", with: "ae")
+    }
     var icon: String {
         switch self {
         case .konto: return "person.fill"
@@ -413,36 +433,64 @@ struct SettingsIcon: View {
     }
 }
 
+/// A sidebar row like in System Settings: accent background when selected.
+struct SidebarRow<Content: View>: View {
+    let selected: Bool
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) { content() }
+                .foregroundStyle(selected ? Color.white : Color.primary)
+                .padding(.horizontal, 8).padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? Color.accentColor : .clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
-    @State private var page: SettingsPage? = .konto
+    @State private var page: SettingsPage?
+
+    init(initial: SettingsPage = .konto) { _page = State(initialValue: initial) }
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $page) {
-                if let prof = state.profile, !state.needsLogin {
-                    HStack(spacing: 10) {
-                        Avatar(url: prof.image, size: 34)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(prof.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                            Text("Viggo-konto").font(.system(size: 10)).foregroundStyle(.secondary)
+        HStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let prof = state.profile, !state.needsLogin {
+                        SidebarRow(selected: page == .konto) { page = .konto } content: {
+                            Avatar(url: prof.image, size: 34, name: prof.name)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(prof.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                                Text("Viggo-konto").font(.system(size: 10)).opacity(0.7)
+                            }
+                        }
+                        .padding(.bottom, 8)
+                    }
+                    ForEach(SettingsPage.allCases) { pg in
+                        SidebarRow(selected: page == pg) { page = pg } content: {
+                            SettingsIcon(symbol: pg.icon, color: pg.color)
+                            Text(pg.rawValue).font(.system(size: 13)).lineLimit(1)
                         }
                     }
-                    .padding(.vertical, 4)
-                    .tag(SettingsPage.konto)
                 }
-                Section {
-                    ForEach(SettingsPage.allCases) { pg in
-                        Label { Text(pg.rawValue) } icon: { SettingsIcon(symbol: pg.icon, color: pg.color) }
-                            .tag(pg)
-                    }
-                }
+                .padding(.horizontal, 10)
+                .padding(.top, 34)    // room for the window buttons
+                .padding(.bottom, 10)
             }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 220)
-            .toolbar(removing: .sidebarToggle)
-        } detail: {
-            Group {
+            .frame(width: 210)
+            .background(Color.primary.opacity(0.04))
+            Divider()
+            VStack(alignment: .leading, spacing: 0) {
+                Text((page ?? .konto).rawValue)
+                    .font(.system(size: 20, weight: .bold))
+                    .padding(.horizontal, 20).padding(.top, 30).padding(.bottom, 2)
+                Group {
                 switch page ?? .konto {
                 case .konto: AccountTab()
                 case .generelt: GeneralTab()
@@ -452,9 +500,11 @@ struct SettingsView: View {
                 case .notifikationer: NotificationsTab()
                 case .venner: FriendsTab()
                 }
+                }
             }
-            .navigationTitle((page ?? .konto).rawValue)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .frame(width: 680, height: 500)
     }
 }
@@ -467,7 +517,7 @@ struct AccountTab: View {
             if let prof = state.profile, !state.needsLogin {
                 Section {
                     HStack(spacing: 12) {
-                        Avatar(url: prof.image, size: 48)
+                        Avatar(url: prof.image, size: 48, name: prof.name)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(prof.name).font(.headline)
                             Text("Logget ind på \(Config.baseURL.host ?? "Viggo")").font(.caption).foregroundStyle(.secondary)
@@ -701,7 +751,7 @@ struct FriendsTab: View {
                 ForEach(state.friends) { f in
                     let expired = state.friendExpired.contains(f.id)
                     HStack(spacing: 10) {
-                        Avatar(url: f.image, size: 32).opacity(expired ? 0.5 : 1)
+                        Avatar(url: f.image, size: 32, name: f.name).opacity(expired ? 0.5 : 1)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(f.name)
                             Text(expired ? "Skal logge ind igen" : "Logget ind")
