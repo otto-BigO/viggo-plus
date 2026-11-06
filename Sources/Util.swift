@@ -33,6 +33,7 @@ enum DateUtil {
     static let hmF = fmt("HH:mm")
     static let dayF = fmt("EEE d. MMM")
     static let longDayF = fmt("EEEE d. MMMM")
+    static let weekdayF = fmt("EEE")
     static func ymd(_ d: Date) -> String { ymdF.string(from: d) }
     static func hm(_ d: Date) -> String { hmF.string(from: d) }
     static func day(_ d: Date) -> String { dayF.string(from: d) }

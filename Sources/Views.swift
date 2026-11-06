@@ -89,6 +89,9 @@ struct TimelineRow: View {
                     .font(Sz.mono(12))
                     .foregroundStyle(current ? Color.accentColor : .secondary)
                     .frame(width: 42 * Sz.k, alignment: .leading)
+                if let c = e.customColor {
+                    RoundedRectangle(cornerRadius: 1.5).fill(c).frame(width: 3, height: 13 * Sz.k)
+                }
                 Text(e.shortTitle)
                     .font(Sz.f(13, current ? .semibold : .regular))
                     .lineLimit(1)
@@ -188,6 +191,7 @@ struct PersonChip: View {
 struct MenuView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
+    @ObservedObject var updater = Updater.shared
 
     var body: some View {
         let now = state.tick
@@ -201,6 +205,13 @@ struct MenuView: View {
                 }
                 Spacer()
                 if state.syncing { ProgressView().controlSize(.small) }
+                if let r = updater.available {
+                    Button { updater.show() } label: {
+                        Label("Ny version \(r.version)", systemImage: "arrow.down.circle.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.borderedProminent).controlSize(.small)
+                }
             }
 
             if state.needsLogin {
@@ -251,6 +262,7 @@ struct MenuView: View {
                 }
                 Spacer()
                 Button { Task { await state.sync() } } label: { Image(systemName: "arrow.clockwise") }.help("Synk nu")
+                Button { state.openWeek() } label: { Image(systemName: "calendar") }.help("Uge-overblik")
                 Button { state.openViggo() } label: { Image(systemName: "safari") }.help("Åbn Viggo")
                 Button { state.openSettings() } label: { Image(systemName: "gearshape") }.help("Indstillinger")
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }.help("Afslut")
@@ -306,6 +318,14 @@ struct DayPanel: View {
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.green.opacity(0.08)))
             }
 
+            if isMe, p.panelBirthdays, !state.birthdaysToday.isEmpty {
+                HStack(alignment: .top, spacing: 8) {
+                    Text("🎂").font(Sz.f(14))
+                    Text("Fødselsdag i dag: \(state.birthdaysToday.joined(separator: ", "))")
+                        .font(Sz.f(12)).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             if p.panelTimeline, !shown.isEmpty {
                 VStack(alignment: .leading, spacing: 7) {
                     SectionHeader(title: name.map { "\($0)s dag" } ?? "Resten af dagen")
@@ -355,6 +375,28 @@ struct DayPanel: View {
                 }
             }
 
+            if isMe, p.panelFriendsNow, !state.friends.isEmpty {
+                FriendsNow(now: now)
+            }
+
+            if isMe, p.panelBulletin, !state.bulletins.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    SectionHeader(title: "Opslag")
+                    ForEach(state.bulletins.prefix(3)) { b in
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack {
+                                Text(b.title).font(Sz.f(12, .semibold)).lineLimit(1)
+                                Spacer()
+                                Text(b.when).font(Sz.f(10)).foregroundStyle(.tertiary).lineLimit(1)
+                            }
+                            Text(b.text).font(Sz.f(11)).foregroundStyle(.secondary).lineLimit(2)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture { state.openViggo() }
+                    }
+                }
+            }
+
             if isMe, state.questionnaireCount > 0 {
                 Button { state.openViggo(URL(string: "/Shared/Questionnaire/Questionnaires", relativeTo: Config.baseURL)!.absoluteURL) } label: {
                     HStack {
@@ -392,7 +434,7 @@ struct DayPanel: View {
 // MARK: - Settings (tabs)
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
+    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", timer = "Timer", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
     var id: String { rawValue }
     var slug: String {
         rawValue.lowercased().replacingOccurrences(of: "ø", with: "o").replacingOccurrences(of: "æ", with: "ae")
@@ -403,6 +445,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .generelt: return "gearshape.fill"
         case .panel: return "rectangle.grid.1x2.fill"
         case .menubar: return "menubar.rectangle"
+        case .timer: return "paintpalette.fill"
         case .kalender: return "calendar"
         case .notifikationer: return "bell.badge.fill"
         case .venner: return "person.2.fill"
@@ -414,6 +457,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .generelt: return .gray
         case .panel: return .teal
         case .menubar: return .indigo
+        case .timer: return .pink
         case .kalender: return .orange
         case .notifikationer: return .red
         case .venner: return .blue
@@ -496,6 +540,7 @@ struct SettingsView: View {
                 case .generelt: GeneralTab()
                 case .panel: PanelTab()
                 case .menubar: MenubarTab()
+                case .timer: LessonsTab()
                 case .kalender: CalendarTab()
                 case .notifikationer: NotificationsTab()
                 case .venner: FriendsTab()
@@ -549,12 +594,29 @@ struct AccountTab: View {
 struct GeneralTab: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
+    @ObservedObject var updater = Updater.shared
     var body: some View {
         Form {
             Section {
                 Toggle("Start Viggo+ når Mac'en starter", isOn: Binding(get: { state.launchAtLogin },
                                                                        set: { state.launchAtLogin = $0 }))
                 Toggle("Vis antal ulæste beskeder og spørgeskemaer i menubaren", isOn: $p.menubarBadge)
+            }
+            Section("Opdateringer") {
+                Toggle("Tjek automatisk for nye versioner", isOn: $p.autoUpdate)
+                HStack {
+                    Text("Version \(Updater.shared.current)").foregroundStyle(.secondary)
+                    Spacer()
+                    Text(updater.lastResult).font(.caption).foregroundStyle(.secondary)
+                    Button("Tjek nu") { Task { await updater.check(manual: true) } }
+                }
+            }
+            Section("Genvejstast") {
+                Toggle("Åbn panelet med en genvejstast", isOn: $p.hotkeyEnabled)
+                Picker("Tast", selection: $p.hotkeyChoice) {
+                    ForEach(0..<HotKey.choices.count, id: \.self) { i in Text(HotKey.choices[i].label).tag(i) }
+                }
+                .disabled(!p.hotkeyEnabled)
             }
             Section("Fokus i timerne") {
                 Toggle("Slå fokus til når en time starter, og fra når den slutter", isOn: $p.focusEnabled)
@@ -571,6 +633,8 @@ struct GeneralTab: View {
             }
         }
         .formStyle(.grouped)
+        .onChange(of: p.hotkeyEnabled) { state.setupHotKey() }
+        .onChange(of: p.hotkeyChoice) { state.setupHotKey() }
     }
 }
 
@@ -587,6 +651,9 @@ struct PanelTab: View {
                     Toggle("Afkryds lektier direkte i panelet", isOn: $p.panelHomeworkTick)
                 }
                 Toggle("Aftenvagt", isOn: $p.panelDuty)
+                Toggle("Fødselsdage", isOn: $p.panelBirthdays)
+                Toggle("Venner nu (hvem har fri)", isOn: $p.panelFriendsNow)
+                Toggle("Opslag fra opslagstavlen", isOn: $p.panelBulletin)
                 Toggle("Beskeder", isOn: $p.panelMessages)
                 if p.panelMessages {
                     Stepper("Antal beskeder: \(p.panelMsgCount)", value: $p.panelMsgCount, in: 1...5)
@@ -722,6 +789,8 @@ struct NotificationsTab: View {
                 Toggle("Flyttede eller aflyste timer", isOn: $p.notifyChanges)
                 Toggle("Nye lektier", isOn: $p.notifyHomework)
                 Toggle("Nye beskeder", isOn: $p.notifyMessages)
+                Toggle("Nye opslag på opslagstavlen", isOn: $p.notifyBulletin)
+                Toggle("Fødselsdage om morgenen", isOn: $p.notifyBirthdays)
             }
             Section("Daglig brief") {
                 Toggle("Slået til", isOn: $p.briefs)

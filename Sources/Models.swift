@@ -14,7 +14,14 @@ struct ViggoEvent: Codable, Hashable, Identifiable {
     let groups: [String]
 
     var key: String { "\(kind.rawValue)-\(id)" }
+    /// The name you gave this lesson in Indstillinger › Timer, otherwise Viggo's.
     var title: String {
+        let b = baseTitle
+        if let own = Prefs.shared.lessonNames[b], !own.isEmpty { return own }
+        return b
+    }
+
+    var baseTitle: String {
         let t = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.uppercased().hasPrefix("BE10") { return "BE10 · Projekt" }
         if kind == .lesson, let m = t.firstMatch("^\\d+\\s+(.+)$") { return m[1] }

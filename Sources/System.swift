@@ -144,6 +144,8 @@ struct Snapshot: Codable {
     var lastMorningBrief = ""
     var lastEveningBrief = ""
     var initialized = false
+    var bulletinIDs: Set<String>? = nil
+    var lastBirthdayDay: String? = nil
 
     static var url: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

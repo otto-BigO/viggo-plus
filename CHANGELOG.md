@@ -1,5 +1,16 @@
 # Ændringer
 
+## 1.1.0 (2026-11-06)
+
+- **Uge-overblik** med hele ugens timer i kolonner, også for dine venner. Åbnes fra kalender-ikonet i panelet.
+- **Venner nu** i panelet: hvem har fri, og hvem har time.
+- **Fødselsdage** i panelet og som notifikation om morgenen.
+- **Opslagstavlen**: notifikation om nye opslag, og opslagene kan vises i panelet.
+- **Egne navne og farver** til timer under Indstillinger › Timer.
+- **Genvejstast** der åbner panelet (⌥ V, kan ændres).
+- **Opdaterer sig selv**: en lille besked når der er en ny version, og ét klik opdaterer appen.
+- Log ud rydder nu hele login-kæden, så den næste der logger ind kan være en anden.
+
 ## 1.0.0 (2026-11-06)
 
 Første udgivelse.

@@ -21,11 +21,25 @@ enum DocRenderer {
         snap(MenuView().environmentObject(state), name: "panel-friend", dir: dir, panel: true)
         state.selectedFriend = nil
 
+        snap(WeekView().environmentObject(state), name: "week", dir: dir, size: NSSize(width: 980, height: 560))
+
+        Updater.shared.available = Updater.Release(
+            version: "1.2.0", highlights: ["Uge-overblik med alle dine timer", "Fødselsdage i panelet", "Genvejstast til panelet"],
+            page: URL(string: "https://github.com/otto-BigO/viggo-plus/releases")!, zip: URL(string: "https://example.com")!)
+        snap(UpdateView(updater: Updater.shared), name: "update", dir: dir)
+        Updater.shared.available = nil
+
         for page in SettingsPage.allCases {
             snap(SettingsView(initial: page).environmentObject(state), name: "settings-\(page.slug)", dir: dir,
                  size: NSSize(width: 680, height: 500))
         }
         exit(0)
+    }
+
+    /// Days from today to Monday + i of this week.
+    private static func mon(_ i: Int) -> Int {
+        let todayIdx = DateUtil.cal.dateComponents([.day], from: DateUtil.mondayOf(Date()), to: DateUtil.startOfDay(Date())).day ?? 0
+        return i - todayIdx
     }
 
     private static func at(_ h: Int, _ m: Int, day: Int = 0) -> Date {
@@ -52,6 +66,16 @@ enum DocRenderer {
             ev(12, "Fællessamling og aflevering af telefon", 19, 30, 19, 50, kind: .routine),
             ev(13, "Alle på eget område", 21, 45, 22, 0, kind: .routine),
             ev(14, "Godnat kl. 22.15", 22, 15, 22, 30, kind: .routine),
+            ViggoEvent(id: 40, rawName: "Sofie Lund (06/11)", start: at(0, 0), end: at(23, 59), room: "", notes: "",
+                       kind: .birthday, teachers: [], groups: []),
+            ev(50, "Dansk", 8, 35, 9, 35, room: "Klasse 2", day: mon(1)), ev(51, "Matematik", 9, 55, 10, 55, room: "Klasse 3", day: mon(1)),
+            ev(52, "Engelsk", 11, 5, 12, 5, room: "Klasse 2", day: mon(1)), ev(53, "Idræt", 13, 15, 15, 0, room: "Store hal", day: mon(1)),
+            ev(54, "Fysik", 8, 35, 9, 35, room: "Lab", day: mon(2)), ev(55, "Tysk", 9, 55, 10, 55, room: "Klasse 2", day: mon(2)),
+            ev(56, "Musik", 11, 5, 12, 5, room: "Musikhuset", day: mon(2)),
+            ev(61, "Biologi", 8, 35, 9, 35, room: "Lab", day: mon(3)), ev(62, "Dansk", 9, 55, 10, 55, room: "Klasse 2", day: mon(3)),
+            ev(63, "Medborgerskab", 11, 5, 12, 5, room: "Klasse 2", day: mon(3)),
+            ev(57, "Dansk", 8, 35, 9, 35, room: "Klasse 2", day: mon(0)), ev(58, "Historie", 9, 55, 10, 55, room: "Klasse 4", day: mon(0)),
+            ev(59, "Matematik", 11, 5, 12, 5, room: "Klasse 3", day: mon(0)), ev(60, "Kor", 13, 15, 14, 15, room: "Musikhuset", day: mon(0)),
             ev(20, "Fællessang", 8, 0, 8, 30, room: "Foredragssalen", kind: .lesson, day: 1),
             ev(21, "Tysk", 8, 35, 9, 35, room: "Klasse 2", day: 1),
             ev(22, "Historie", 9, 55, 10, 55, room: "Klasse 4", day: 1),
@@ -93,7 +117,7 @@ enum DocRenderer {
         host.frame = NSRect(origin: .zero, size: sz)
         host.appearance = NSAppearance(named: .darkAqua)
         let win = KeyWindow(contentRect: NSRect(x: -30000, y: -30000, width: sz.width, height: sz.height),
-                            styleMask: panel ? [.borderless] : [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+                            styleMask: [.borderless], backing: .buffered, defer: false)
         win.isReleasedWhenClosed = false
         win.titlebarAppearsTransparent = true
         win.titleVisibility = .hidden

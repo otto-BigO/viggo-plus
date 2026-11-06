@@ -27,6 +27,8 @@ final class AppState: ObservableObject {
     @Published var selectedFriend: UUID?
     @Published var unreadCount = 0
     @Published var questionnaireCount = 0
+    @Published var bulletins: [Bulletin] = []
+    private var weekWindow: NSWindow?
     private var focusActive: Bool?
     private var friendLogin: WebLogin?
 
@@ -54,6 +56,12 @@ final class AppState: ObservableObject {
     private init() {
         if let dir = DocRenderer.outDir {
             Task { @MainActor in await DocRenderer.run(self, dir: dir) }
+        } else if CommandLine.arguments.contains("--update-now") {
+            // For testing the updater from Terminal: fetch the latest release and install it.
+            Task { @MainActor in
+                await Updater.shared.check(manual: true)
+                if Updater.shared.available != nil { Updater.shared.install() } else { exit(0) }
+            }
         } else {
             Task { await start() }
         }
@@ -72,8 +80,10 @@ final class AppState: ObservableObject {
             for name in Config.allCalendars { try? calSync.remove(named: name) }
             UserDefaults.standard.set(true, forKey: "cleanedAutoImport")
         }
+        setupHotKey()
         await sync()
         if needsLogin { openSettings() }
+        Updater.shared.checkIfDue()
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.onTick() }
         }
@@ -92,6 +102,7 @@ final class AppState: ObservableObject {
             Task { await keepAlive() }
         }
         checkBriefs()
+        Updater.shared.checkIfDue()
     }
 
     /// Pings Viggo every few minutes so sessions stay alive as long as possible.
@@ -187,6 +198,7 @@ final class AppState: ObservableObject {
             messages = msg
             if let p = c.profile { profile = p }
             if let n = try? await c.fetchCounts() { unreadCount = n.unread; questionnaireCount = n.questionnaires }
+            if let b = try? await c.fetchBulletins() { bulletins = b }
             needsLogin = false
             if prefs.imported { applyCalendar() }
             Task { await syncFriends() }
@@ -591,7 +603,13 @@ final class AppState: ObservableObject {
                     notes.append(("Ny besked fra \(m.sender)", m.subject, m.link))
                 }
             }
+            if prefs.notifyBulletin, let seen = snapshot.bulletinIDs {
+                for b in bulletins where !seen.contains(b.id) {
+                    notes.append(("Nyt opslag: \(b.title)", String(b.text.prefix(120)), Config.baseURL))
+                }
+            }
         }
+        snapshot.bulletinIDs = (snapshot.bulletinIDs ?? []).union(bulletins.map(\.id))
         if notes.count > 5 {
             Notifier.shared.post("Viggo+: \(notes.count) ændringer", notes.prefix(6).map { "• \($0.0)" }.joined(separator: "\n"))
         } else {
@@ -604,10 +622,23 @@ final class AppState: ObservableObject {
         snapshot.save()
     }
 
+    /// People in the schedule with a birthday today.
+    var birthdaysToday: [String] {
+        events.filter { $0.kind == .birthday && DateUtil.cal.isDateInToday($0.start) }.map(\.birthdayName)
+    }
+
     private func checkBriefs() {
-        guard prefs.briefs, !events.isEmpty else { return }
         let now = Date(), today = DateUtil.ymd(now)
         let hour = DateUtil.cal.component(.hour, from: now)
+        if prefs.notifyBirthdays, hour >= prefs.morningHour, snapshot.lastBirthdayDay != today, !events.isEmpty {
+            snapshot.lastBirthdayDay = today
+            snapshot.save()
+            let b = birthdaysToday
+            if !b.isEmpty {
+                Notifier.shared.post("🎂 Fødselsdag i dag", b.joined(separator: ", "))
+            }
+        }
+        guard prefs.briefs, !events.isEmpty else { return }
         if hour >= prefs.morningHour, hour < 12, snapshot.lastMorningBrief != today {
             snapshot.lastMorningBrief = today
             snapshot.save()
@@ -651,4 +682,24 @@ final class AppState: ObservableObject {
     }
 
     func openViggo(_ url: URL = Config.baseURL) { NSWorkspace.shared.open(url) }
+
+    func openWeek() {
+        if weekWindow == nil {
+            let w = NSWindow(contentViewController: NSHostingController(rootView: WeekView().environmentObject(self)))
+            w.title = "Uge-overblik"
+            w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
+            w.titlebarAppearsTransparent = true
+            w.isReleasedWhenClosed = false
+            w.setContentSize(NSSize(width: 980, height: 600))
+            w.center()
+            weekWindow = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        weekWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    func setupHotKey() {
+        HotKey.shared.action = { Task { @MainActor in HotKey.togglePanel() } }
+        if prefs.hotkeyEnabled { HotKey.shared.register(choice: prefs.hotkeyChoice) } else { HotKey.shared.unregister() }
+    }
 }

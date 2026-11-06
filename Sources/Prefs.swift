@@ -27,6 +27,17 @@ final class Prefs: ObservableObject {
     @Published var focusEnabled: Bool { didSet { d.set(focusEnabled, forKey: "focusEnabled") } }
     @Published var focusOnShortcut: String { didSet { d.set(focusOnShortcut, forKey: "focusOnShortcut") } }
     @Published var focusOffShortcut: String { didSet { d.set(focusOffShortcut, forKey: "focusOffShortcut") } }
+    @Published var panelBirthdays: Bool { didSet { d.set(panelBirthdays, forKey: "panelBirthdays") } }
+    @Published var notifyBirthdays: Bool { didSet { d.set(notifyBirthdays, forKey: "notifyBirthdays") } }
+    @Published var hotkeyEnabled: Bool { didSet { d.set(hotkeyEnabled, forKey: "hotkeyEnabled") } }
+    @Published var panelFriendsNow: Bool { didSet { d.set(panelFriendsNow, forKey: "panelFriendsNow") } }
+    @Published var notifyBulletin: Bool { didSet { d.set(notifyBulletin, forKey: "notifyBulletin") } }
+    @Published var panelBulletin: Bool { didSet { d.set(panelBulletin, forKey: "panelBulletin") } }
+    @Published var autoUpdate: Bool { didSet { d.set(autoUpdate, forKey: "autoUpdate") } }
+    @Published var hotkeyChoice: Int { didSet { d.set(hotkeyChoice, forKey: "hotkeyChoice") } }
+    @Published var lessonNames: [String: String] { didSet { d.set(lessonNames, forKey: "lessonNames") } }
+    @Published var lessonColors: [String: String] { didSet { d.set(lessonColors, forKey: "lessonColors") } }
+    @Published var dismissedVersion: String { didSet { d.set(dismissedVersion, forKey: "dismissedVersion") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
     @Published var importSchedule: Bool { didSet { d.set(importSchedule, forKey: "importSchedule") } }
     @Published var importHomework: Bool { didSet { d.set(importHomework, forKey: "importHomework") } }
@@ -47,7 +58,7 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
+            "panelBirthdays": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "autoUpdate": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
@@ -69,6 +80,17 @@ final class Prefs: ObservableObject {
         focusEnabled = d.bool(forKey: "focusEnabled")
         focusOnShortcut = d.string(forKey: "focusOnShortcut") ?? "Viggo Fokus til"
         focusOffShortcut = d.string(forKey: "focusOffShortcut") ?? "Viggo Fokus fra"
+        panelBirthdays = d.bool(forKey: "panelBirthdays")
+        notifyBirthdays = d.bool(forKey: "notifyBirthdays")
+        hotkeyEnabled = d.bool(forKey: "hotkeyEnabled")
+        panelFriendsNow = d.bool(forKey: "panelFriendsNow")
+        notifyBulletin = d.bool(forKey: "notifyBulletin")
+        panelBulletin = d.bool(forKey: "panelBulletin")
+        autoUpdate = d.bool(forKey: "autoUpdate")
+        hotkeyChoice = d.integer(forKey: "hotkeyChoice")
+        lessonNames = d.dictionary(forKey: "lessonNames") as? [String: String] ?? [:]
+        lessonColors = d.dictionary(forKey: "lessonColors") as? [String: String] ?? [:]
+        dismissedVersion = d.string(forKey: "dismissedVersion") ?? ""
         imported = d.bool(forKey: "imported")
         importSchedule = d.bool(forKey: "importSchedule")
         importHomework = d.bool(forKey: "importHomework")

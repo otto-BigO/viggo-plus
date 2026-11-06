@@ -10,6 +10,20 @@
   <img src="docs/screens/panel-friend.png" alt="En vens dag" width="320">
 </p>
 
+## Uge-overblik
+
+<p align="center">
+  <img src="docs/screens/week.png" alt="Uge-overblik" width="800">
+</p>
+
+## Opdateringer
+
+<p align="center">
+  <img src="docs/screens/update.png" alt="Ny version" width="380">
+</p>
+
+Viggo+ tjekker GitHub for nye versioner. Er der en, viser den kort hvad der er nyt, med et link til hele listen her på GitHub. **Opdater** henter den nye version og skifter den ind, uden at du skal hente en DMG. Det kan slås fra under Generelt.
+
 ## Indstillinger
 
 Klik på en side for at se den.
@@ -21,7 +35,7 @@ Klik på en side for at se den.
 </details>
 
 <details>
-<summary><b>Generelt</b>: Start ved login, tal i menubaren og fokus i timerne.</summary>
+<summary><b>Generelt</b>: Opdateringer, start ved login, genvejstast, tal i menubaren og fokus i timerne.</summary>
 <br>
 <p align="center"><img src="docs/screens/settings-generelt.png" alt="Generelt" width="680"></p>
 </details>
@@ -36,6 +50,12 @@ Klik på en side for at se den.
 <summary><b>Menubar</b>: Hverdag efter skoletid, og hvilke punkter der vises.</summary>
 <br>
 <p align="center"><img src="docs/screens/settings-menubar.png" alt="Menubar" width="680"></p>
+</details>
+
+<details>
+<summary><b>Timer</b>: Egne navne og farver til dine timer.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-timer.png" alt="Timer" width="680"></p>
 </details>
 
 <details>
@@ -68,6 +88,13 @@ Klik på en side for at se den.
 - Import til Apple Kalender som separate kalendere (skema, lektier, begivenheder, hverdag), som holdes opdateret. Én kontakt fjerner dem igen.
 - Venner: en ven logger ind på sin egen konto i et privat vindue. Du ser vennens dag i samme layout, og hvornår I begge har fri.
 - Fokus i timerne, hvis du vil, via to genveje.
+- Uge-overblik med hele ugens timer i kolonner, også for dine venner.
+- "Venner nu": hvem af dine venner der har fri, og hvem der har time.
+- Fødselsdage i panelet og som notifikation om morgenen.
+- Notifikation når der kommer et nyt opslag på opslagstavlen.
+- Giv timer dine egne navne og farver.
+- Genvejstast (⌥ V) der åbner panelet.
+- Opdaterer sig selv: når der er en ny version, får du en lille besked med det nye, og ét klik opdaterer appen.
 - Kan starte når Mac'en starter.
 
 ## Login
@@ -94,6 +121,7 @@ Kræver Xcode Command Line Tools (`xcode-select --install`).
 - `./install.sh` bygger appen, kopierer den til `/Applications` og starter den.
 - `./build.sh` bygger den kun, til `build/Viggo+.app`.
 - `./make_dmg.sh` bygger DMG-filen i `dist/`.
+- `./release.sh` bygger DMG og zip og udgiver versionen fra `Resources/Info.plist` på GitHub med noterne fra `CHANGELOG.md`. Zip-filen er den som appen selv henter når den opdaterer.
 - `swift Tools/makeicon.swift <mappe>.iconset` og `iconutil` laver ikonet igen.
 
 ## Godt at vide

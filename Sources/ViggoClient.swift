@@ -28,6 +28,8 @@ final class ViggoClient {
         return p
     }
 
+    func getPublic(_ path: String) async throws -> Data { try await get(path) }
+
     private func get(_ path: String) async throws -> Data {
         let req = URLRequest(url: URL(string: path, relativeTo: base)!.absoluteURL)
         let (data, resp) = try await session.data(for: req)
