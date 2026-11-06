@@ -12,21 +12,49 @@
 
 ## Indstillinger
 
-<p align="center">
-  <img src="docs/screens/settings-panel.png" alt="Panel" width="420">
-  &nbsp;
-  <img src="docs/screens/settings-kalender.png" alt="Kalender" width="420">
-</p>
-<p align="center">
-  <img src="docs/screens/settings-venner.png" alt="Venner" width="420">
-  &nbsp;
-  <img src="docs/screens/settings-generelt.png" alt="Generelt" width="420">
-</p>
-<p align="center">
-  <img src="docs/screens/settings-menubar.png" alt="Menubar" width="420">
-  &nbsp;
-  <img src="docs/screens/settings-notifikationer.png" alt="Notifikationer" width="420">
-</p>
+Klik på en side for at se den.
+
+<details>
+<summary><b>Konto</b>: Log ind og ud, og din profil.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-konto.png" alt="Konto" width="680"></p>
+</details>
+
+<details>
+<summary><b>Generelt</b>: Start ved login, tal i menubaren og fokus i timerne.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-generelt.png" alt="Generelt" width="680"></p>
+</details>
+
+<details>
+<summary><b>Panel</b>: Hvad panelet viser, skjul det overståede og stor tekst.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-panel.png" alt="Panel" width="680"></p>
+</details>
+
+<details>
+<summary><b>Menubar</b>: Hverdag efter skoletid, og hvilke punkter der vises.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-menubar.png" alt="Menubar" width="680"></p>
+</details>
+
+<details>
+<summary><b>Kalender</b>: Import til Apple Kalender og påmindelser.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-kalender.png" alt="Kalender" width="680"></p>
+</details>
+
+<details>
+<summary><b>Notifikationer</b>: Hvad du får besked om, og den daglige brief.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-notifikationer.png" alt="Notifikationer" width="680"></p>
+</details>
+
+<details>
+<summary><b>Venner</b>: Dine venner, fri samtidig og tilføj ven.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-venner.png" alt="Venner" width="680"></p>
+</details>
 
 <sub>Billederne bruger opdigtede navne og et opdigtet skema. De laves med `./build.sh && build/Viggo+.app/Contents/MacOS/ViggoPlus --render-docs docs/screens`.</sub>
 
