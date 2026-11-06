@@ -3,7 +3,6 @@ import Foundation
 enum Config {
     static let baseURL = URL(string: "https://broeruphus.viggo.dk")!
     static let bundleID = "com.ottobigo.ViggoPlus"
-    static let loginDomain = "@cloud.skoleit.dk"
     static let pollInterval: TimeInterval = 15 * 60
     static let weeksBack = 1
     static let weeksAhead = 4

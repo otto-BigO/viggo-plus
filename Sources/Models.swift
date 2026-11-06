@@ -66,11 +66,10 @@ struct ViggoMessage: Codable, Hashable, Identifiable {
 }
 
 enum ViggoError: LocalizedError {
-    case notLoggedIn, badCredentials, unexpected(String)
+    case notLoggedIn, unexpected(String)
     var errorDescription: String? {
         switch self {
         case .notLoggedIn: return "Ikke logget ind på Viggo"
-        case .badCredentials: return "Forkert brugernavn eller adgangskode"
         case .unexpected(let s): return "Fejl: \(s)"
         }
     }

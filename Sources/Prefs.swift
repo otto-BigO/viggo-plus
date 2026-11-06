@@ -12,10 +12,6 @@ final class Prefs: ObservableObject {
     }()
 
     @Published var username: String { didSet { d.set(username, forKey: "username") } }
-    @Published var hasPassword: Bool { didSet { d.set(hasPassword, forKey: "hasPassword") } }
-    @Published var loginDays: Int { didSet { d.set(loginDays, forKey: "loginDays") } }
-    @Published var mainLoginUntil: Date? { didSet { d.set(mainLoginUntil, forKey: "mainLoginUntil") } }
-    @Published var useTouchID: Bool { didSet { d.set(useTouchID, forKey: "useTouchID") } }
     @Published var panelNow: Bool { didSet { d.set(panelNow, forKey: "panelNow") } }
     @Published var panelTimeline: Bool { didSet { d.set(panelTimeline, forKey: "panelTimeline") } }
     @Published var panelTomorrow: Bool { didSet { d.set(panelTomorrow, forKey: "panelTomorrow") } }
@@ -51,17 +47,13 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "useTouchID": true, "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "loginDays": 30, "imported": false, "importSchedule": true, "importHomework": true,
+            "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
             "morningHour": 7, "eveningHour": 20,
         ])
         username = d.string(forKey: "username") ?? ""
-        hasPassword = d.bool(forKey: "hasPassword")
-        useTouchID = d.bool(forKey: "useTouchID")
-        loginDays = d.integer(forKey: "loginDays")
-        mainLoginUntil = d.object(forKey: "mainLoginUntil") as? Date
         panelNow = d.bool(forKey: "panelNow")
         panelTimeline = d.bool(forKey: "panelTimeline")
         panelTomorrow = d.bool(forKey: "panelTomorrow")

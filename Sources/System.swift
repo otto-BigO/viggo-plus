@@ -1,41 +1,15 @@
 import Foundation
 import Security
-import LocalAuthentication
 import UserNotifications
 import EventKit
 import AppKit
 
+/// Only used to remove passwords that older versions saved. Viggo+ no longer stores any.
 enum Keychain {
-    private static func base(_ account: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: Config.bundleID,
-         kSecAttrAccount as String: account]
-    }
-    @discardableResult
-    static func save(_ password: String, account: String) -> Bool {
-        SecItemDelete(base(account) as CFDictionary)
-        var q = base(account)
-        q[kSecValueData as String] = Data(password.utf8)
-        q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        return SecItemAdd(q as CFDictionary, nil) == errSecSuccess
-    }
-    static func load(account: String) -> String? {
-        var q = base(account)
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var out: AnyObject?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data else { return nil }
-        return String(data: d, encoding: .utf8)
-    }
-    static func delete(account: String) { SecItemDelete(base(account) as CFDictionary) }
-}
-
-enum Biometrics {
-    static func unlock(reason: String) async -> Bool {
-        let ctx = LAContext()
-        var err: NSError?
-        guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else { return true }
-        return (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) ?? false
+    static func delete(account: String) {
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword,
+                       kSecAttrService as String: Config.bundleID,
+                       kSecAttrAccount as String: account] as CFDictionary)
     }
 }
 
@@ -220,9 +194,6 @@ struct Friend: Codable, Identifiable, Equatable {
     var viggoID: Int
     var name: String
     var image: URL?
-    var savedUsername: String?
-    var loginVerified: Bool? = nil
-    var savedUntil: Date? = nil
     var keychainAccount: String { "friend-\(id.uuidString)" }
     var firstName: String { name.components(separatedBy: " ").first ?? name }
 }

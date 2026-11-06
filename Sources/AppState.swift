@@ -34,14 +34,8 @@ final class AppState: ObservableObject {
     private func purgeSavedPasswords() {
         guard !UserDefaults.standard.bool(forKey: "purgedPasswords") else { return }
         if !prefs.username.isEmpty { Keychain.delete(account: prefs.username) }
-        prefs.hasPassword = false
-        for i in friends.indices {
-            Keychain.delete(account: friends[i].keychainAccount)
-            friends[i].savedUsername = nil
-            friends[i].loginVerified = nil
-            friends[i].savedUntil = nil
-        }
-        saveFriends()
+        for f in friends { Keychain.delete(account: f.keychainAccount) }
+        saveFriends()   // rewrites friends.json without the old login fields
         UserDefaults.standard.set(true, forKey: "purgedPasswords")
     }
 
@@ -140,11 +134,6 @@ final class AppState: ObservableObject {
     }
 
     // MARK: login
-
-    static func normalize(_ u: String) -> String {
-        let t = u.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.isEmpty || t.contains("@") ? t : t + Config.loginDomain
-    }
 
     func loginWithBrowser() {
         loginMessage = "Log ind i vinduet…"

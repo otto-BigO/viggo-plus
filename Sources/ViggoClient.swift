@@ -28,13 +28,6 @@ final class ViggoClient {
         return p
     }
 
-    private var fingerprint: String {
-        if let f = UserDefaults.standard.string(forKey: "fingerprint") { return f }
-        let f = UUID().uuidString.lowercased()
-        UserDefaults.standard.set(f, forKey: "fingerprint")
-        return f
-    }
-
     private func get(_ path: String) async throws -> Data {
         let req = URLRequest(url: URL(string: path, relativeTo: base)!.absoluteURL)
         let (data, resp) = try await session.data(for: req)
@@ -42,13 +35,6 @@ final class ViggoClient {
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(code) else { throw ViggoError.unexpected("HTTP \(code)") }
         return data
-    }
-
-    private func form(_ p: [String: String]) -> Data {
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
-        return p.map { k, v in
-            "\(k)=\(v.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")"
-        }.joined(separator: "&").data(using: .utf8)!
     }
 
     /// Unread messages and questionnaires waiting for you.

@@ -10,12 +10,12 @@ final class WebLogin: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
     private var onDone: (([HTTPCookie]) -> Void)?
 
-    func show(store: WKWebsiteDataStore = .default(), title: String = "Log ind på Viggo",
+    func show(store: WKWebsiteDataStore? = nil, title: String = "Log ind på Viggo",
               onDone: @escaping ([HTTPCookie]) -> Void) {
         self.onDone = onDone
         if let window { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil); return }
         let cfg = WKWebViewConfiguration()
-        cfg.websiteDataStore = store
+        cfg.websiteDataStore = store ?? .default()
         let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 720), configuration: cfg)
         wv.navigationDelegate = self
         wv.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
