@@ -285,7 +285,7 @@ struct DayPanel: View {
         let hw = homework.filter { $0.day >= DateUtil.startOfDay(now) }
 
         VStack(alignment: .leading, spacing: 12) {
-            if p.panelNow {
+            if p.panelNow, !events.isEmpty {
                 NowCard(current: current, next: next, now: now, name: name)
             }
 

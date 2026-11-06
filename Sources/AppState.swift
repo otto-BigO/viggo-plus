@@ -137,6 +137,9 @@ final class AppState: ObservableObject {
 
     func loginWithBrowser() {
         loginMessage = "Log ind i vinduet…"
+        webLogin.onClose = { [weak self] in
+            if self?.loginMessage == "Log ind i vinduet…" { self?.loginMessage = "" }
+        }
         webLogin.show { [weak self] cookies in
             guard let self else { return }
             cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
@@ -149,7 +152,9 @@ final class AppState: ObservableObject {
     }
 
     func logout() {
-        HTTPCookieStorage.shared.cookies(for: Config.baseURL)?.forEach { HTTPCookieStorage.shared.deleteCookie($0) }
+        // Every cookie in the login chain (Viggo, UNI-Login, SkoleIT), so the next login can be someone else.
+        HTTPCookieStorage.shared.cookies?.forEach { HTTPCookieStorage.shared.deleteCookie($0) }
+        events = []; homework = []; messages = []; unreadCount = 0; questionnaireCount = 0
         CookieJar.clear()
         webLogin.clearCookies()
         profile = nil
@@ -189,6 +194,8 @@ final class AppState: ObservableObject {
             lastSync = Date()
             CookieJar.save()
             if !status.hasPrefix("Kalender") { status = "" }
+        } catch ViggoError.notLoggedIn {
+            // The log-in banner in the panel already says so.
         } catch {
             status = error.localizedDescription
         }
@@ -210,6 +217,10 @@ final class AppState: ObservableObject {
     func addFriend(relogin existing: Friend? = nil) {
         let login = WebLogin()
         friendLogin = login
+        login.onClose = { [weak self] in
+            if self?.friendMessage.hasPrefix("Lad ") == true { self?.friendMessage = "" }
+            self?.friendLogin = nil
+        }
         friendMessage = existing == nil ? "Lad din ven logge ind i vinduet…" : "Lad \(existing!.firstName) logge ind igen…"
         login.show(store: .nonPersistent(), title: existing.map { "\($0.firstName): log ind på Viggo" } ?? "Ven: log ind på Viggo") { [weak self] cookies in
             Task { await self?.finishFriend(cookies: cookies) }
@@ -613,7 +624,7 @@ final class AppState: ObservableObject {
         let list = items(on: day).filter { $0.kind == .lesson || $0.kind == .event }
         var parts: [String] = []
         if let first = list.first {
-            parts.append("\(prefix): \(list.count) punkter. Første: \(first.title) \(DateUtil.hm(first.start))\(first.room.isEmpty ? "" : " (\(first.room))").")
+            parts.append("\(prefix): \(list.count) \(list.count == 1 ? "punkt" : "punkter"). Første: \(first.title) \(DateUtil.hm(first.start))\(first.room.isEmpty ? "" : " (\(first.room))").")
         } else {
             parts.append("\(prefix): ingen timer.")
         }

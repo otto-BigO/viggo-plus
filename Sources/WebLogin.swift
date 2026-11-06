@@ -5,10 +5,12 @@ import WebKit
 /// Nothing typed here is read or stored by Viggo+. When the page lands inside Viggo,
 /// the session cookies are handed to the app.
 @MainActor
-final class WebLogin: NSObject, WKNavigationDelegate {
+final class WebLogin: NSObject, WKNavigationDelegate, NSWindowDelegate {
     private var window: NSWindow?
     private var webView: WKWebView?
     private var onDone: (([HTTPCookie]) -> Void)?
+    /// Called when the window is closed without logging in.
+    var onClose: (() -> Void)?
 
     func show(store: WKWebsiteDataStore? = nil, title: String = "Log ind på Viggo",
               onDone: @escaping ([HTTPCookie]) -> Void) {
@@ -23,6 +25,7 @@ final class WebLogin: NSObject, WKNavigationDelegate {
         w.title = title
         w.contentView = wv
         w.isReleasedWhenClosed = false
+        w.delegate = self
         w.center()
         window = w
         webView = wv
@@ -39,17 +42,22 @@ final class WebLogin: NSObject, WKNavigationDelegate {
                 let w = self.window
                 self.window = nil
                 self.webView = nil
+                w?.delegate = nil
                 w?.orderOut(nil)
                 self.onDone?(cookies)
             }
         }
     }
 
+    func windowWillClose(_ notification: Notification) {
+        window = nil
+        webView = nil
+        onClose?()
+    }
+
     func clearCookies() {
         let store = WKWebsiteDataStore.default()
-        store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
-            let viggo = records.filter { $0.displayName.contains("viggo") }
-            store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: viggo) {}
-        }
+        // The app's own browser store only holds the login chain (Viggo, UNI-Login, SkoleIT).
+        store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) {}
     }
 }
