@@ -197,65 +197,184 @@ struct WeekView: View {
             }
             .padding(.horizontal, 20).padding(.top, 34).padding(.bottom, 14)
 
-            HStack(alignment: .top, spacing: 10) {
-                ForEach(shown, id: \.self) { d in
-                    DayColumn(day: d, items: dayItems(d),
-                              homework: homework.filter { DateUtil.cal.isDate($0.due, inSameDayAs: d) })
-                }
-            }
-            .padding(.horizontal, 16).padding(.bottom, 16)
+            WeekGrid(days: shown, items: dayItems,
+                     homework: { d in homework.filter { DateUtil.cal.isDate($0.due, inSameDayAs: d) } })
+                .padding(.horizontal, 12).padding(.bottom, 12)
         }
-        .frame(minWidth: 860, maxWidth: .infinity, minHeight: 520, maxHeight: .infinity, alignment: .top)
+        .frame(minWidth: 860, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
     }
 }
 
-struct DayColumn: View {
-    let day: Date
-    let items: [ViggoEvent]
-    let homework: [Homework]
+/// Hours down the side, a column per day, and each lesson as tall as it lasts, like on Viggo.
+struct WeekGrid: View {
+    let days: [Date]
+    let items: (Date) -> [ViggoEvent]
+    let homework: (Date) -> [Homework]
+    var hourHeight: CGFloat = 52
+    private let gutter: CGFloat = 44
+
+    private var hours: ClosedRange<Int> {
+        let all = days.flatMap(items)
+        let first = all.map { DateUtil.cal.component(.hour, from: $0.start) }.min() ?? 8
+        let last = all.map { e -> Int in
+            let sameDay = DateUtil.cal.isDate(e.end, inSameDayAs: e.start)
+            let h = DateUtil.cal.component(.hour, from: e.end), m = DateUtil.cal.component(.minute, from: e.end)
+            return sameDay ? h + (m > 0 ? 1 : 0) : 24
+        }.max() ?? 16
+        return min(first, 8)...max(min(last, 24), 16)
+    }
 
     var body: some View {
-        let today = DateUtil.cal.isDateInToday(day)
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(DateUtil.weekdayF.string(from: day).capitalized).font(.system(size: 13, weight: .semibold))
-                Text("\(DateUtil.cal.component(.day, from: day)).").font(.system(size: 13))
-                    .foregroundStyle(today ? Color.white : .secondary)
-                    .padding(.horizontal, today ? 6 : 0).padding(.vertical, today ? 1 : 0)
-                    .background(Capsule().fill(today ? Color.accentColor : .clear))
-            }
-            .padding(.bottom, 2)
-            ForEach(homework) { h in
-                Label(h.title, systemImage: h.done ? "checkmark.circle.fill" : "book.closed")
-                    .font(.system(size: 11)).foregroundStyle(h.done ? .secondary : .primary).lineLimit(2)
-            }
-            if items.isEmpty {
-                Text("Fri").font(.system(size: 12)).foregroundStyle(.tertiary)
-            }
-            ForEach(items) { e in
-                let tint = e.customColor ?? .accentColor
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))")
-                        .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
-                    Text(e.shortTitle).font(.system(size: 12, weight: .semibold)).lineLimit(2)
-                    if !e.room.isEmpty { Text(e.room).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1) }
+        let h = hours
+        VStack(spacing: 0) {
+            // Day names and homework
+            HStack(alignment: .top, spacing: 6) {
+                Color.clear.frame(width: gutter, height: 1)
+                ForEach(days, id: \.self) { d in
+                    let today = DateUtil.cal.isDateInToday(d)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 5) {
+                            Text(DateUtil.weekdayF.string(from: d).capitalized).font(.system(size: 13, weight: .semibold))
+                            Text("\(DateUtil.cal.component(.day, from: d)).").font(.system(size: 13))
+                                .foregroundStyle(today ? Color.white : .secondary)
+                                .padding(.horizontal, today ? 6 : 0).padding(.vertical, today ? 1 : 0)
+                                .background(Capsule().fill(today ? Color.accentColor : .clear))
+                        }
+                        ForEach(homework(d)) { hw in
+                            Label(hw.title, systemImage: hw.done ? "checkmark.circle.fill" : "book.closed")
+                                .font(.system(size: 11)).foregroundStyle(hw.done ? .secondary : .primary).lineLimit(2)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 6).padding(.bottom, 6)
                 }
-                .padding(7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.opacity(0.18)))
-                .overlay(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2).fill(tint).frame(width: 3).padding(.vertical, 5)
+            }
+            Divider()
+            ScrollView(.vertical) {
+                HStack(alignment: .top, spacing: 6) {
+                    // Hour labels
+                    VStack(alignment: .trailing, spacing: 0) {
+                        ForEach(Array(h), id: \.self) { hr in
+                            Text(String(format: "%02d:00", hr)).font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                                .frame(height: hourHeight, alignment: .top)
+                                .offset(y: -6)
+                        }
+                    }
+                    .frame(width: gutter, alignment: .trailing)
+                    ForEach(days, id: \.self) { d in
+                        DayGridColumn(day: d, items: items(d), hours: h, hourHeight: hourHeight)
+                    }
                 }
-                .opacity(e.end < Date() ? 0.5 : 1)
-                .contentShape(Rectangle())
-                .onTapGesture { NSWorkspace.shared.open(e.link) }
+                .padding(.top, 8)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(today ? Color.accentColor.opacity(0.07) : Color.primary.opacity(0.04)))
+    }
+}
+
+struct DayGridColumn: View {
+    let day: Date
+    let items: [ViggoEvent]
+    let hours: ClosedRange<Int>
+    let hourHeight: CGFloat
+
+    private var top: Date { DateUtil.cal.date(bySettingHour: hours.lowerBound, minute: 0, second: 0, of: day)! }
+    private var bottom: Date {
+        hours.upperBound >= 24 ? DateUtil.add(.day, 1, DateUtil.startOfDay(day))
+            : DateUtil.cal.date(bySettingHour: hours.upperBound, minute: 0, second: 0, of: day)!
+    }
+    private func y(_ d: Date) -> CGFloat { CGFloat(d.timeIntervalSince(top) / 3600) * hourHeight }
+
+    /// Side by side lanes for lessons that overlap.
+    private var laid: [(e: ViggoEvent, lane: Int, lanes: Int)] {
+        let sorted = items.sorted { ($0.start, $1.end) < ($1.start, $0.end) }
+        var out: [(ViggoEvent, Int, Int)] = []
+        var cluster: [(ViggoEvent, Int)] = []
+        var laneEnds: [Date] = []
+        var clusterEnd = Date.distantPast
+        func flush() {
+            let n = max(1, laneEnds.count)
+            out += cluster.map { ($0.0, $0.1, n) }
+            cluster = []; laneEnds = []
+        }
+        for e in sorted {
+            if e.start >= clusterEnd { flush(); clusterEnd = .distantPast }
+            if let free = laneEnds.firstIndex(where: { $0 <= e.start }) {
+                laneEnds[free] = e.end; cluster.append((e, free))
+            } else {
+                laneEnds.append(e.end); cluster.append((e, laneEnds.count - 1))
+            }
+            clusterEnd = max(clusterEnd, e.end)
+        }
+        flush()
+        return out.map { (e: $0.0, lane: $0.1, lanes: $0.2) }
+    }
+
+    var body: some View {
+        let height = CGFloat(hours.count - 1) * hourHeight + hourHeight
+        let today = DateUtil.cal.isDateInToday(day)
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                // Hour lines
+                ForEach(Array(hours), id: \.self) { hr in
+                    Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1)
+                        .offset(y: CGFloat(hr - hours.lowerBound) * hourHeight)
+                }
+                ForEach(laid, id: \.e.id) { item in
+                    let s = max(item.e.start, top), en = min(item.e.end, bottom)
+                    let w = (geo.size.width - CGFloat(item.lanes - 1) * 3) / CGFloat(item.lanes)
+                    GridBlock(e: item.e, height: max(20, y(en) - y(s) - 2))
+                        .frame(width: w)
+                        .offset(x: CGFloat(item.lane) * (w + 3), y: y(s) + 1)
+                }
+                // Now line
+                if today, Date() > top, Date() < bottom {
+                    HStack(spacing: 0) {
+                        Circle().fill(.red).frame(width: 7, height: 7)
+                        Rectangle().fill(.red).frame(height: 1.5)
+                    }
+                    .offset(x: -3, y: y(Date()) - 3.5)
+                }
+            }
+        }
+        .frame(height: height)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(today ? Color.accentColor.opacity(0.06) : Color.primary.opacity(0.025)))
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct GridBlock: View {
+    let e: ViggoEvent
+    let height: CGFloat
+
+    var body: some View {
+        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : .purple)
+        let roomy = height >= 44
+        VStack(alignment: .leading, spacing: 1) {
+            Text(e.shortTitle).font(.system(size: 11, weight: .semibold))
+                .lineLimit(height >= 70 ? 3 : (roomy ? 2 : 1))
+            if roomy {
+                Text("\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))").font(.system(size: 9.5, design: .monospaced))
+                    .foregroundStyle(.secondary).lineLimit(1)
+            }
+            if height >= 58, !e.room.isEmpty {
+                Text(e.room).font(.system(size: 9.5)).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(.leading, 7).padding(.trailing, 4).padding(.vertical, roomy ? 4 : 2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(height: height)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tint.opacity(0.22)))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2).fill(tint).frame(width: 3).padding(.vertical, 3)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .opacity(e.end < Date() ? 0.55 : 1)
+        .help("\(e.title)\n\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))\(e.room.isEmpty ? "" : " · \(e.room)")")
+        .contentShape(Rectangle())
+        .onTapGesture { NSWorkspace.shared.open(e.link) }
     }
 }
 

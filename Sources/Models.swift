@@ -38,8 +38,11 @@ struct ViggoEvent: Codable, Hashable, Identifiable {
         if l.contains("fællessamling") { return "Fællessamling" }
         if l.hasPrefix("stilletime") { return "Stilletime" }
         if l.hasPrefix("tjek af") { return "Værelsestjek" }
-        return title.count > 16 ? String(title.prefix(15)) + "…" : title
+        return title
     }
+
+    /// For the menu bar, where space is short.
+    var menuBarTitle: String { shortTitle.count > 22 ? String(shortTitle.prefix(21)) + "…" : shortTitle }
 }
 
 struct Homework: Codable, Hashable, Identifiable {

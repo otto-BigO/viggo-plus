@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.1.1 (2026-11-06)
+
+- **Uge-overblikket er et rigtigt skema**: timerne står efter klokken, og hver time er så høj som den varer, ligesom på Viggo. Timer der overlapper står ved siden af hinanden, og en rød streg viser hvad klokken er.
+- **Lange navne kan læses**: begivenheder med lange navne bliver ikke længere skåret af i panelet, men fortsætter på næste linje.
+
 ## 1.1.0 (2026-11-06)
 
 - **Uge-overblik** med hele ugens timer i kolonner, også for dine venner. Åbnes fra kalender-ikonet i panelet.

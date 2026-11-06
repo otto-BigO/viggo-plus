@@ -21,7 +21,7 @@ enum DocRenderer {
         snap(MenuView().environmentObject(state), name: "panel-friend", dir: dir, panel: true)
         state.selectedFriend = nil
 
-        snap(WeekView().environmentObject(state), name: "week", dir: dir, size: NSSize(width: 980, height: 560))
+        snap(WeekView().environmentObject(state), name: "week", dir: dir, size: NSSize(width: 1040, height: 720))
 
         Updater.shared.available = Updater.Release(
             version: "1.2.0", highlights: ["Uge-overblik med alle dine timer", "Fødselsdage i panelet", "Genvejstast til panelet"],
@@ -69,9 +69,13 @@ enum DocRenderer {
             ViggoEvent(id: 40, rawName: "Sofie Lund (06/11)", start: at(0, 0), end: at(23, 59), room: "", notes: "",
                        kind: .birthday, teachers: [], groups: []),
             ev(50, "Dansk", 8, 35, 9, 35, room: "Klasse 2", day: mon(1)), ev(51, "Matematik", 9, 55, 10, 55, room: "Klasse 3", day: mon(1)),
-            ev(52, "Engelsk", 11, 5, 12, 5, room: "Klasse 2", day: mon(1)), ev(53, "Idræt", 13, 15, 15, 0, room: "Store hal", day: mon(1)),
+            ev(52, "Engelsk", 11, 5, 12, 5, room: "Klasse 2", day: mon(1)), 
             ev(54, "Fysik", 8, 35, 9, 35, room: "Lab", day: mon(2)), ev(55, "Tysk", 9, 55, 10, 55, room: "Klasse 2", day: mon(2)),
             ev(56, "Musik", 11, 5, 12, 5, room: "Musikhuset", day: mon(2)),
+            ev(70, "Foredrag om ludomani og spil for alle elever", 16, 15, 17, 30, room: "Foredragssalen", kind: .event),
+            ev(71, "Temaeftermiddag og Galla", 13, 15, 22, 30, room: "Store hal", kind: .event, day: mon(1)),
+            ev(72, "Musiklinje", 13, 15, 14, 45, room: "Musikhuset", day: mon(2)),
+            ev(73, "Kor", 14, 0, 15, 0, room: "Musikhuset", day: mon(2)),
             ev(61, "Biologi", 8, 35, 9, 35, room: "Lab", day: mon(3)), ev(62, "Dansk", 9, 55, 10, 55, room: "Klasse 2", day: mon(3)),
             ev(63, "Medborgerskab", 11, 5, 12, 5, room: "Klasse 2", day: mon(3)),
             ev(57, "Dansk", 8, 35, 9, 35, room: "Klasse 2", day: mon(0)), ev(58, "Historie", 9, 55, 10, 55, room: "Klasse 4", day: mon(0)),

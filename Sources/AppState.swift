@@ -465,17 +465,17 @@ final class AppState: ObservableObject {
         let now = tick
         let today = items(on: now).filter { $0.kind == .lesson || $0.kind == .event }
         if let cur = today.first(where: { $0.start <= now && $0.end > now }) {
-            return "\(cur.shortTitle) → \(DateUtil.hm(cur.end))"
+            return "\(cur.menuBarTitle) → \(DateUtil.hm(cur.end))"
         }
         if let next = today.first(where: { $0.start > now }) {
-            return "\(next.shortTitle) \(DateUtil.hm(next.start))"
+            return "\(next.menuBarTitle) \(DateUtil.hm(next.start))"
         }
         let evening = afterSchool(now)
         if let cur = evening.first(where: { $0.start <= now }) {
-            return "\(cur.shortTitle) → \(DateUtil.hm(cur.end))"
+            return "\(cur.menuBarTitle) → \(DateUtil.hm(cur.end))"
         }
         if let next = evening.first {
-            return "\(next.shortTitle) \(DateUtil.hm(next.start))"
+            return "\(next.menuBarTitle) \(DateUtil.hm(next.start))"
         }
         return ""
     }
@@ -690,7 +690,7 @@ final class AppState: ObservableObject {
             w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
             w.titlebarAppearsTransparent = true
             w.isReleasedWhenClosed = false
-            w.setContentSize(NSSize(width: 980, height: 600))
+            w.setContentSize(NSSize(width: 1040, height: 760))
             w.center()
             weekWindow = w
         }

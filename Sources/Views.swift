@@ -94,10 +94,12 @@ struct TimelineRow: View {
                 }
                 Text(e.shortTitle)
                     .font(Sz.f(13, current ? .semibold : .regular))
-                    .lineLimit(1)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                 Spacer(minLength: 6)
                 if !e.room.isEmpty {
-                    Text(e.room).font(Sz.f(11)).foregroundStyle(.tertiary).lineLimit(1)
+                    Text(e.room).font(Sz.f(11)).foregroundStyle(.tertiary).lineLimit(1).fixedSize()
                 }
             }
             .opacity(past ? 0.35 : 1)
@@ -124,9 +126,9 @@ struct NowCard: View {
             if let c = current {
                 Text(name.map { "\($0) har nu" } ?? "Nu").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline) {
-                    Text(c.shortTitle).font(Sz.f(19, .bold)).lineLimit(1)
+                    Text(c.shortTitle).font(Sz.f(19, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     Spacer()
-                    Text("\(mins(now, c.end)) tilbage").font(Sz.f(12, .medium)).foregroundStyle(.secondary)
+                    Text("\(mins(now, c.end)) tilbage").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
                 }
                 ProgressView(value: min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start)))))
                     .progressViewStyle(.linear).tint(.accentColor)
@@ -138,9 +140,9 @@ struct NowCard: View {
             } else if let n = next {
                 Text(name.map { "\($0) er fri" } ?? "Fri").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline) {
-                    Text(n.shortTitle).font(Sz.f(19, .bold)).lineLimit(1)
+                    Text(n.shortTitle).font(Sz.f(19, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     Spacer()
-                    Text("om \(mins(now, n.start))").font(Sz.f(12, .medium)).foregroundStyle(.secondary)
+                    Text("om \(mins(now, n.start))").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
                 }
                 if !n.room.isEmpty { Label(n.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
             } else {
@@ -150,7 +152,7 @@ struct NowCard: View {
                 Divider().opacity(0.5)
                 HStack {
                     Text("Næste").font(Sz.f(11)).foregroundStyle(.secondary)
-                    Text(n.shortTitle).font(Sz.f(12, .medium)).lineLimit(1)
+                    Text(n.shortTitle).font(Sz.f(12, .medium)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Text(DateUtil.hm(n.start)).font(Sz.mono(12)).foregroundStyle(.secondary)
                 }
