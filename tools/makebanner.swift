@@ -1,6 +1,6 @@
 import AppKit
 
-// docs/banner.png: icon + "Viggo+" + tagline on a Viggo-blue background.
+// docs/banner.png: ikon + "Viggo+" + undertekst på Viggo-blå baggrund.
 let w = 1600, h = 500
 let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4,
                            hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
@@ -16,7 +16,7 @@ if let icon = NSImage(contentsOfFile: CommandLine.arguments[1]) {
 let title = NSAttributedString(string: "Viggo+", attributes: [
     .font: NSFont.systemFont(ofSize: 150, weight: .heavy), .foregroundColor: NSColor.white])
 title.draw(at: NSPoint(x: 520, y: 225))
-let sub = NSAttributedString(string: "Your Viggo schedule in the macOS menu bar", attributes: [
+let sub = NSAttributedString(string: "Dit Viggo-skema i menubaren på din Mac", attributes: [
     .font: NSFont.systemFont(ofSize: 44, weight: .medium), .foregroundColor: NSColor.white.withAlphaComponent(0.85)])
 sub.draw(at: NSPoint(x: 528, y: 150))
 NSGraphicsContext.restoreGraphicsState()
