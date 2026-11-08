@@ -29,6 +29,7 @@ final class AppState: ObservableObject {
     @Published var questionnaireCount = 0
     @Published var bulletins: [Bulletin] = []
     private var weekWindow: NSWindow?
+    private var lessonWindow: NSWindow?
     private var focusActive: Bool?
     private var friendLogin: WebLogin?
 
@@ -682,6 +683,24 @@ final class AppState: ObservableObject {
     }
 
     func openViggo(_ url: URL = Config.baseURL) { NSWorkspace.shared.open(url) }
+
+    /// Shows a lesson with the teacher's info and links.
+    func openLesson(_ e: ViggoEvent) {
+        let host = NSHostingController(rootView: LessonDetailView(e: e))
+        if let w = lessonWindow {
+            w.contentViewController = host
+        } else {
+            let w = NSWindow(contentViewController: host)
+            w.styleMask = [.titled, .closable, .fullSizeContentView]
+            w.titlebarAppearsTransparent = true
+            w.isReleasedWhenClosed = false
+            lessonWindow = w
+        }
+        lessonWindow?.title = e.title
+        lessonWindow?.center()
+        NSApp.activate(ignoringOtherApps: true)
+        lessonWindow?.makeKeyAndOrderFront(nil)
+    }
 
     func openWeek() {
         if weekWindow == nil {

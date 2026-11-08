@@ -374,8 +374,100 @@ struct GridBlock: View {
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .opacity(e.end < Date() ? 0.55 : 1)
         .help("\(e.title)\n\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))\(e.room.isEmpty ? "" : " · \(e.room)")")
+        .overlay(alignment: .topTrailing) {
+            if e.hasInfo || !e.links.isEmpty {
+                Image(systemName: "text.alignleft").font(.system(size: 9, weight: .bold)).foregroundStyle(tint)
+                    .padding(4)
+            }
+        }
         .contentShape(Rectangle())
-        .onTapGesture { NSWorkspace.shared.open(e.link) }
+        .onTapGesture { AppState.shared.openLesson(e) }
+    }
+}
+
+// MARK: - Lesson details
+
+struct LessonDetailView: View {
+    let e: ViggoEvent
+
+    private func linkLabel(_ u: URL) -> String {
+        let host = (u.host ?? u.absoluteString).replacingOccurrences(of: "www.", with: "")
+        if host.contains("youtube") || host.contains("youtu.be") { return "YouTube" }
+        if host.contains("drive.google") || host.contains("docs.google") { return "Google Drev" }
+        return host
+    }
+    private func linkIcon(_ u: URL) -> String {
+        let h = u.host ?? ""
+        if h.contains("youtube") || h.contains("youtu.be") { return "play.rectangle.fill" }
+        if h.contains("google") { return "doc.fill" }
+        return "link"
+    }
+
+    var body: some View {
+        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : .purple)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 10) {
+                    RoundedRectangle(cornerRadius: 2).fill(tint).frame(width: 4, height: 40)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(e.title).font(.system(size: 20, weight: .bold)).fixedSize(horizontal: false, vertical: true)
+                        Text("\(DateUtil.longDayF.string(from: e.start).capitalized) · \(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))")
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    if !e.room.isEmpty { Label(e.room, systemImage: "mappin.and.ellipse") }
+                    if !e.teachers.isEmpty {
+                        Label(e.teachers.prefix(4).joined(separator: ", ") + (e.teachers.count > 4 ? " +\(e.teachers.count - 4)" : ""),
+                              systemImage: "person")
+                    }
+                    if !e.groups.isEmpty, e.groups.count <= 3 { Label(e.groups.joined(separator: ", "), systemImage: "person.3") }
+                }
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+
+                if e.hasInfo {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Info fra læreren").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                        Text(e.notes).font(.system(size: 13)).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+                } else {
+                    Text("Ingen info fra læreren til denne time.").font(.system(size: 12)).foregroundStyle(.tertiary)
+                }
+
+                if !e.links.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Links").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                        ForEach(e.links, id: \.self) { u in
+                            Link(destination: u) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: linkIcon(u)).frame(width: 16)
+                                    Text(linkLabel(u)).font(.system(size: 12, weight: .medium))
+                                    Text(u.path.count > 1 ? u.path : "").font(.system(size: 11)).foregroundStyle(.tertiary).lineLimit(1)
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right").font(.system(size: 10)).foregroundStyle(.tertiary)
+                                }
+                                .padding(8)
+                                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Åbn i Viggo") { NSWorkspace.shared.open(e.link) }
+                }
+            }
+            .padding(.horizontal, 22).padding(.top, 34).padding(.bottom, 18)
+        }
+        .frame(width: 420)
+        .frame(minHeight: 240, maxHeight: 640)
+        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
     }
 }
 

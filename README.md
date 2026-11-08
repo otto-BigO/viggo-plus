@@ -10,6 +10,14 @@
   <img src="docs/screens/panel-friend.png" alt="En vens dag" width="320">
 </p>
 
+## Info fra læreren
+
+Klik på en time i panelet eller uge-overblikket, så ser du hvad læreren har skrevet til timen: hvad I skal, hvad du skal læse eller have med, og links til videoer og filer.
+
+<p align="center">
+  <img src="docs/screens/lesson.png" alt="Info fra læreren" width="420">
+</p>
+
 ## Uge-overblik
 
 <p align="center">
@@ -82,6 +90,7 @@ Klik på en side for at se den.
 
 - Menubaren viser hvad du har lige nu, fx `Dansk → 14:15`, og hvad der er næste gang når du har fri. Efter skoletid skifter den til hverdagen: aftensmad, stilletime, godnat.
 - Klik på den for panelet: et "Nu"-kort med tid tilbage, resten af dagen som én tidslinje, i morgen, lektier, beskeder og aftenvagt. Hver del kan slås til og fra, og der er en indstilling med stor tekst.
+- Klik på en time for at se lærerens info: hvad I skal, hvad du skal have med, og links til videoer og filer.
 - Sæt lektier som færdige direkte i panelet. Det bliver gemt i Viggo.
 - Ulæste beskeder og spørgeskemaer vises som et tal i menubaren.
 - Notifikationer når en time bliver flyttet, aflyst eller skifter lokale, når der kommer nye lektier eller en ny besked, og en brief morgen og aften.

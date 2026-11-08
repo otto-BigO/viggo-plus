@@ -83,6 +83,7 @@ extension String {
 
     var strippedHTML: String {
         var s = replacingOccurrences(of: "<script.*?</script>", with: "", options: [.regularExpression, .caseInsensitive])
+        s = s.replacingOccurrences(of: "<li[^>]*>", with: "• ", options: [.regularExpression, .caseInsensitive])
         s = s.replacingOccurrences(of: "<br ?/?>|</p>|</li>", with: "\n", options: [.regularExpression, .caseInsensitive])
         s = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         s = s.htmlDecoded

@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.2.0 (2026-11-08)
+
+- **Info fra læreren**: klik på en time, så ser du hvad I skal, hvad du skal læse eller have med, og lærerens links (videoer, Drev-filer). Timer med info har et lille ikon.
+- **Nu-kortet** viser starten af lærerens info til den time du har nu eller skal have.
+- Info og links kan også ses fra uge-overblikket.
+
 ## 1.1.2 (2026-11-08)
 
 - **Weekenden vises altid** i uge-overblikket: lørdag og søndag står med, også når der ikke er noget på dem.

@@ -22,6 +22,9 @@ enum DocRenderer {
         state.selectedFriend = nil
 
         snap(WeekView().environmentObject(state), name: "week", dir: dir, size: NSSize(width: 1040, height: 720))
+        if let fysik = state.events.first(where: { $0.id == 4 }) {
+            snap(LessonDetailView(e: fysik), name: "lesson", dir: dir)
+        }
 
         Updater.shared.available = Updater.Release(
             version: "1.2.0", highlights: ["Uge-overblik med alle dine timer", "Fødselsdage i panelet", "Genvejstast til panelet"],
@@ -59,7 +62,10 @@ enum DocRenderer {
             ev(1, "Dansk", 8, 35, 9, 35, room: "Klasse 2"),
             ev(2, "Engelsk", 9, 55, 10, 55, room: "Klasse 2"),
             ev(3, "Matematik", 11, 5, 12, 5, room: "Klasse 3"),
-            ev(4, "Fysik", 13, 15, 14, 15, room: "Lab"),
+            ViggoEvent(id: 4, rawName: "Fysik", start: at(13, 15), end: at(14, 15), room: "Lab",
+                       notes: "Vi laver forsøg med strøm og spænding. Husk lommeregner og hæftet fra sidst.\n\nSe videoen inden timen:\n• Ohms lov på 5 minutter\n• Opgave 4.1 til 4.3",
+                       kind: .lesson, teachers: ["Maja Holm"], groups: ["Fysik (Fys104)"],
+                       links: [URL(string: "https://www.youtube.com/watch?v=demo")!, URL(string: "https://drive.google.com/file/d/demo/view")!]),
             ev(5, "Gymnastik", 14, 30, 16, 0, room: "Store hal"),
             ev(10, "Aftensmad", 18, 0, 18, 30, room: "Spisesalen", kind: .routine),
             ev(11, "Stilletime og oprydning på værelset", 18, 30, 19, 30, kind: .routine),

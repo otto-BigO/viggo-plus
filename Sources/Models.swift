@@ -12,6 +12,11 @@ struct ViggoEvent: Codable, Hashable, Identifiable {
     let kind: EventKind
     let teachers: [String]
     let groups: [String]
+    /// Links the teacher put in the lesson description (videos, Drive files …).
+    var links: [URL] = []
+
+    /// The teacher's description: what to do, read or bring.
+    var hasInfo: Bool { !notes.isEmpty }
 
     var key: String { "\(kind.rawValue)-\(id)" }
     /// The name you gave this lesson in Indstillinger › Timer, otherwise Viggo's.
@@ -121,7 +126,9 @@ enum Parser {
                 start: start, end: end,
                 room: (o["premises"] as? String ?? "").trimmingCharacters(in: .whitespaces),
                 notes: (o["description"] as? String ?? "").strippedHTML,
-                kind: finalKind, teachers: teachers, groups: groups)
+                kind: finalKind, teachers: teachers, groups: groups,
+                links: (o["description"] as? String ?? "").matches("href=\"(https?://[^\"]+)\"")
+                    .compactMap { URL(string: $0[1].htmlDecoded) })
         }
     }
 

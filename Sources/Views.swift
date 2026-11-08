@@ -98,6 +98,10 @@ struct TimelineRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                 Spacer(minLength: 6)
+                if e.hasInfo || !e.links.isEmpty {
+                    Image(systemName: "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
+                        .help("Der er info fra læreren")
+                }
                 if !e.room.isEmpty {
                     Text(e.room).font(Sz.f(11)).foregroundStyle(.tertiary).lineLimit(1).fixedSize()
                 }
@@ -105,8 +109,8 @@ struct TimelineRow: View {
             .opacity(past ? 0.35 : 1)
         }
         .contentShape(Rectangle())
-        .onTapGesture { if tappable { NSWorkspace.shared.open(e.link) } }
-        .help(tappable ? "Åbn i Viggo" : "")
+        .onTapGesture { AppState.shared.openLesson(e) }
+        .help(e.hasInfo ? "Se info fra læreren" : "Se detaljer")
     }
 }
 
@@ -147,6 +151,21 @@ struct NowCard: View {
                 if !n.room.isEmpty { Label(n.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
             } else {
                 Text(name.map { "\($0) har fri resten af dagen" } ?? "Fri resten af dagen 🎉").font(Sz.f(15, .semibold))
+            }
+            if let info = (current ?? next).flatMap({ $0.hasInfo ? $0 : nil }) {
+                Button { AppState.shared.openLesson(info) } label: {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
+                            .padding(.top, 2)
+                        Text(info.notes.replacingOccurrences(of: "\n", with: " "))
+                            .font(Sz.f(11)).foregroundStyle(.secondary).lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Se info fra læreren")
             }
             if current != nil, let n = next {
                 Divider().opacity(0.5)
