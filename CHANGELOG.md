@@ -1,5 +1,9 @@
 # Ændringer
 
+## 1.1.2 (2026-11-08)
+
+- **Weekenden vises altid** i uge-overblikket: lørdag og søndag står med, også når der ikke er noget på dem.
+
 ## 1.1.1 (2026-11-06)
 
 - **Uge-overblikket er et rigtigt skema**: timerne står efter klokken, og hver time er så høj som den varer, ligesom på Viggo. Timer der overlapper står ved siden af hinanden, og en rød streg viser hvad klokken er.

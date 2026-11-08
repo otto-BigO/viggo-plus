@@ -175,7 +175,7 @@ struct WeekView: View {
 
     var body: some View {
         let days = (0..<7).map { DateUtil.add(.day, $0, monday) }
-        let shown = days.enumerated().filter { $0.offset < 5 || !dayItems($0.element).isEmpty }.map(\.element)
+        let shown = days   // always the whole week, weekend included
         let week = DateUtil.cal.component(.weekOfYear, from: monday)
         VStack(spacing: 0) {
             HStack(spacing: 12) {
@@ -355,6 +355,7 @@ struct GridBlock: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(e.shortTitle).font(.system(size: 11, weight: .semibold))
                 .lineLimit(height >= 70 ? 3 : (roomy ? 2 : 1))
+                .minimumScaleFactor(0.75)
             if roomy {
                 Text("\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))").font(.system(size: 9.5, design: .monospaced))
                     .foregroundStyle(.secondary).lineLimit(1)
