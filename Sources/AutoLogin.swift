@@ -1,31 +1,39 @@
 import AppKit
 import WebKit
-import Security
 
-/// Your SkoleIT login, saved in the macOS Keychain. Only used by AutoLogin.
+/// Saved SkoleIT logins (yours and your friends'), in one file only your user can read.
+/// Not in the Keychain: macOS asks for the Keychain password after every update of an
+/// unsigned app, which would block logging in by itself in the background.
+enum LoginStore {
+    struct Login: Codable { var user: String; var pass: String }
+    struct Data: Codable { var own: Login?; var friends: [String: Login] = [:] }
+
+    private static var url: URL { CookieJar.dir.appendingPathComponent("logins.plist") }
+    private static var cache: Data?
+
+    static var data: Data {
+        get {
+            if let cache { return cache }
+            let d = (try? Foundation.Data(contentsOf: url)).flatMap { try? PropertyListDecoder().decode(Data.self, from: $0) } ?? Data()
+            cache = d
+            return d
+        }
+        set {
+            cache = newValue
+            guard let bytes = try? PropertyListEncoder().encode(newValue) else { return }
+            try? bytes.write(to: url, options: [.atomic, .completeFileProtection])
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        }
+    }
+}
+
+/// Your SkoleIT login. Only used by AutoLogin.
 enum SkoleITLogin {
-    private static let service = Config.bundleID + ".skoleit"
-    private static let userKey = "autoLoginUser"
+    private static var docs: Bool { CommandLine.arguments.contains("--render-docs") }   // screenshots never show your login
 
-    static var username: String? {
-        if CommandLine.arguments.contains("--render-docs") { return "navn1234@cloud.skoleit.dk" }   // screenshots never show your login
-        let u = UserDefaults.standard.string(forKey: userKey) ?? ""
-        return u.isEmpty ? nil : u
-    }
-
+    static var username: String? { docs ? "navn1234@cloud.skoleit.dk" : LoginStore.data.own?.user }
+    static var password: String? { docs ? "x" : LoginStore.data.own?.pass }
     static var isSet: Bool { username != nil && password != nil }
-
-    static var password: String? {
-        if CommandLine.arguments.contains("--render-docs") { return "x" }
-        guard let user = username else { return nil }
-        var out: AnyObject?
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                kSecAttrService as String: service,
-                                kSecAttrAccount as String: user,
-                                kSecReturnData as String: true]
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data else { return nil }
-        return String(data: d, encoding: .utf8)
-    }
 
     /// "otto1161" becomes "otto1161@cloud.skoleit.dk". A full address is kept as it is.
     static func normalize(_ user: String) -> String {
@@ -33,55 +41,26 @@ enum SkoleITLogin {
         return u.isEmpty || u.contains("@") ? u : u + "@cloud.skoleit.dk"
     }
 
-    static func save(username raw: String, password: String) {
-        let username = normalize(raw)
-        clear()
-        SecItemAdd([kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrService as String: service,
-                    kSecAttrAccount as String: username,
-                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-                    kSecValueData as String: Data(password.utf8)] as CFDictionary, nil)
-        UserDefaults.standard.set(username, forKey: userKey)
+    static func save(username: String, password: String) {
+        LoginStore.data.own = .init(user: normalize(username), pass: password)
     }
 
-    static func clear() {
-        SecItemDelete([kSecClass as String: kSecClassGenericPassword,
-                       kSecAttrService as String: service] as CFDictionary)
-        UserDefaults.standard.removeObject(forKey: userKey)
-    }
+    static func clear() { LoginStore.data.own = nil }
 }
 
-/// A friend's SkoleIT login, saved in the Keychain under the friend's id. Only used by AutoLogin.
+/// A friend's SkoleIT login, saved under the friend's id. Only used by AutoLogin.
 enum FriendLogin {
-    private static let service = Config.bundleID + ".skoleit.friend"
-
     static func get(_ id: UUID) -> (user: String, pass: String)? {
-        var out: AnyObject?
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                kSecAttrService as String: service,
-                                kSecAttrAccount as String: id.uuidString,
-                                kSecReturnData as String: true]
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data,
-              let s = String(data: d, encoding: .utf8), let nl = s.firstIndex(of: "\n") else { return nil }
-        return (String(s[..<nl]), String(s[s.index(after: nl)...]))
+        LoginStore.data.friends[id.uuidString].map { ($0.user, $0.pass) }
     }
 
     static func has(_ id: UUID) -> Bool { get(id) != nil }
 
     static func save(_ id: UUID, username: String, password: String) {
-        remove(id)
-        SecItemAdd([kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrService as String: service,
-                    kSecAttrAccount as String: id.uuidString,
-                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-                    kSecValueData as String: Data((SkoleITLogin.normalize(username) + "\n" + password).utf8)] as CFDictionary, nil)
+        LoginStore.data.friends[id.uuidString] = .init(user: SkoleITLogin.normalize(username), pass: password)
     }
 
-    static func remove(_ id: UUID) {
-        SecItemDelete([kSecClass as String: kSecClassGenericPassword,
-                       kSecAttrService as String: service,
-                       kSecAttrAccount as String: id.uuidString] as CFDictionary)
-    }
+    static func remove(_ id: UUID) { LoginStore.data.friends[id.uuidString] = nil }
 }
 
 enum AutoLoginResult {

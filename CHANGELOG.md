@@ -3,7 +3,9 @@
 ## 1.4.0 (2026-11-08)
 
 - **Automatisk login for venner**: tilføj en ven med vennens SkoleIT-login under Indstillinger › Venner, eller tryk på nøglen ved en ven du allerede har. Når vennens session udløber, logger Viggo+ selv vennen ind igen i et privat vindue, som aldrig ser din egen session.
-- Vennens kode ligger i Mac'ens nøglering og slettes, når vennen fjernes.
+- Koderne gemmes nu i en fil på din Mac, som kun din bruger kan læse, i stedet for nøgleringen. Så spørger macOS ikke længere efter nøglering-koden. Har du gemt et login i 1.3.0, skal du skrive det igen én gang.
+- En vens kode slettes, når vennen fjernes.
+- Enklere Konto- og Venner-side: login-felterne står direkte på siden.
 
 ## 1.3.0 (2026-11-08)
 

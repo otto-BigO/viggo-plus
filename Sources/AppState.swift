@@ -85,7 +85,7 @@ final class AppState: ObservableObject {
                 FriendLogin.save(id, username: "test1234", password: "a\nb")
                 let back = FriendLogin.get(id)
                 FriendLogin.remove(id)
-                print("[autologin] nøglering: \(back?.user == "test1234@cloud.skoleit.dk" && back?.pass == "a\nb" && !FriendLogin.has(id) ? "ok" : "FEJL")")
+                print("[autologin] lagring: \(back?.user == "test1234@cloud.skoleit.dk" && back?.pass == "a\nb" && !FriendLogin.has(id) ? "ok" : "FEJL")")
                 guard let u = SkoleITLogin.username, let p = SkoleITLogin.password else { print("[autologin] intet login gemt"); exit(1) }
                 let login = AutoLogin()
                 let r = await login.run(username: u, password: p, store: .nonPersistent())

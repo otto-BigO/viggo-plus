@@ -619,7 +619,7 @@ struct AccountTab: View {
             } header: {
                 Text(state.needsLogin ? "Log ind med SkoleIT" : "Automatisk login")
             } footer: {
-                Text("Viggo+ logger selv ind, når sessionen udløber. Koden gemmes kun i nøgleringen.")
+                Text("Viggo+ logger selv ind, når sessionen udløber. Koden gemmes kun på din Mac.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -947,7 +947,7 @@ struct FriendsTab: View {
             } header: {
                 Text("Tilføj ven")
             } footer: {
-                Text("Med vennens SkoleIT-login logger Viggo+ selv vennen ind igen. Koden gemmes kun i nøgleringen.")
+                Text("Med vennens SkoleIT-login logger Viggo+ selv vennen ind igen. Koden gemmes kun på din Mac.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
