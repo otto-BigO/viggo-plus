@@ -55,6 +55,8 @@ final class AppState: ObservableObject {
     private let autoLogin = AutoLogin()
     private var expiryNotified = false
     private var lastAutoLogin = Date.distantPast
+    private var lastFriendAutoLogin: [UUID: Date] = [:]
+    @Published var friendAutoLoginRunning: Set<UUID> = []
     @Published var autoLoginRunning = false
 
     private init() {
@@ -73,6 +75,24 @@ final class AppState: ObservableObject {
                 let r = await autoLogin.run(username: "test@cloud.skoleit.dk", password: "x", dryRun: true,
                                             store: fresh ? .nonPersistent() : .default())
                 if case .failure(let why) = r { print("[autologin] \(why)") }
+                exit(0)
+            }
+        } else if CommandLine.arguments.contains("--friend-autologin-test") {
+            // For testing the friend path from Terminal with your own saved login: Keychain round trip,
+            // a login in a private store like a friend's, and a Viggo request with those cookies. Adds no friend.
+            Task { @MainActor in
+                let id = UUID()
+                FriendLogin.save(id, username: "test1234", password: "a\nb")
+                let back = FriendLogin.get(id)
+                FriendLogin.remove(id)
+                print("[autologin] nøglering: \(back?.user == "test1234@cloud.skoleit.dk" && back?.pass == "a\nb" && !FriendLogin.has(id) ? "ok" : "FEJL")")
+                guard let u = SkoleITLogin.username, let p = SkoleITLogin.password else { print("[autologin] intet login gemt"); exit(1) }
+                let login = AutoLogin()
+                let r = await login.run(username: u, password: p, store: .nonPersistent())
+                print(login.log.joined(separator: " > "))
+                if case .success(let cookies) = r, let prof = try? await ViggoClient(cookies: cookies).fetchProfile() {
+                    print("[autologin] privat session virker: \(prof.name)")
+                } else { print("[autologin] privat session virker ikke") }
                 exit(0)
             }
         } else if CommandLine.arguments.contains("--autologin-test") {
@@ -137,7 +157,7 @@ final class AppState: ObservableObject {
                 try await c.ping()
                 CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id))
             } catch ViggoError.notLoggedIn {
-                friendSessionExpired(f)
+                await friendSessionExpired(f)
             } catch {}
         }
     }
@@ -151,8 +171,10 @@ final class AppState: ObservableObject {
                              url: URL(string: "viggoplus://login"))
     }
 
-    private func friendSessionExpired(_ f: Friend) {
+    /// A friend's session ran out: log them in again with their saved SkoleIT login, or ask them to.
+    private func friendSessionExpired(_ f: Friend) async {
         guard !friendExpired.contains(f.id) else { return }
+        if await tryFriendAutoLogin(f) { return }
         friendExpired.insert(f.id)
         Notifier.shared.post("Viggo+: \(f.firstName) skal logge ind igen", "Klik for at åbne login for \(f.firstName).",
                              url: URL(string: "viggoplus://friend/\(f.id.uuidString)"))
@@ -321,7 +343,57 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Logs a friend in by themselves with their saved SkoleIT login, in a private browser store
+    /// that never sees your own session. At most once every 10 minutes unless forced.
+    @discardableResult
+    func tryFriendAutoLogin(_ f: Friend, force: Bool = false) async -> Bool {
+        guard let login = FriendLogin.get(f.id), !friendAutoLoginRunning.contains(f.id),
+              force || Date().timeIntervalSince(lastFriendAutoLogin[f.id] ?? .distantPast) > 10 * 60 else { return false }
+        lastFriendAutoLogin[f.id] = Date()
+        friendAutoLoginRunning.insert(f.id)
+        defer { friendAutoLoginRunning.remove(f.id) }
+        friendMessage = "Logger \(f.firstName) ind automatisk…"
+        switch await AutoLogin().run(username: login.user, password: login.pass, store: .nonPersistent()) {
+        case .success(let cookies):
+            guard let got = await finishFriend(cookies: cookies), got.id == f.id else {
+                friendMessage = "Automatisk login for \(f.firstName) gav en anden konto"
+                return false
+            }
+            friendMessage = "\(f.firstName) er logget ind automatisk ✓"
+            return true
+        case .failure(let why):
+            friendMessage = "Automatisk login for \(f.firstName) fejlede: \(why)"
+            return false
+        }
+    }
+
+    /// Saves a friend's SkoleIT login and tries it right away.
+    func saveFriendAutoLogin(_ f: Friend, username: String, password: String) async {
+        FriendLogin.save(f.id, username: username, password: password)
+        await tryFriendAutoLogin(f, force: true)
+    }
+
+    /// Adds a new friend straight from their SkoleIT login, without the login window.
+    func addFriendWithSkoleIT(username: String, password: String) async {
+        friendMessage = "Logger ind med SkoleIT…"
+        switch await AutoLogin().run(username: username, password: password, store: .nonPersistent()) {
+        case .success(let cookies):
+            if let f = await finishFriend(cookies: cookies) {
+                FriendLogin.save(f.id, username: username, password: password)
+                friendMessage = "\(f.firstName) er tilføjet med automatisk login ✓"
+            }
+        case .failure(let why):
+            friendMessage = "Kunne ikke logge ind: \(why)"
+        }
+    }
+
+    func removeFriendAutoLogin(_ f: Friend) {
+        FriendLogin.remove(f.id)
+        friendMessage = "Automatisk login for \(f.firstName) er slået fra"
+    }
+
     func removeFriend(_ f: Friend) {
+        FriendLogin.remove(f.id)
         friends.removeAll { $0.id == f.id }
         friendEvents[f.id] = nil
         friendHomework[f.id] = nil
@@ -339,7 +411,7 @@ final class AppState: ObservableObject {
                 friendHomework[f.id] = (try? await c.fetchHomework()) ?? friendHomework[f.id] ?? []
                 CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id))
             } catch ViggoError.notLoggedIn {
-                friendSessionExpired(f)
+                await friendSessionExpired(f)
             } catch {}
         }
     }

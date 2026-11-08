@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.4.0 (2026-11-08)
+
+- **Automatisk login for venner**: tilføj en ven med vennens SkoleIT-login under Indstillinger › Venner, eller tryk på nøglen ved en ven du allerede har. Når vennens session udløber, logger Viggo+ selv vennen ind igen i et privat vindue, som aldrig ser din egen session.
+- Vennens kode ligger i Mac'ens nøglering og slettes, når vennen fjernes.
+
 ## 1.3.0 (2026-11-08)
 
 - **Automatisk login med SkoleIT**: gem dit SkoleIT-login under Indstillinger › Konto, så logger Viggo+ selv ind i baggrunden når sessionen udløber (UNI-Login, Lokalt login, SkoleIT). Skriver du kun dit brugernavn, fx `otto1161`, sætter Viggo+ selv `@cloud.skoleit.dk` på. Du får kun en notifikation hvis det fejler, fx ved forkert kode.

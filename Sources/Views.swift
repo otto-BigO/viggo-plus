@@ -872,6 +872,65 @@ struct NotificationsTab: View {
     }
 }
 
+/// Username and password fields. "otto1161" is shown as "otto1161@cloud.skoleit.dk".
+struct SkoleITFields: View {
+    let button: String
+    let onSave: (String, String) -> Void
+    @State private var user = ""
+    @State private var pass = ""
+
+    var body: some View {
+        TextField("SkoleIT-brugernavn", text: $user, prompt: Text("navn1234"))
+        if !user.isEmpty, !user.contains("@") {
+            Text("Logger ind som \(SkoleITLogin.normalize(user))").font(.caption).foregroundStyle(.secondary)
+        }
+        SecureField("Adgangskode", text: $pass)
+        Button(button) {
+            let u = SkoleITLogin.normalize(user), p = pass
+            user = ""; pass = ""
+            onSave(u, p)
+        }
+        .disabled(user.trimmingCharacters(in: .whitespaces).isEmpty || pass.isEmpty)
+    }
+}
+
+/// The key next to a friend: save, test or remove their SkoleIT login.
+struct FriendAutoLoginButton: View {
+    @EnvironmentObject var state: AppState
+    let friend: Friend
+    @State private var open = false
+    @State private var saved = false
+
+    var body: some View {
+        Button { saved = FriendLogin.has(friend.id); open = true } label: {
+            Image(systemName: FriendLogin.has(friend.id) ? "key.fill" : "key")
+        }
+        .buttonStyle(.borderless)
+        .help("Automatisk login for \(friend.firstName)")
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            Form {
+                Section("Automatisk login for \(friend.firstName)") {
+                    if saved, let u = FriendLogin.get(friend.id)?.user {
+                        Label(u, systemImage: "key.fill")
+                        HStack {
+                            Button("Log ind nu") { Task { await state.tryFriendAutoLogin(friend, force: true) } }
+                            Button("Fjern", role: .destructive) { state.removeFriendAutoLogin(friend); saved = false }
+                        }
+                    } else {
+                        SkoleITFields(button: "Gem og log ind") { u, p in
+                            saved = true
+                            Task { await state.saveFriendAutoLogin(friend, username: u, password: p) }
+                        }
+                    }
+                    if !state.friendMessage.isEmpty { Text(state.friendMessage).font(.caption) }
+                }
+            }
+            .formStyle(.grouped)
+            .frame(width: 320)
+        }
+    }
+}
+
 struct FriendsTab: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
@@ -892,9 +951,15 @@ struct FriendsTab: View {
                                 .font(.caption).foregroundStyle(expired ? .orange : .green)
                         }
                         Spacer()
+                        if state.friendAutoLoginRunning.contains(f.id) { ProgressView().controlSize(.small) }
                         if expired {
-                            Button("Log ind igen") { state.addFriend(relogin: f) }.buttonStyle(.borderedProminent)
+                            Button("Log ind igen") {
+                                if FriendLogin.has(f.id) {
+                                    Task { if await !state.tryFriendAutoLogin(f, force: true) { state.addFriend(relogin: f) } }
+                                } else { state.addFriend(relogin: f) }
+                            }.buttonStyle(.borderedProminent)
                         }
+                        FriendAutoLoginButton(friend: f)
                         Button(role: .destructive) { state.removeFriend(f) } label: { Image(systemName: "trash") }
                             .buttonStyle(.borderless)
                     }
@@ -905,7 +970,14 @@ struct FriendsTab: View {
             }
             Section {
                 Button("Tilføj ven…") { state.addFriend() }.buttonStyle(.borderedProminent)
-                Text("Din ven logger selv ind på Viggos egen side i et privat vindue (UNI-Login, SkoleIT eller adgangskode). Ingen koder gemmes, kun skema og lektier hentes, og det bliver på din Mac.")
+                Text("Din ven logger selv ind på Viggos egen side i et privat vindue (UNI-Login, SkoleIT eller adgangskode). Kun skema og lektier hentes, og det bliver på din Mac.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Tilføj ven med SkoleIT-login") {
+                SkoleITFields(button: "Tilføj og log ind") { u, p in
+                    Task { await state.addFriendWithSkoleIT(username: u, password: p) }
+                }
+                Text("Så logger Viggo+ selv din ven ind igen, når sessionen udløber. Koden ligger kun i din Mac's nøglering og slettes, når vennen fjernes. Nøgle-knappen ved en ven gør det samme for venner du allerede har.")
                     .font(.caption).foregroundStyle(.secondary)
                 if !state.friendMessage.isEmpty {
                     Text(state.friendMessage).font(.caption)

@@ -49,6 +49,39 @@ enum SkoleITLogin {
     }
 }
 
+/// A friend's SkoleIT login, saved in the Keychain under the friend's id. Only used by AutoLogin.
+enum FriendLogin {
+    private static let service = Config.bundleID + ".skoleit.friend"
+
+    static func get(_ id: UUID) -> (user: String, pass: String)? {
+        var out: AnyObject?
+        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                kSecAttrService as String: service,
+                                kSecAttrAccount as String: id.uuidString,
+                                kSecReturnData as String: true]
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data,
+              let s = String(data: d, encoding: .utf8), let nl = s.firstIndex(of: "\n") else { return nil }
+        return (String(s[..<nl]), String(s[s.index(after: nl)...]))
+    }
+
+    static func has(_ id: UUID) -> Bool { get(id) != nil }
+
+    static func save(_ id: UUID, username: String, password: String) {
+        remove(id)
+        SecItemAdd([kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: service,
+                    kSecAttrAccount as String: id.uuidString,
+                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+                    kSecValueData as String: Data((SkoleITLogin.normalize(username) + "\n" + password).utf8)] as CFDictionary, nil)
+    }
+
+    static func remove(_ id: UUID) {
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword,
+                       kSecAttrService as String: service,
+                       kSecAttrAccount as String: id.uuidString] as CFDictionary)
+    }
+}
+
 enum AutoLoginResult {
     case success([HTTPCookie])
     case failure(String)
@@ -113,7 +146,7 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
 
     private func note(_ s: String) {
         log.append(s)
-        if CommandLine.arguments.contains("--autologin-dry") { print("[autologin] \(s)") }
+        if CommandLine.arguments.contains(where: { $0.hasPrefix("--") && $0.contains("autologin") }) { print("[autologin] \(Date().formatted(date: .omitted, time: .standard)) \(s.prefix(120))") }
     }
 
     private func finish(_ r: AutoLoginResult) {
