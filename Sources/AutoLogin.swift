@@ -8,6 +8,7 @@ enum SkoleITLogin {
     private static let userKey = "autoLoginUser"
 
     static var username: String? {
+        if CommandLine.arguments.contains("--render-docs") { return "navn1234@cloud.skoleit.dk" }   // screenshots never show your login
         let u = UserDefaults.standard.string(forKey: userKey) ?? ""
         return u.isEmpty ? nil : u
     }
@@ -15,6 +16,7 @@ enum SkoleITLogin {
     static var isSet: Bool { username != nil && password != nil }
 
     static var password: String? {
+        if CommandLine.arguments.contains("--render-docs") { return "x" }
         guard let user = username else { return nil }
         var out: AnyObject?
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
