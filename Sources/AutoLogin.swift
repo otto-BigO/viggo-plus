@@ -63,6 +63,34 @@ enum FriendLogin {
     static func remove(_ id: UUID) { LoginStore.data.friends[id.uuidString] = nil }
 }
 
+/// Where a login is right now, for the sign-in card.
+enum LoginStage: Equatable {
+    case saving, viggo, unilogin, skoleit, verifying, success, failure(String)
+
+    /// 0...4 for the step dots.
+    var step: Int {
+        switch self {
+        case .saving: return 0
+        case .viggo: return 1
+        case .unilogin: return 2
+        case .skoleit: return 3
+        case .verifying, .success, .failure: return 4
+        }
+    }
+
+    var text: String {
+        switch self {
+        case .saving: return "Gemmer sikkert på din Mac"
+        case .viggo: return "Forbinder til Viggo"
+        case .unilogin: return "UNI-Login"
+        case .skoleit: return "Logger ind hos SkoleIT"
+        case .verifying: return "Bekræfter"
+        case .success: return "Sessionen er gemt på din Mac"
+        case .failure(let why): return why
+        }
+    }
+}
+
 enum AutoLoginResult {
     case success([HTTPCookie])
     case failure(String)
@@ -84,6 +112,8 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
     /// Dry run: walk the chain and stop at the filled-in SkoleIT form without pressing "Log på".
     private var dryRun = false
     var log: [String] = []
+    /// Called as the login moves through Viggo, UNI-Login and SkoleIT.
+    var onStage: ((LoginStage) -> Void)?
 
     func run(username: String, password: String, dryRun: Bool = false,
              store: WKWebsiteDataStore? = nil) async -> AutoLoginResult {
@@ -122,6 +152,7 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
             self?.finish(.failure("Login tog for lang tid"))
         }
         note("start")
+        onStage?(.viggo)
         wv.load(URLRequest(url: URL(string: "/Basic/Account/Login", relativeTo: Config.baseURL)!.absoluteURL))
     }
 
@@ -141,8 +172,8 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
         window = nil
         password = ""
         switch r {
-        case .success: note("ok")
-        case .failure(let why): note("fejl: \(why)")
+        case .success: note("ok"); onStage?(.success)
+        case .failure(let why): note("fejl: \(why)"); onStage?(.failure(why))
         }
         done(r)
     }
@@ -187,6 +218,7 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
         // 2. UNI-Login's chooser. Either "Seneste login: SkoleIT" is right there, or
         //    "Lokalt login" opens the list of schools, where we search for SkoleIT and pick it.
         if host.hasSuffix("unilogin.dk") {
+            onStage?(submitted ? .verifying : .unilogin)
             let js = """
             const sk = document.querySelector('button[name=selectedIdp][value=skoleit]');
             if (sk) {
@@ -206,6 +238,7 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
 
         // 3. SkoleIT: fill in username and password and press "Log på".
         if host.hasSuffix("skoleit.dk") {
+            onStage?(submitted ? .verifying : .skoleit)
             let js = """
             const err = (document.getElementById('errorText')?.innerText || '').trim();
             const u = document.getElementById('userNameInput'), p = document.getElementById('passwordInput');
@@ -240,9 +273,16 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
         note("andet: \(host)")
     }
 
+    /// Clicks when the button shows up. Viggo sometimes forwards the page by itself first
+    /// (when the old session is still half alive), so give it a few seconds before giving up.
     private func click(_ wv: WKWebView, _ selector: String, or failure: String) async {
         let js = "const b = document.querySelector(sel); if (!b) return false; b.click(); return true;"
-        let ok = (try? await wv.callAsyncJavaScript(js, arguments: ["sel": selector], contentWorld: .page) as? Bool) ?? false
-        if !ok { finish(.failure(failure)) }
+        let page = wv.url
+        for _ in 0..<16 {
+            guard done != nil, wv.url == page else { return }   // finished, or the page moved on by itself
+            if (try? await wv.callAsyncJavaScript(js, arguments: ["sel": selector], contentWorld: .page) as? Bool) == true { return }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+        if done != nil, wv.url == page { finish(.failure(failure)) }
     }
 }

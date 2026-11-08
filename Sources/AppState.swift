@@ -58,6 +58,11 @@ final class AppState: ObservableObject {
     private var lastFriendAutoLogin: [UUID: Date] = [:]
     @Published var friendAutoLoginRunning: Set<UUID> = []
     @Published var autoLoginRunning = false
+    /// The sign-in card: where the login is, and whose login it is (nil = yours).
+    @Published var loginStage: LoginStage?
+    @Published var loginStageName: String?
+    private var stageClear: Task<Void, Never>?
+    private var lastLoginLog: [String] = []
 
     private init() {
         if let dir = DocRenderer.outDir {
@@ -99,7 +104,7 @@ final class AppState: ObservableObject {
             // For testing from Terminal with the saved login: log in for real, print the result, then quit.
             Task { @MainActor in
                 print(await tryAutoLogin(force: true) ? "[autologin] logget ind" : "[autologin] \(loginMessage)")
-                print(autoLogin.log.joined(separator: " > "))
+                print(lastLoginLog.joined(separator: " > "))
                 exit(0)
             }
         } else {
@@ -209,14 +214,14 @@ final class AppState: ObservableObject {
     /// Logs in by itself with the saved SkoleIT login. At most once every 10 minutes unless forced,
     /// so a wrong password never hammers SkoleIT.
     @discardableResult
-    func tryAutoLogin(force: Bool = false) async -> Bool {
+    func tryAutoLogin(force: Bool = false, saving: Bool = false) async -> Bool {
         guard SkoleITLogin.isSet, let user = SkoleITLogin.username, let pass = SkoleITLogin.password,
               !autoLoginRunning, force || Date().timeIntervalSince(lastAutoLogin) > 10 * 60 else { return false }
         lastAutoLogin = Date()
         autoLoginRunning = true
         defer { autoLoginRunning = false }
         loginMessage = "Logger ind automatisk…"
-        switch await autoLogin.run(username: user, password: pass) {
+        switch await runWithCard(user, pass, name: nil, saving: saving) {
         case .success(let cookies):
             cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
             CookieJar.save()
@@ -233,8 +238,33 @@ final class AppState: ObservableObject {
     /// Saves the SkoleIT login and tries it right away.
     func saveAutoLogin(username: String, password: String) async {
         SkoleITLogin.save(username: username, password: password)
-        if await tryAutoLogin(force: true) { await sync() }
+        if await tryAutoLogin(force: true, saving: true) { await sync() }
     }
+
+    /// Runs a login and drives the sign-in card while it goes.
+    private func runWithCard(_ user: String, _ pass: String, name: String?, store: WKWebsiteDataStore? = nil,
+                             saving: Bool = false) async -> AutoLoginResult {
+        stageClear?.cancel()
+        loginStageName = name
+        if saving {
+            loginStage = .saving
+            try? await Task.sleep(for: .milliseconds(700))
+        }
+        let login = AutoLogin()
+        login.onStage = { [weak self] st in self?.loginStage = st }
+        let r = await login.run(username: user, password: pass, store: store)
+        lastLoginLog = login.log
+        if case .success = r { loginStage = .success }
+        stageClear = Task { [weak self] in
+            let ok: Bool = { if case .success = r { return true } else { return false } }()
+            try? await Task.sleep(for: .seconds(ok ? 1.6 : 4))
+            guard !Task.isCancelled else { return }
+            self?.loginStage = nil
+        }
+        return r
+    }
+
+    func dismissLoginCard() { stageClear?.cancel(); loginStage = nil }
 
     func removeAutoLogin() {
         SkoleITLogin.clear()
@@ -346,14 +376,14 @@ final class AppState: ObservableObject {
     /// Logs a friend in by themselves with their saved SkoleIT login, in a private browser store
     /// that never sees your own session. At most once every 10 minutes unless forced.
     @discardableResult
-    func tryFriendAutoLogin(_ f: Friend, force: Bool = false) async -> Bool {
+    func tryFriendAutoLogin(_ f: Friend, force: Bool = false, saving: Bool = false) async -> Bool {
         guard let login = FriendLogin.get(f.id), !friendAutoLoginRunning.contains(f.id),
               force || Date().timeIntervalSince(lastFriendAutoLogin[f.id] ?? .distantPast) > 10 * 60 else { return false }
         lastFriendAutoLogin[f.id] = Date()
         friendAutoLoginRunning.insert(f.id)
         defer { friendAutoLoginRunning.remove(f.id) }
         friendMessage = "Logger \(f.firstName) ind automatisk…"
-        switch await AutoLogin().run(username: login.user, password: login.pass, store: .nonPersistent()) {
+        switch await runWithCard(login.user, login.pass, name: f.firstName, store: .nonPersistent(), saving: saving) {
         case .success(let cookies):
             guard let got = await finishFriend(cookies: cookies), got.id == f.id else {
                 friendMessage = "Automatisk login for \(f.firstName) gav en anden konto"
@@ -370,13 +400,13 @@ final class AppState: ObservableObject {
     /// Saves a friend's SkoleIT login and tries it right away.
     func saveFriendAutoLogin(_ f: Friend, username: String, password: String) async {
         FriendLogin.save(f.id, username: username, password: password)
-        await tryFriendAutoLogin(f, force: true)
+        await tryFriendAutoLogin(f, force: true, saving: true)
     }
 
     /// Adds a new friend straight from their SkoleIT login, without the login window.
     func addFriendWithSkoleIT(username: String, password: String) async {
         friendMessage = "Logger ind med SkoleIT…"
-        switch await AutoLogin().run(username: username, password: password, store: .nonPersistent()) {
+        switch await runWithCard(username, password, name: "din ven", store: .nonPersistent(), saving: true) {
         case .success(let cookies):
             if let f = await finishFriend(cookies: cookies) {
                 FriendLogin.save(f.id, username: username, password: password)

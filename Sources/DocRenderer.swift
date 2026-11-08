@@ -36,6 +36,15 @@ enum DocRenderer {
             snap(SettingsView(initial: page).environmentObject(state), name: "settings-\(page.slug)", dir: dir,
                  size: NSSize(width: 680, height: 500))
         }
+        if ProcessInfo.processInfo.environment["VIGGO_CARD_SNAPS"] != nil {
+            // Only for checking the sign-in card; not part of the README pictures.
+            for (name, st) in [("card-skoleit", LoginStage.skoleit), ("card-ok", .success), ("card-fail", .failure("Forkert brugernavn eller adgangskode"))] {
+                state.loginStageName = nil
+                state.loginStage = st
+                snap(SettingsView(initial: .konto).environmentObject(state), name: name, dir: dir, size: NSSize(width: 680, height: 500))
+            }
+            state.loginStage = nil
+        }
         exit(0)
     }
 

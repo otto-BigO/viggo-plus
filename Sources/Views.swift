@@ -603,8 +603,9 @@ struct SettingsView: View {
                         }
                         .padding(.bottom, 8)
                     }
+                    let hasProfile = state.profile != nil && !state.needsLogin
                     ForEach(SettingsPage.allCases) { pg in
-                        SidebarRow(highlight: highlight, selected: page == pg) { withAnimation(.viggo) { page = pg } } content: {
+                        SidebarRow(highlight: highlight, selected: page == pg && !(pg == .konto && hasProfile)) { withAnimation(.viggo) { page = pg } } content: {
                             SettingsIcon(symbol: pg.icon, color: pg.color)
                             Text(pg.rawValue).font(.system(size: 13)).lineLimit(1)
                         }
@@ -639,6 +640,7 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .modifier(LoginCardOverlay())
         .frame(width: 680, height: 500)
     }
 }
@@ -1032,5 +1034,91 @@ struct FriendsTab: View {
         .animation(.viggo, value: state.friendExpired)
         .animation(.viggo, value: state.friendMessage)
         .animation(.viggo, value: state.friendAutoLoginRunning)
+    }
+}
+
+// MARK: - Sign-in card
+
+/// Apple-style sign-in sheet: a lock that pulses while it works, steps that fill in as the
+/// login moves through Viggo, UNI-Login and SkoleIT, and a shield that checks off when it is done.
+struct LoginCard: View {
+    @EnvironmentObject var state: AppState
+    let stage: LoginStage
+
+    private var done: Bool { stage == .success }
+    private var failed: Bool { if case .failure = stage { return true } else { return false } }
+    private var symbol: String {
+        done ? "checkmark.shield.fill" : failed ? "exclamationmark.shield.fill" : stage == .saving ? "lock.fill" : "lock.shield.fill"
+    }
+    private var tint: Color { done ? .green : failed ? .orange : .accentColor }
+    private var title: String {
+        let who = state.loginStageName
+        if done { return who.map { "\($0.prefix(1).uppercased() + $0.dropFirst()) er logget ind" } ?? "Du er logget ind" }
+        if failed { return "Kunne ikke logge ind" }
+        if stage == .saving { return "Gemmer login" }
+        return who.map { "Logger \($0) ind" } ?? "Logger ind"
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle().fill(tint.opacity(0.14)).frame(width: 76, height: 76)
+                    .scaleEffect(done ? 1.08 : 1)
+                Image(systemName: symbol)
+                    .font(.system(size: 36, weight: .semibold))
+                    .foregroundStyle(tint.gradient)
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.pulse, options: .repeating, isActive: !done && !failed)
+                    .symbolEffect(.bounce, value: done)
+                    .symbolEffect(.bounce, value: failed)
+            }
+            VStack(spacing: 4) {
+                Text(title).font(.system(size: 15, weight: .semibold))
+                Text(stage.text)
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .contentTransition(.opacity)
+                    .id(stage.text)
+                    .transition(.opacity.combined(with: .offset(y: 3)))
+            }
+            HStack(spacing: 5) {
+                ForEach(0..<5, id: \.self) { i in
+                    Capsule()
+                        .fill(i <= stage.step ? tint : Color.primary.opacity(0.12))
+                        .frame(width: i == stage.step && !done && !failed ? 18 : 6, height: 6)
+                }
+            }
+            if failed {
+                Button("OK") { state.dismissLoginCard() }.keyboardShortcut(.defaultAction)
+            } else {
+                Label("Krypteret forbindelse til SkoleIT", systemImage: "lock.fill")
+                    .font(.system(size: 10)).foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.horizontal, 26).padding(.vertical, 22)
+        .frame(width: 300)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.primary.opacity(0.08)))
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
+        .animation(.viggo, value: stage)
+    }
+}
+
+/// Dims the settings page and shows the sign-in card on top while a login runs.
+struct LoginCardOverlay: ViewModifier {
+    @EnvironmentObject var state: AppState
+    func body(content: Content) -> some View {
+        content.overlay {
+            if let st = state.loginStage {
+                ZStack {
+                    Color.black.opacity(0.18).ignoresSafeArea()
+                        .onTapGesture { if case .failure = st { state.dismissLoginCard() } }
+                    LoginCard(stage: st)
+                        .transition(.scale(scale: 0.92).combined(with: .opacity))
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.viggo, value: state.loginStage)
     }
 }

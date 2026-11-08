@@ -4,6 +4,9 @@
 
 - **Små animationer**: lektier hopper når du krydser af, minutterne ruller på Nu-kortet, ringen glider hen til den ven du vælger, og dagen tones ind. Synk-pilen drejer mens den henter, og knapperne giver lidt efter når du trykker.
 - I indstillingerne glider markeringen i siden med, og siderne tones ind.
+- **Login-kort**: når Viggo+ logger dig eller en ven ind, viser et kort hvor langt login er nået (Viggo, UNI-Login, SkoleIT), med en lås der bliver til et grønt skjold når det lykkes.
+- Rettet: profilen i toppen af indstillingerne kunne blive blank.
+- Rettet: automatisk login kunne fejle med "UNI-Login-knappen findes ikke", hvis det blev kørt to gange lige efter hinanden.
 
 ## 1.4.0 (2026-11-08)
 
