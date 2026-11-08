@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.5.0 (2026-11-08)
+
+- **Små animationer**: lektier hopper når du krydser af, minutterne ruller på Nu-kortet, ringen glider hen til den ven du vælger, og dagen tones ind. Synk-pilen drejer mens den henter, og knapperne giver lidt efter når du trykker.
+- I indstillingerne glider markeringen i siden med, og siderne tones ind.
+
 ## 1.4.0 (2026-11-08)
 
 - **Automatisk login for venner**: tilføj en ven med vennens SkoleIT-login under Indstillinger › Venner, eller tryk på nøglen ved en ven du allerede har. Når vennens session udløber, logger Viggo+ selv vennen ind igen i et privat vindue, som aldrig ser din egen session.

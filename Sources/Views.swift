@@ -20,6 +20,32 @@ struct ViggoPlusApp: App {
 
 // MARK: - Small pieces
 
+/// Apple-style press: the button shrinks a little while pressed and springs back.
+struct PressScale: ButtonStyle {
+    var scale: CGFloat = 0.9
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+extension Animation {
+    static let viggo = Animation.spring(response: 0.35, dampingFraction: 0.82)
+}
+
+/// The refresh arrow spins while syncing.
+struct SyncIcon: View {
+    let spinning: Bool
+    var body: some View {
+        if #available(macOS 15, *) {
+            Image(systemName: "arrow.clockwise").symbolEffect(.rotate, isActive: spinning)
+        } else {
+            Image(systemName: "arrow.clockwise").opacity(spinning ? 0.4 : 1)
+        }
+    }
+}
+
 struct Avatar: View {
     let url: URL?
     var size: CGFloat = 28
@@ -133,9 +159,11 @@ struct NowCard: View {
                     Text(c.shortTitle).font(Sz.f(19, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Text("\(mins(now, c.end)) tilbage").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
+                        .contentTransition(.numericText(countsDown: true))
                 }
                 ProgressView(value: min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start)))))
                     .progressViewStyle(.linear).tint(.accentColor)
+                    .animation(.easeInOut(duration: 0.6), value: now)
                 HStack {
                     if !c.room.isEmpty { Label(c.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
                     Spacer()
@@ -147,6 +175,7 @@ struct NowCard: View {
                     Text(n.shortTitle).font(Sz.f(19, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Text("om \(mins(now, n.start))").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
+                        .contentTransition(.numericText(countsDown: true))
                 }
                 if !n.room.isEmpty { Label(n.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
             } else {
@@ -179,10 +208,13 @@ struct NowCard: View {
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.primary.opacity(0.06)))
+        .animation(.viggo, value: now)
+        .animation(.viggo, value: current?.id)
     }
 }
 
 struct PersonChip: View {
+    var ring: Namespace.ID? = nil
     let url: URL?
     let label: String
     var fullName: String? = nil
@@ -193,7 +225,16 @@ struct PersonChip: View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Avatar(url: url, size: 30, name: fullName)
-                    .overlay(Circle().stroke(selected ? Color.accentColor : .clear, lineWidth: 2).padding(-2.5))
+                    .overlay {
+                        if selected {
+                            if let ring {
+                                Circle().stroke(Color.accentColor, lineWidth: 2).padding(-2.5)
+                                    .matchedGeometryEffect(id: "ring", in: ring)
+                            } else {
+                                Circle().stroke(Color.accentColor, lineWidth: 2).padding(-2.5)
+                            }
+                        }
+                    }
                     .opacity(expired ? 0.4 : 1)
                     .overlay(alignment: .topTrailing) {
                         if expired { Circle().fill(.orange).frame(width: 9, height: 9).overlay(Circle().stroke(.background, lineWidth: 1.5)) }
@@ -202,8 +243,9 @@ struct PersonChip: View {
                     .foregroundStyle(selected ? .primary : .secondary).lineLimit(1)
             }
             .frame(width: 48)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale())
     }
 }
 
@@ -213,6 +255,7 @@ struct MenuView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
     @ObservedObject var updater = Updater.shared
+    @Namespace private var ring
 
     var body: some View {
         let now = state.tick
@@ -225,13 +268,13 @@ struct MenuView: View {
                     Text(DateUtil.longDayF.string(from: now).capitalized).font(Sz.f(11)).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if state.syncing { ProgressView().controlSize(.small) }
                 if let r = updater.available {
                     Button { updater.show() } label: {
                         Label("Ny version \(r.version)", systemImage: "arrow.down.circle.fill")
                             .font(.system(size: 11, weight: .semibold))
                     }
                     .buttonStyle(.borderedProminent).controlSize(.small)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
 
@@ -242,6 +285,7 @@ struct MenuView: View {
                     Spacer()
                     Button("Log ind") { state.loginWithBrowser() }.buttonStyle(.borderedProminent).controlSize(.small)
                 }
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
             if !state.status.isEmpty {
                 Text(state.status).font(Sz.f(11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
@@ -250,12 +294,12 @@ struct MenuView: View {
             if !state.friends.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
-                        PersonChip(url: state.profile?.image, label: "Mig", fullName: state.profile?.name, selected: state.selectedFriend == nil) {
-                            state.selectedFriend = nil
+                        PersonChip(ring: ring, url: state.profile?.image, label: "Mig", fullName: state.profile?.name, selected: state.selectedFriend == nil) {
+                            withAnimation(.viggo) { state.selectedFriend = nil }
                         }
                         ForEach(state.friends) { f in
-                            PersonChip(url: f.image, label: f.firstName, fullName: f.name, selected: state.selectedFriend == f.id,
-                                       expired: state.friendExpired.contains(f.id)) { state.selectedFriend = f.id }
+                            PersonChip(ring: ring, url: f.image, label: f.firstName, fullName: f.name, selected: state.selectedFriend == f.id,
+                                       expired: state.friendExpired.contains(f.id)) { withAnimation(.viggo) { state.selectedFriend = f.id } }
                         }
                     }
                     .padding(.horizontal, 4)
@@ -273,26 +317,34 @@ struct MenuView: View {
                 }
                 DayPanel(name: f.firstName, events: state.friendEvents[f.id] ?? [],
                          homework: state.friendHomework[f.id] ?? [], now: now)
+                    .id(f.id)
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
             } else {
                 DayPanel(name: nil, events: state.events, homework: state.homework, now: now)
+                    .id("me")
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
             }
 
             HStack(spacing: 14) {
                 if let s = state.lastSync {
                     Text("Synket \(DateUtil.hm(s))").font(.system(size: 10)).foregroundStyle(.tertiary)
+                        .contentTransition(.numericText())
                 }
                 Spacer()
-                Button { Task { await state.sync() } } label: { Image(systemName: "arrow.clockwise") }.help("Synk nu")
+                Button { Task { await state.sync() } } label: { SyncIcon(spinning: state.syncing) }.help("Synk nu")
                 Button { state.openWeek() } label: { Image(systemName: "calendar") }.help("Uge-overblik")
                 Button { state.openViggo() } label: { Image(systemName: "safari") }.help("Åbn Viggo")
                 Button { state.openSettings() } label: { Image(systemName: "gearshape") }.help("Indstillinger")
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }.help("Afslut")
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(PressScale(scale: 0.82))
             .foregroundStyle(.secondary)
             .font(.system(size: 12))
             .padding(.top, 2)
         }
+        .animation(.viggo, value: state.needsLogin)
+        .animation(.viggo, value: updater.available?.version)
+        .animation(.viggo, value: state.lastSync)
         .padding(14)
         .frame(width: 320 * (p.panelLarge ? 1.12 : 1))
     }
@@ -384,14 +436,17 @@ struct DayPanel: View {
                                 Image(systemName: h.done ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(h.done ? .green : .secondary)
                                     .font(Sz.f(14))
+                                    .contentTransition(.symbolEffect(.replace))
+                                    .symbolEffect(.bounce, value: h.done)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(PressScale(scale: 0.8))
                             .help(isMe && p.panelHomeworkTick ? (h.done ? "Markér som ikke færdig" : "Markér som færdig") : "")
                             Text(h.title).font(Sz.f(13)).strikethrough(h.done).foregroundStyle(h.done ? .secondary : .primary).lineLimit(1)
                                 .onTapGesture { if isMe { NSWorkspace.shared.open(h.link) } }
                             Spacer()
                             Text(DateUtil.day(h.due)).font(Sz.f(11)).foregroundStyle(.tertiary)
                         }
+                        .animation(.viggo, value: h.done)
                     }
                 }
             }
@@ -500,6 +555,7 @@ struct SettingsIcon: View {
 
 /// A sidebar row like in System Settings: accent background when selected.
 struct SidebarRow<Content: View>: View {
+    var highlight: Namespace.ID? = nil
     let selected: Bool
     let action: () -> Void
     @ViewBuilder let content: () -> Content
@@ -509,8 +565,17 @@ struct SidebarRow<Content: View>: View {
                 .foregroundStyle(selected ? Color.white : Color.primary)
                 .padding(.horizontal, 8).padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(selected ? Color.accentColor : .clear))
+                .background {
+                    if selected {
+                        // The blue highlight slides to the page you pick.
+                        if let highlight {
+                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.accentColor)
+                                .matchedGeometryEffect(id: "sel", in: highlight)
+                        } else {
+                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.accentColor)
+                        }
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -520,6 +585,7 @@ struct SidebarRow<Content: View>: View {
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
     @State private var page: SettingsPage?
+    @Namespace private var highlight
 
     init(initial: SettingsPage = .konto) { _page = State(initialValue: initial) }
 
@@ -528,7 +594,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     if let prof = state.profile, !state.needsLogin {
-                        SidebarRow(selected: page == .konto) { page = .konto } content: {
+                        SidebarRow(highlight: highlight, selected: page == .konto) { withAnimation(.viggo) { page = .konto } } content: {
                             Avatar(url: prof.image, size: 34, name: prof.name)
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(prof.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
@@ -538,7 +604,7 @@ struct SettingsView: View {
                         .padding(.bottom, 8)
                     }
                     ForEach(SettingsPage.allCases) { pg in
-                        SidebarRow(selected: page == pg) { page = pg } content: {
+                        SidebarRow(highlight: highlight, selected: page == pg) { withAnimation(.viggo) { page = pg } } content: {
                             SettingsIcon(symbol: pg.icon, color: pg.color)
                             Text(pg.rawValue).font(.system(size: 13)).lineLimit(1)
                         }
@@ -567,6 +633,8 @@ struct SettingsView: View {
                 case .venner: FriendsTab()
                 }
                 }
+                .id(page ?? .konto)
+                .transition(.opacity.combined(with: .offset(y: 4)))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -598,6 +666,7 @@ struct AccountTab: View {
                 if saved {
                     HStack {
                         Label(SkoleITLogin.username ?? "", systemImage: "key.fill")
+                            .symbolEffect(.bounce, value: saved)
                         Spacer()
                         if state.autoLoginRunning { ProgressView().controlSize(.small) }
                         if state.needsLogin {
@@ -624,6 +693,9 @@ struct AccountTab: View {
             }
         }
         .formStyle(.grouped)
+        .animation(.viggo, value: saved)
+        .animation(.viggo, value: state.loginMessage)
+        .animation(.viggo, value: state.needsLogin)
         .onReceive(state.$loginMessage) { _ in saved = SkoleITLogin.isSet }
     }
 }
@@ -877,7 +949,11 @@ struct FriendAutoLoginButton: View {
 
     var body: some View {
         let saved = FriendLogin.has(friend.id)
-        Button { open = true } label: { Image(systemName: saved ? "key.fill" : "key") }
+        Button { open = true } label: {
+            Image(systemName: saved ? "key.fill" : "key")
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.bounce, value: saved)
+        }
             .buttonStyle(.borderless)
             .help(saved ? "Automatisk login er slået til" : "Slå automatisk login til")
             .popover(isPresented: $open, arrowEdge: .bottom) {
@@ -952,5 +1028,9 @@ struct FriendsTab: View {
             }
         }
         .formStyle(.grouped)
+        .animation(.viggo, value: state.friends)
+        .animation(.viggo, value: state.friendExpired)
+        .animation(.viggo, value: state.friendMessage)
+        .animation(.viggo, value: state.friendAutoLoginRunning)
     }
 }

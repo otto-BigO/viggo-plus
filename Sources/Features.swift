@@ -502,7 +502,7 @@ struct FriendsNow: View {
                     Text(expired ? "Skal logge ind" : text).font(Sz.f(11)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { state.selectedFriend = f.id }
+                .onTapGesture { withAnimation(.viggo) { state.selectedFriend = f.id } }
             }
         }
     }
