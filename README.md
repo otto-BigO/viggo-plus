@@ -108,7 +108,9 @@ Klik på en side for at se den.
 
 ## Login
 
-Du logger ind på Viggos egen login-side inde i appen, med UNI-Login, SkoleIT eller adgangskode, præcis som på hjemmesiden. Viggo+ ser og gemmer aldrig din adgangskode, kun sessionen. Den pinger Viggo med få minutters mellemrum, så sessionen holder så længe som muligt. Udløber den alligevel, får du én notifikation og logger ind igen med ét klik.
+Du logger ind på Viggos egen login-side inde i appen, med UNI-Login, SkoleIT eller adgangskode, præcis som på hjemmesiden.
+
+**Automatisk login med SkoleIT** (valgfrit, under Indstillinger › Konto): gem dit SkoleIT-brugernavn (fx `otto1161`, `@cloud.skoleit.dk` sættes selv på) og din adgangskode, så logger Viggo+ selv ind når sessionen udløber. Den går de samme trin igennem som du ville: UNI-Login, Lokalt login, SkoleIT, brugernavn og kode, og tilbage til Viggo. Det sker i baggrunden uden et vindue. Adgangskoden ligger kun i din Mac's nøglering, og **Log ud** eller **Fjern** sletter den. Slår du det ikke til, gemmer Viggo+ aldrig din adgangskode, kun sessionen. Den pinger Viggo med få minutters mellemrum, så sessionen holder så længe som muligt. Udløber den alligevel, får du én notifikation og logger ind igen med ét klik.
 
 ## Krav
 

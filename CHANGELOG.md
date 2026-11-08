@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.3.0 (2026-11-08)
+
+- **Automatisk login med SkoleIT**: gem dit SkoleIT-login under Indstillinger › Konto, så logger Viggo+ selv ind i baggrunden når sessionen udløber (UNI-Login, Lokalt login, SkoleIT). Skriver du kun dit brugernavn, fx `otto1161`, sætter Viggo+ selv `@cloud.skoleit.dk` på. Du får kun en notifikation hvis det fejler, fx ved forkert kode.
+- Adgangskoden ligger i Mac'ens nøglering. Log ud og Fjern sletter den.
+
 ## 1.2.0 (2026-11-08)
 
 - **Info fra læreren**: klik på en time, så ser du hvad I skal, hvad du skal læse eller have med, og lærerens links (videoer, Drev-filer). Timer med info har et lille ikon.

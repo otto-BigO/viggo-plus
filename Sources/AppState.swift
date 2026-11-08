@@ -52,7 +52,10 @@ final class AppState: ObservableObject {
     private var timer: Timer?
     private var settingsWindow: NSWindow?
     private let webLogin = WebLogin()
+    private let autoLogin = AutoLogin()
     private var expiryNotified = false
+    private var lastAutoLogin = Date.distantPast
+    @Published var autoLoginRunning = false
 
     private init() {
         if let dir = DocRenderer.outDir {
@@ -62,6 +65,22 @@ final class AppState: ObservableObject {
             Task { @MainActor in
                 await Updater.shared.check(manual: true)
                 if Updater.shared.available != nil { Updater.shared.install() } else { exit(0) }
+            }
+        } else if CommandLine.arguments.contains("--autologin-dry") {
+            // For testing from Terminal: walk the login chain up to the filled-in SkoleIT form, then quit.
+            Task { @MainActor in
+                let fresh = CommandLine.arguments.contains("--fresh")
+                let r = await autoLogin.run(username: "test@cloud.skoleit.dk", password: "x", dryRun: true,
+                                            store: fresh ? .nonPersistent() : .default())
+                if case .failure(let why) = r { print("[autologin] \(why)") }
+                exit(0)
+            }
+        } else if CommandLine.arguments.contains("--autologin-test") {
+            // For testing from Terminal with the saved login: log in for real, print the result, then quit.
+            Task { @MainActor in
+                print(await tryAutoLogin(force: true) ? "[autologin] logget ind" : "[autologin] \(loginMessage)")
+                print(autoLogin.log.joined(separator: " > "))
+                exit(0)
             }
         } else {
             Task { await start() }
@@ -109,7 +128,9 @@ final class AppState: ObservableObject {
     /// Pings Viggo every few minutes so sessions stay alive as long as possible.
     func keepAlive() async {
         lastPing = Date()
-        do { try await client.ping() } catch ViggoError.notLoggedIn { sessionExpired() } catch {}
+        do { try await client.ping() } catch ViggoError.notLoggedIn {
+            if await tryAutoLogin() { await sync() } else { sessionExpired() }
+        } catch {}
         for f in friends where !friendExpired.contains(f.id) {
             let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
             do {
@@ -163,7 +184,44 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Logs in by itself with the saved SkoleIT login. At most once every 10 minutes unless forced,
+    /// so a wrong password never hammers SkoleIT.
+    @discardableResult
+    func tryAutoLogin(force: Bool = false) async -> Bool {
+        guard SkoleITLogin.isSet, let user = SkoleITLogin.username, let pass = SkoleITLogin.password,
+              !autoLoginRunning, force || Date().timeIntervalSince(lastAutoLogin) > 10 * 60 else { return false }
+        lastAutoLogin = Date()
+        autoLoginRunning = true
+        defer { autoLoginRunning = false }
+        loginMessage = "Logger ind automatisk…"
+        switch await autoLogin.run(username: user, password: pass) {
+        case .success(let cookies):
+            cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
+            CookieJar.save()
+            needsLogin = false
+            expiryNotified = false
+            loginMessage = "Logget ind automatisk ✓"
+            return true
+        case .failure(let why):
+            loginMessage = "Automatisk login fejlede: \(why)"
+            return false
+        }
+    }
+
+    /// Saves the SkoleIT login and tries it right away.
+    func saveAutoLogin(username: String, password: String) async {
+        SkoleITLogin.save(username: username, password: password)
+        if await tryAutoLogin(force: true) { await sync() }
+    }
+
+    func removeAutoLogin() {
+        SkoleITLogin.clear()
+        loginMessage = "Automatisk login er slået fra"
+    }
+
     func logout() {
+        // Logging out also forgets the saved SkoleIT login, or the app would log straight back in.
+        SkoleITLogin.clear()
         // Every cookie in the login chain (Viggo, UNI-Login, SkoleIT), so the next login can be someone else.
         HTTPCookieStorage.shared.cookies?.forEach { HTTPCookieStorage.shared.deleteCookie($0) }
         events = []; homework = []; messages = []; unreadCount = 0; questionnaireCount = 0
@@ -176,10 +234,8 @@ final class AppState: ObservableObject {
     }
 
     private func withRelogin<T>(_ op: () async throws -> T) async throws -> T {
-        do { return try await op() } catch ViggoError.notLoggedIn {
-            sessionExpired()
-            throw ViggoError.notLoggedIn
-        }
+        // sync() tries the saved SkoleIT login before it tells you the session ran out.
+        try await op()
     }
 
     // MARK: sync
@@ -208,7 +264,8 @@ final class AppState: ObservableObject {
             CookieJar.save()
             if !status.hasPrefix("Kalender") { status = "" }
         } catch ViggoError.notLoggedIn {
-            // The log-in banner in the panel already says so.
+            // Try the saved SkoleIT login first. Otherwise the log-in banner in the panel says so.
+            if await tryAutoLogin() { syncing = false; await sync() } else { sessionExpired() }
         } catch {
             status = error.localizedDescription
         }

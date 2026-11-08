@@ -607,8 +607,52 @@ struct AccountTab: View {
                     }
                 }
             }
+            AutoLoginSection()
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Saved SkoleIT login, so Viggo+ can log in again by itself when the session runs out.
+struct AutoLoginSection: View {
+    @EnvironmentObject var state: AppState
+    @State private var user = SkoleITLogin.username ?? ""
+    @State private var pass = ""
+    @State private var saved = SkoleITLogin.isSet
+
+    var body: some View {
+        Section("Automatisk login med SkoleIT") {
+            if saved {
+                HStack {
+                    Label(SkoleITLogin.username ?? "", systemImage: "key.fill")
+                    Spacer()
+                    Button("Log ind nu") { Task { if await state.tryAutoLogin(force: true) { await state.sync() } } }
+                        .disabled(state.autoLoginRunning)
+                    Button("Fjern", role: .destructive) { state.removeAutoLogin(); saved = false; pass = "" }
+                }
+            } else {
+                TextField("SkoleIT-brugernavn", text: $user, prompt: Text("navn1234"))
+                    .textContentType(.username)
+                if !user.isEmpty, !user.contains("@") {
+                    Text("Logger ind som \(SkoleITLogin.normalize(user))").font(.caption).foregroundStyle(.secondary)
+                }
+                SecureField("Adgangskode", text: $pass)
+                    .textContentType(.password)
+                Button("Gem og log ind") {
+                    let u = user.trimmingCharacters(in: .whitespaces), p = pass
+                    pass = ""
+                    saved = true
+                    Task { await state.saveAutoLogin(username: u, password: p) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(user.trimmingCharacters(in: .whitespaces).isEmpty || pass.isEmpty || state.autoLoginRunning)
+            }
+            if state.autoLoginRunning { ProgressView().controlSize(.small) }
+            if saved, !state.loginMessage.isEmpty { Text(state.loginMessage).font(.caption) }
+            Text("Udløber sessionen, logger Viggo+ selv ind: UNI-Login, Lokalt login, SkoleIT. Adgangskoden ligger kun i din Mac's nøglering. Log ud fjerner den.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .onReceive(state.$loginMessage) { _ in saved = SkoleITLogin.isSet }
     }
 }
 
