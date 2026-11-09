@@ -67,6 +67,12 @@ Klik på en side for at se den.
 </details>
 
 <details>
+<summary><b>Egne punkter</b>: Middag, aftensmad, pauser og andet du selv vil have med.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-egne-punkter.png" alt="Egne punkter" width="680"></p>
+</details>
+
+<details>
 <summary><b>Kalender</b>: Import til Apple Kalender og påmindelser.</summary>
 <br>
 <p align="center"><img src="docs/screens/settings-kalender.png" alt="Kalender" width="680"></p>

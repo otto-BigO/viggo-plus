@@ -67,6 +67,10 @@ enum DocRenderer {
 
     private static func loadDemo(_ s: AppState) {
         s.profile = Profile(id: 1, name: "Alex Jensen", image: nil)
+        Prefs.shared.customItems = [
+            CustomItem(title: "Middag", start: 12 * 60, end: 12 * 60 + 30),
+            CustomItem(title: "Pause", start: 14 * 60 + 15, end: 14 * 60 + 30, days: [1, 2, 3, 4, 5, 6, 7]),
+        ]
         s.events = [
             ev(1, "Dansk", 8, 35, 9, 35, room: "Klasse 2"),
             ev(2, "Engelsk", 9, 55, 10, 55, room: "Klasse 2"),

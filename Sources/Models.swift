@@ -1,6 +1,34 @@
 import Foundation
 
-enum EventKind: String, Codable { case lesson, event, routine, birthday, duty }
+enum EventKind: String, Codable { case lesson, event, routine, birthday, duty, custom }
+
+/// Your own everyday item, like "Middag 12:00 to 12:30 on weekdays". Shown in the panel and the menubar.
+struct CustomItem: Codable, Identifiable, Hashable {
+    var id = UUID()
+    var title: String
+    /// Minutes after midnight.
+    var start: Int
+    var end: Int
+    /// 1 = Monday ... 7 = Sunday.
+    var days: Set<Int> = [1, 2, 3, 4, 5]
+
+    static let suggestions: [CustomItem] = [
+        CustomItem(title: "Middag", start: 12 * 60, end: 12 * 60 + 30),
+        CustomItem(title: "Pause", start: 10 * 60, end: 10 * 60 + 15),
+        CustomItem(title: "Aftensmad", start: 18 * 60, end: 18 * 60 + 30, days: [1, 2, 3, 4, 5, 6, 7]),
+    ]
+
+    /// This item as an event on the given day, or nil if it is not on that weekday.
+    func event(on day: Date, index: Int) -> ViggoEvent? {
+        let wd = (DateUtil.cal.component(.weekday, from: day) + 5) % 7 + 1   // Sunday=1 in Calendar, so shift to Monday=1
+        guard days.contains(wd), end > start else { return nil }
+        let base = DateUtil.startOfDay(day)
+        let ord = DateUtil.cal.ordinality(of: .day, in: .era, for: day) ?? 0
+        return ViggoEvent(id: -(ord * 100 + index + 1), rawName: title, start: base.addingTimeInterval(Double(start * 60)),
+                          end: base.addingTimeInterval(Double(end * 60)), room: "", notes: "", kind: .custom,
+                          teachers: [], groups: [])
+    }
+}
 
 struct ViggoEvent: Codable, Hashable, Identifiable {
     let id: Int

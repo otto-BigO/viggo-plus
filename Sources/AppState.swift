@@ -534,6 +534,11 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Your own items (Indstillinger › Egne punkter) on the given day.
+    func customEvents(on day: Date) -> [ViggoEvent] {
+        prefs.customItems.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
+    }
+
     /// Today's lessons/events plus the everyday items after school, as one list.
     func timeline(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
         let all = list ?? events
@@ -542,7 +547,8 @@ final class AppState: ObservableObject {
         let lastEnd = school.map(\.end).max() ?? DateUtil.startOfDay(now)
         let evening = all.filter { $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now)
             && $0.start >= lastEnd && inMenubar($0.title) }
-        return (school + evening).sorted { $0.start < $1.start }
+        let own = list == nil ? customEvents(on: now) : []
+        return (school + evening + own).sorted { $0.start < $1.start }
     }
 
     private func visibleOrFriend(_ e: ViggoEvent, _ friend: Bool) -> Bool { friend || visible(e) }
@@ -623,7 +629,8 @@ final class AppState: ObservableObject {
 
     var menuTitle: String {
         let now = tick
-        let today = items(on: now).filter { $0.kind == .lesson || $0.kind == .event }
+        let today = (items(on: now).filter { $0.kind == .lesson || $0.kind == .event } + customEvents(on: now))
+            .sorted { $0.start < $1.start }
         if let cur = today.first(where: { $0.start <= now && $0.end > now }) {
             return "\(cur.menuBarTitle) → \(DateUtil.hm(cur.end))"
         }

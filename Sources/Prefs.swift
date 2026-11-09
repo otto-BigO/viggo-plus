@@ -37,6 +37,7 @@ final class Prefs: ObservableObject {
     @Published var hotkeyChoice: Int { didSet { d.set(hotkeyChoice, forKey: "hotkeyChoice") } }
     @Published var lessonNames: [String: String] { didSet { d.set(lessonNames, forKey: "lessonNames") } }
     @Published var lessonColors: [String: String] { didSet { d.set(lessonColors, forKey: "lessonColors") } }
+    @Published var customItems: [CustomItem] { didSet { d.set(try? JSONEncoder().encode(customItems), forKey: "customItems") } }
     @Published var dismissedVersion: String { didSet { d.set(dismissedVersion, forKey: "dismissedVersion") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
     @Published var importSchedule: Bool { didSet { d.set(importSchedule, forKey: "importSchedule") } }
@@ -90,6 +91,7 @@ final class Prefs: ObservableObject {
         hotkeyChoice = d.integer(forKey: "hotkeyChoice")
         lessonNames = d.dictionary(forKey: "lessonNames") as? [String: String] ?? [:]
         lessonColors = d.dictionary(forKey: "lessonColors") as? [String: String] ?? [:]
+        customItems = d.data(forKey: "customItems").flatMap { try? JSONDecoder().decode([CustomItem].self, from: $0) } ?? []
         dismissedVersion = d.string(forKey: "dismissedVersion") ?? ""
         imported = d.bool(forKey: "imported")
         importSchedule = d.bool(forKey: "importSchedule")

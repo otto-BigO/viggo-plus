@@ -1,7 +1,8 @@
 # Ændringer
 
-## 1.5.0 (2026-11-08)
+## 1.5.0 (2026-11-09)
 
+- **Egne punkter**: tilføj middag, aftensmad, pauser og andet under Indstillinger › Egne punkter, med tidspunkt og hvilke dage. De står i panelet med en grøn streg og i menubaren, fx "Middag 12:00".
 - **Små animationer**: lektier hopper når du krydser af, minutterne ruller på Nu-kortet, ringen glider hen til den ven du vælger, og dagen tones ind. Synk-pilen drejer mens den henter, og knapperne giver lidt efter når du trykker.
 - I indstillingerne glider markeringen i siden med, og siderne tones ind.
 - **Login-kort**: når Viggo+ logger dig eller en ven ind, viser et kort hvor langt login er nået (Viggo, UNI-Login, SkoleIT), med en lås der bliver til et grønt skjold når det lykkes.

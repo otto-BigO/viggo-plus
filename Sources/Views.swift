@@ -115,7 +115,7 @@ struct TimelineRow: View {
                     .font(Sz.mono(12))
                     .foregroundStyle(current ? Color.accentColor : .secondary)
                     .frame(width: 42 * Sz.k, alignment: .leading)
-                if let c = e.customColor {
+                if let c = e.customColor ?? (e.kind == .custom ? Color.green : nil) {
                     RoundedRectangle(cornerRadius: 1.5).fill(c).frame(width: 3, height: 13 * Sz.k)
                 }
                 Text(e.shortTitle)
@@ -135,8 +135,8 @@ struct TimelineRow: View {
             .opacity(past ? 0.35 : 1)
         }
         .contentShape(Rectangle())
-        .onTapGesture { AppState.shared.openLesson(e) }
-        .help(e.hasInfo ? "Se info fra læreren" : "Se detaljer")
+        .onTapGesture { if e.kind != .custom { AppState.shared.openLesson(e) } }
+        .help(e.kind == .custom ? "Dit eget punkt" : e.hasInfo ? "Se info fra læreren" : "Se detaljer")
     }
 }
 
@@ -365,8 +365,9 @@ struct DayPanel: View {
         let current = all.first { $0.start <= now && $0.end > now }
         let next = all.first { $0.start > now }
         let shown = p.panelHidePast ? all.filter { $0.end > now } : all
-        let firstEvening = shown.first { $0.kind == .routine }?.id
-        let hasSchool = shown.contains { $0.kind != .routine }
+        let schoolEnd = all.filter { $0.kind == .lesson || $0.kind == .event }.map(\.end).max() ?? .distantPast
+        let firstEvening = shown.first { ($0.kind == .routine || $0.kind == .custom) && $0.start >= schoolEnd }?.id
+        let hasSchool = shown.contains { $0.kind == .lesson || $0.kind == .event }
         let hw = homework.filter { $0.day >= DateUtil.startOfDay(now) }
 
         VStack(alignment: .leading, spacing: 12) {
@@ -510,10 +511,10 @@ struct DayPanel: View {
 // MARK: - Settings (tabs)
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", timer = "Timer", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
+    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", timer = "Timer", egne = "Egne punkter", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
     var id: String { rawValue }
     var slug: String {
-        rawValue.lowercased().replacingOccurrences(of: "ø", with: "o").replacingOccurrences(of: "æ", with: "ae")
+        rawValue.lowercased().replacingOccurrences(of: "ø", with: "o").replacingOccurrences(of: "æ", with: "ae").replacingOccurrences(of: " ", with: "-")
     }
     var icon: String {
         switch self {
@@ -522,6 +523,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .panel: return "rectangle.grid.1x2.fill"
         case .menubar: return "menubar.rectangle"
         case .timer: return "paintpalette.fill"
+        case .egne: return "fork.knife"
         case .kalender: return "calendar"
         case .notifikationer: return "bell.badge.fill"
         case .venner: return "person.2.fill"
@@ -534,6 +536,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .panel: return .teal
         case .menubar: return .indigo
         case .timer: return .pink
+        case .egne: return .green
         case .kalender: return .orange
         case .notifikationer: return .red
         case .venner: return .blue
@@ -629,6 +632,7 @@ struct SettingsView: View {
                 case .panel: PanelTab()
                 case .menubar: MenubarTab()
                 case .timer: LessonsTab()
+                case .egne: CustomItemsTab()
                 case .kalender: CalendarTab()
                 case .notifikationer: NotificationsTab()
                 case .venner: FriendsTab()
@@ -1120,5 +1124,101 @@ struct LoginCardOverlay: ViewModifier {
             }
         }
         .animation(.viggo, value: state.loginStage)
+    }
+}
+
+// MARK: - Own items
+
+/// Your own everyday items: lunch, dinner, breaks. They show up in the panel and the menubar.
+struct CustomItemsTab: View {
+    @ObservedObject var p = Prefs.shared
+
+    var body: some View {
+        Form {
+            if !p.customItems.isEmpty {
+                Section {
+                    ForEach($p.customItems) { $item in
+                        CustomItemRow(item: $item) {
+                            withAnimation(.viggo) { p.customItems.removeAll { $0.id == item.id } }
+                        }
+                    }
+                }
+            }
+            Section {
+                HStack(spacing: 8) {
+                    ForEach(CustomItem.suggestions.filter { s in !p.customItems.contains { $0.title == s.title } }, id: \.title) { s in
+                        Button { add(s) } label: { Label(s.title, systemImage: "plus") }
+                            .buttonStyle(PressScale(scale: 0.94))
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(Capsule().fill(Color.green.opacity(0.15)))
+                    }
+                    Spacer()
+                    Button("Andet…") { add(CustomItem(title: "", start: 15 * 60, end: 15 * 60 + 30)) }
+                }
+            } header: {
+                Text("Tilføj")
+            } footer: {
+                Text("Punkterne står i panelet og i menubaren på de dage du vælger, fx \"Middag 12:00\".")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .animation(.viggo, value: p.customItems)
+    }
+
+    private func add(_ item: CustomItem) {
+        var i = item
+        i.id = UUID()
+        withAnimation(.viggo) { p.customItems.append(i) }
+    }
+}
+
+struct CustomItemRow: View {
+    @Binding var item: CustomItem
+    let onDelete: () -> Void
+    private static let dayNames = ["M", "T", "O", "T", "F", "L", "S"]
+
+    private func time(_ minutes: Binding<Int>) -> Binding<Date> {
+        Binding(
+            get: { DateUtil.startOfDay(Date()).addingTimeInterval(Double(minutes.wrappedValue * 60)) },
+            set: { d in
+                let c = DateUtil.cal.dateComponents([.hour, .minute], from: d)
+                minutes.wrappedValue = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+            })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("", text: $item.title, prompt: Text("Navn, fx Middag"))
+                    .labelsHidden()
+                    .textFieldStyle(.plain).font(.system(size: 13, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                DatePicker("", selection: time($item.start), displayedComponents: .hourAndMinute).labelsHidden()
+                Text("til").foregroundStyle(.secondary)
+                DatePicker("", selection: time($item.end), displayedComponents: .hourAndMinute).labelsHidden()
+                Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
+                    .buttonStyle(.borderless)
+            }
+            HStack(spacing: 5) {
+                ForEach(1...7, id: \.self) { d in
+                    let on = item.days.contains(d)
+                    Button {
+                        withAnimation(.viggo) { if on { item.days.remove(d) } else { item.days.insert(d) } }
+                    } label: {
+                        Text(Self.dayNames[d - 1])
+                            .font(.system(size: 11, weight: .semibold))
+                            .frame(width: 24, height: 24)
+                            .foregroundStyle(on ? Color.white : Color.secondary)
+                            .background(Circle().fill(on ? Color.green : Color.primary.opacity(0.08)))
+                    }
+                    .buttonStyle(PressScale(scale: 0.85))
+                }
+                if item.end <= item.start {
+                    Text("Slut skal være efter start").font(.caption).foregroundStyle(.orange).padding(.leading, 6)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
