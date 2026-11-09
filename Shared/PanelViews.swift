@@ -165,10 +165,10 @@ struct TimelineRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(DateUtil.hm(e.start))
                     .font(Sz.mono(quiet ? 11 : 12))
-                    .foregroundStyle(current ? Color.accentColor : .secondary)
+                    .foregroundStyle(current ? e.subjectColor : .secondary)
                     .frame(width: 42 * Sz.k, alignment: .leading)
-                if let c = e.customColor ?? (e.kind == .custom ? Color.green : nil) {
-                    RoundedRectangle(cornerRadius: 1.5).fill(c).frame(width: 3, height: 13 * Sz.k)
+                if !quiet {
+                    RoundedRectangle(cornerRadius: 1.5).fill(e.subjectColor).frame(width: 3, height: 13 * Sz.k)
                 }
                 Text(e.shortTitle)
                     .font(Sz.f(quiet ? 12 : 13, current ? .semibold : .regular))
@@ -242,7 +242,7 @@ struct NowCard: View {
                 let frac = min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start))))
                 Capsule().fill(.primary.opacity(0.1)).frame(height: 4)
                     .overlay(alignment: .leading) {
-                        GeometryReader { g in Capsule().fill(Color.accentColor).frame(width: g.size.width * frac) }
+                        GeometryReader { g in Capsule().fill(c.subjectColor.gradient).frame(width: g.size.width * frac) }
                     }
                     .clipShape(Capsule())
                     .animation(.easeInOut(duration: 0.6), value: now)
@@ -289,7 +289,14 @@ struct NowCard: View {
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.primary.opacity(0.06)))
+        .background {
+            let tint = (current ?? next)?.subjectColor
+            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.primary.opacity(0.05))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).fill((tint ?? .clear).opacity(current != nil ? 0.10 : 0.05)))
+                .overlay(alignment: .leading) {
+                    if let tint { Capsule().fill(tint).frame(width: 3).padding(.vertical, 10).padding(.leading, 4) }
+                }
+        }
         .animation(.viggo, value: now)
         .animation(.viggo, value: current?.id)
     }
@@ -505,7 +512,7 @@ struct LessonDetailView: View {
     }
 
     var body: some View {
-        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : .purple)
+        let tint = e.subjectColor
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 10) {

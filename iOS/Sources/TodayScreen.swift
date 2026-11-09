@@ -43,16 +43,25 @@ struct TodayScreen: View {
                             .font(.subheadline).foregroundStyle(.orange)
                     }
 
-                    if p.panelNow {
-                        HeroCard(current: current, next: next, now: now,
-                                 tomorrow: state.tomorrowFirst(now)?.0)
-                    }
+                    // Until the first schedule arrives, show grey placeholders instead of
+                    // "Fri resten af dagen" and zeros that would be wrong a second later.
+                    let loading = state.events.isEmpty && state.lastSync == nil && !state.needsLogin
+                    Group {
+                        if p.panelNow {
+                            HeroCard(current: current, next: next, now: now,
+                                     tomorrow: state.tomorrowFirst(now)?.0)
+                        }
 
-                    let lessons = all.filter { $0.kind == .lesson }
-                    StatRow(lessonsLeft: lessons.filter { $0.end > now }.count,
-                            schoolEnd: lessons.map(\.end).max(),
-                            homework: hw.filter { !$0.done }.count,
-                            unread: state.unreadCount, now: now)
+                        let lessons = all.filter { $0.kind == .lesson }
+                        StatRow(lessonsLeft: lessons.filter { $0.end > now }.count,
+                                schoolEnd: lessons.map(\.end).max(),
+                                homework: hw.filter { !$0.done }.count,
+                                unread: state.unreadCount, now: now)
+                    }
+                    .redacted(reason: loading ? .placeholder : [])
+                    .saturation(loading ? 0 : 1)
+                    .opacity(loading ? 0.5 : 1)
+                    .animation(.viggo, value: loading)
 
                     if p.panelBirthdays, !state.birthdaysToday.isEmpty {
                         Banner(icon: "birthday.cake.fill", tint: .pink,
@@ -237,25 +246,6 @@ struct TodayScreen: View {
     }
 }
 
-// MARK: - Colours
-
-extension ViggoEvent {
-    /// A steady colour per subject, so the same lesson always looks the same. Your own colour wins.
-    var phoneColor: Color {
-        if let c = customColor { return c }
-        switch kind {
-        case .custom: return .green
-        case .routine: return .gray
-        case .event: return .orange
-        case .birthday: return .pink
-        default: break
-        }
-        let palette: [Color] = [.blue, .purple, .teal, .indigo, .mint, .cyan, .orange, .pink, .red, .brown]
-        let n = baseTitle.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xffff }
-        return palette[n % palette.count]
-    }
-}
-
 // MARK: - Now card
 
 private struct HeroCard: View {
@@ -270,7 +260,7 @@ private struct HeroCard: View {
         return m >= 60 ? "\(m / 60) t \(m % 60) min" : "\(m) min"
     }
 
-    private var tint: Color { (current ?? next)?.phoneColor ?? .accentColor }
+    private var tint: Color { (current ?? next)?.subjectColor ?? .accentColor }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -525,7 +515,7 @@ private struct DayRow: View {
                     if !quiet { Text(DateUtil.hm(e.end)).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
                 }
                 .frame(width: 48, alignment: .leading)
-                RoundedRectangle(cornerRadius: 2).fill(e.phoneColor.opacity(quiet ? 0.5 : 1))
+                RoundedRectangle(cornerRadius: 2).fill(e.subjectColor.opacity(quiet ? 0.5 : 1))
                     .frame(width: 4, height: quiet ? 22 : 38)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(e.shortTitle).font(quiet ? .subheadline : .body.weight(.semibold))
@@ -544,7 +534,7 @@ private struct DayRow: View {
                 if current {
                     Text("NU").font(.caption2.weight(.heavy)).foregroundStyle(.white)
                         .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(Capsule().fill(e.phoneColor))
+                        .background(Capsule().fill(e.subjectColor))
                 } else if e.hasInfo && !isFood {
                     Image(systemName: open ? "chevron.up" : "text.alignleft").font(.footnote.weight(.bold)).foregroundStyle(.tint)
                 }
@@ -575,7 +565,7 @@ private struct DayRow: View {
         .padding(.vertical, quiet ? 6 : 8)
         .padding(.horizontal, current ? 10 : 0)
         .background {
-            if current { RoundedRectangle(cornerRadius: 14, style: .continuous).fill(e.phoneColor.opacity(0.12)) }
+            if current { RoundedRectangle(cornerRadius: 14, style: .continuous).fill(e.subjectColor.opacity(0.12)) }
         }
         .padding(.horizontal, current ? -10 : 0)
         .opacity(past ? 0.4 : 1)

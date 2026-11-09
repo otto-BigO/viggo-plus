@@ -4,7 +4,7 @@ import Foundation
 extension AppState {
     func widgetItem(_ e: ViggoEvent) -> WidgetItem {
         WidgetItem(title: e.shortTitle, start: e.start, end: e.end, room: e.room,
-                   kind: e.kind.rawValue, color: (e.customColor ?? (e.kind == .lesson ? e.phoneColor : nil))?.hex)
+                   kind: e.kind.rawValue, color: (e.customColor ?? (e.kind == .lesson ? e.subjectColor : nil))?.hex)
     }
 
     /// For checking from Terminal: VIGGO_LIVE_AT="2026-11-10 10:30" pretends it is that time,

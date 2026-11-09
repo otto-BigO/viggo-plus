@@ -14,6 +14,25 @@ extension View {
     }
 }
 
+// MARK: - Colours
+
+extension ViggoEvent {
+    /// A steady colour per subject, so the same lesson always looks the same. Your own colour wins.
+    var subjectColor: Color {
+        if let c = customColor { return c }
+        switch kind {
+        case .custom: return .green
+        case .routine: return .gray
+        case .event: return .orange
+        case .birthday: return .pink
+        default: break
+        }
+        let palette: [Color] = [.blue, .purple, .pink, .indigo, .mint, .cyan, .orange, .teal, .red, .brown]
+        let n = baseTitle.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xffff }
+        return palette[n % palette.count]
+    }
+}
+
 /// Hours down the side, a column per day, and each lesson as tall as it lasts, like on Viggo.
 struct WeekGrid: View {
     let days: [Date]
@@ -63,6 +82,7 @@ struct WeekGrid: View {
                 }
             }
             Divider()
+            ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 6) {
                     // Hour labels
@@ -72,6 +92,7 @@ struct WeekGrid: View {
                                 .foregroundStyle(.tertiary)
                                 .frame(height: hourHeight, alignment: .top)
                                 .offset(y: -6)
+                                .id(hr)
                         }
                     }
                     .frame(width: gutter, alignment: .trailing)
@@ -80,6 +101,13 @@ struct WeekGrid: View {
                     }
                 }
                 .padding(.top, 8)
+            }
+            // Today opens with the current hour near the top instead of 08:00.
+            .onAppear {
+                guard days.contains(where: DateUtil.cal.isDateInToday) else { return }
+                let hr = DateUtil.cal.component(.hour, from: Date()) - 1
+                if h.contains(hr), hr > h.lowerBound { proxy.scrollTo(hr, anchor: .top) }
+            }
             }
         }
     }
@@ -140,13 +168,19 @@ struct DayGridColumn: View {
                         .frame(width: w)
                         .offset(x: CGFloat(item.lane) * (w + 3), y: y(s) + 1)
                 }
-                // Now line
-                if today, Date() > top, Date() < bottom {
-                    HStack(spacing: 0) {
-                        Circle().fill(.red).frame(width: 7, height: 7)
-                        Rectangle().fill(.red).frame(height: 1.5)
+                // Now line, moved every minute
+                if today {
+                    TimelineView(.everyMinute) { ctx in
+                        if ctx.date > top, ctx.date < bottom {
+                            HStack(spacing: 0) {
+                                Circle().fill(.red).frame(width: 8, height: 8)
+                                    .shadow(color: .red.opacity(0.5), radius: 3)
+                                Rectangle().fill(.red).frame(height: 1.5)
+                            }
+                            .offset(x: -4, y: y(ctx.date) - 4)
+                        }
                     }
-                    .offset(x: -3, y: y(Date()) - 3.5)
+                    .allowsHitTesting(false)
                 }
             }
         }
@@ -180,7 +214,7 @@ struct GridBlock: View {
     }
 
     private var block: some View {
-        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : e.kind == .custom ? .green : e.kind == .routine || e.kind == .pause ? .gray : .purple)
+        let tint = e.subjectColor
         let roomy = height >= 44
         return VStack(alignment: .leading, spacing: 1) {
             Text(e.shortTitle).font(.system(size: height < 18 ? 9.5 : 11, weight: .semibold))

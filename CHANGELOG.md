@@ -1,5 +1,12 @@
 # Ændringer
 
+## 1.6.1 og iPhone-app 0.4.1 (2026-11-09)
+
+- **Farve per fag overalt**: uge-oversigten, panelet, Nu-kortet og lektionsvinduet bruger nu samme faste farve per fag som iPhone-appen, i stedet for at alle timer er blå. Egne farver vinder stadig.
+- Rød nu-linje i uge-oversigten flytter sig hvert minut, og i dag åbner ved det nuværende klokkeslæt i stedet for kl. 8.
+- iPhone: dagvælgeren i Uge glider med til den valgte dag, en prik viser i dag, og skemaet glider ind fra den side du skifter til.
+- iPhone: I dag viser grå pladsholdere mens skemaet hentes, i stedet for "Fri resten af dagen" og nuller.
+
 ## 1.6.0 (2026-11-09)
 
 - **Beskeder på Mac**: et Beskeder-vindue som Mail, med indbakke og søgning til venstre og tråden som chat til højre. Svar direkte (⌘↩ sender), vælg Svar alle eller kun afsender i gruppebeskeder, og skriv nye beskeder med søgning på elever, lærere og grupper.

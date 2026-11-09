@@ -8,6 +8,9 @@ struct WeekScreen: View {
     @EnvironmentObject var state: AppState
     @State private var day = DateUtil.startOfDay(Date())
     @State private var person: UUID?
+    /// Which way the last day change went, so the schedule slides the same way.
+    @State private var forward = true
+    @Namespace private var pill
 
     private var monday: Date { DateUtil.mondayOf(day) }
     private var weekOffset: Int {
@@ -20,7 +23,13 @@ struct WeekScreen: View {
         let next = DateUtil.add(.day, n, day)
         let off = DateUtil.cal.dateComponents([.weekOfYear], from: DateUtil.mondayOf(Date()), to: DateUtil.mondayOf(next)).weekOfYear ?? 0
         guard range.contains(off) else { return }
-        withAnimation(.viggo) { day = next }
+        go(to: next)
+    }
+
+    private func go(to d: Date) {
+        guard !DateUtil.cal.isDate(d, inSameDayAs: day) else { return }
+        forward = d > day
+        withAnimation(.viggo) { day = d }
     }
 
     var body: some View {
@@ -31,7 +40,7 @@ struct WeekScreen: View {
                     ForEach(days, id: \.self) { d in
                         let sel = DateUtil.cal.isDate(d, inSameDayAs: day)
                         let today = DateUtil.cal.isDateInToday(d)
-                        Button { withAnimation(.viggo) { day = d } } label: {
+                        Button { go(to: d) } label: {
                             VStack(spacing: 3) {
                                 Text(DateUtil.weekdayF.string(from: d).prefix(3).capitalized)
                                     .font(.system(size: 11, weight: .medium))
@@ -39,10 +48,12 @@ struct WeekScreen: View {
                                 Text("\(DateUtil.cal.component(.day, from: d))")
                                     .font(.system(size: 17, weight: sel || today ? .bold : .regular))
                                     .foregroundStyle(sel ? Color.white : today ? Color.accentColor : .primary)
+                                Circle().fill(sel ? Color.white : Color.accentColor).frame(width: 4, height: 4)
+                                    .opacity(today ? 1 : 0)
                             }
                             .frame(maxWidth: .infinity).padding(.vertical, 7)
                             .background {
-                                if sel { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.accentColor) }
+                                if sel { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.accentColor.gradient).matchedGeometryEffect(id: "pill", in: pill) }
                             }
                             .contentShape(Rectangle())
                         }
@@ -55,7 +66,10 @@ struct WeekScreen: View {
                          homework: { d in homework.filter { DateUtil.cal.isDate($0.due, inSameDayAs: d) } },
                          hourHeight: 64, dayNames: false)
                     .id(day)
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
+                        removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity)))
+                    .clipped()
                     .padding(.horizontal, 12)
                     .gesture(DragGesture(minimumDistance: 30).onEnded { g in
                         guard abs(g.translation.width) > abs(g.translation.height) else { return }
@@ -73,7 +87,7 @@ struct WeekScreen: View {
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if !DateUtil.cal.isDateInToday(day) {
-                        Button("I dag") { withAnimation(.viggo) { day = DateUtil.startOfDay(Date()) } }
+                        Button("I dag") { go(to: DateUtil.startOfDay(Date())) }
                     }
                     if !state.friends.isEmpty {
                         Menu {
