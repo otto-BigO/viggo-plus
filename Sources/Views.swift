@@ -822,6 +822,14 @@ struct MenubarTab: View {
                     }
                 }
                 .toggleStyle(.switch)
+                Toggle(isOn: $p.menubarBreaks) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Vis pauser mellem timerne").font(.headline)
+                        Text("I pausen mellem klassens timer viser menubaren fx \"Pause → 09:55\".")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
             }
             Section("Hvad skal vises") {
                 if state.routineTitles.isEmpty {

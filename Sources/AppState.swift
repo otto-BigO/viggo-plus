@@ -89,6 +89,14 @@ final class AppState: ObservableObject {
                 await sync()
                 for e in timeline(Date()) { print("[dag] \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.kind.rawValue) \(e.shortTitle)") }
                 print("[menubar] \(menuTitle)")
+                // --at 09:40 prints the menubar text at that time today.
+                if let i = CommandLine.arguments.firstIndex(of: "--at"), i + 1 < CommandLine.arguments.count {
+                    let hm = CommandLine.arguments[i + 1].split(separator: ":").compactMap { Int($0) }
+                    if hm.count == 2, let t = DateUtil.cal.date(bySettingHour: hm[0], minute: hm[1], second: 0, of: Date()) {
+                        tick = t
+                        print("[menubar \(CommandLine.arguments[i + 1])] \(menuTitle)")
+                    }
+                }
                 exit(0)
             }
         } else if CommandLine.arguments.contains("--friend-autologin-test") {
@@ -553,8 +561,8 @@ final class AppState: ObservableObject {
 
     /// Breaks between class lessons ("104 Tysk", "104 Dansk"), not between electives or line subjects.
     /// A gap of up to 30 minutes with nothing else in it counts as a break.
-    func breaks(_ day: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
-        guard prefs.panelBreaks else { return [] }
+    func breaks(_ day: Date, from list: [ViggoEvent]? = nil, menubar: Bool = false) -> [ViggoEvent] {
+        guard menubar ? prefs.menubarBreaks : prefs.panelBreaks else { return [] }
         let todays = (list ?? events).filter { DateUtil.cal.isDate($0.start, inSameDayAs: day) && $0.kind != .duty && $0.kind != .birthday }
         let classes = todays.filter { $0.kind == .lesson && $0.rawName.firstMatch("^\\d+\\s") != nil }
             .sorted { $0.start < $1.start }
@@ -665,7 +673,7 @@ final class AppState: ObservableObject {
 
     var menuTitle: String {
         let now = tick
-        let today = (items(on: now).filter { $0.kind == .lesson || $0.kind == .event } + lunch(now) + customEvents(on: now))
+        let today = (items(on: now).filter { $0.kind == .lesson || $0.kind == .event } + lunch(now) + breaks(now, menubar: true) + customEvents(on: now))
             .sorted { $0.start < $1.start }
         if let cur = today.first(where: { $0.start <= now && $0.end > now }) {
             return "\(cur.menuBarTitle) → \(DateUtil.hm(cur.end))"
