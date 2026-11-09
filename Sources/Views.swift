@@ -99,9 +99,28 @@ struct TimelineRow: View {
     var dividerAbove = false
     var tappable = true
     var body: some View {
+        if e.kind == .pause { pauseRow } else { row }
+    }
+
+    /// A break between lessons: quiet, just the time and how long.
+    private var pauseRow: some View {
+        let current = e.start <= now && e.end > now
+        let mins = Int(e.end.timeIntervalSince(e.start) / 60)
+        return HStack(spacing: 10) {
+            Text(DateUtil.hm(e.start)).font(Sz.mono(11))
+                .foregroundStyle(current ? Color.accentColor : Color.secondary.opacity(0.6))
+                .frame(width: 42 * Sz.k, alignment: .leading)
+            Image(systemName: "cup.and.saucer").font(Sz.f(10)).foregroundStyle(.tertiary)
+            Text("Pause · \(mins) min").font(Sz.f(11, current ? .semibold : .regular)).foregroundStyle(current ? .secondary : .tertiary)
+            Spacer()
+        }
+        .opacity(e.end <= now ? 0.35 : 1)
+    }
+
+    private var row: some View {
         let current = e.start <= now && e.end > now
         let past = e.end <= now
-        VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: 4) {
             if dividerAbove {
                 HStack(spacing: 6) {
                     Rectangle().fill(.quaternary).frame(height: 1)
@@ -363,7 +382,7 @@ struct DayPanel: View {
         let isMe = name == nil
         let all = state.timeline(now, from: isMe ? nil : events)
         let current = all.first { $0.start <= now && $0.end > now }
-        let next = all.first { $0.start > now }
+        let next = all.first { $0.start > now && $0.kind != .pause }
         let shown = p.panelHidePast ? all.filter { $0.end > now } : all
         let schoolEnd = all.filter { $0.kind == .lesson || $0.kind == .event }.map(\.end).max() ?? .distantPast
         let firstEvening = shown.first { ($0.kind == .routine || $0.kind == .custom) && $0.start >= schoolEnd }?.id
@@ -761,6 +780,7 @@ struct PanelTab: View {
                 Toggle("Nu-kort (hvad sker der lige nu)", isOn: $p.panelNow)
                 Toggle("Resten af dagen", isOn: $p.panelTimeline)
                 Toggle("Middag mellem timerne", isOn: $p.panelLunch)
+                Toggle("Pauser mellem klassens timer", isOn: $p.panelBreaks)
                 Toggle("I morgen", isOn: $p.panelTomorrow)
                 Toggle("Lektier", isOn: $p.panelHomework)
                 if p.panelHomework {

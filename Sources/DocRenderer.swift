@@ -69,17 +69,16 @@ enum DocRenderer {
         s.profile = Profile(id: 1, name: "Alex Jensen", image: nil)
         Prefs.shared.customItems = [
             CustomItem(title: "Træning", start: 16 * 60 + 30, end: 17 * 60 + 30, days: [2, 3, 4]),
-            CustomItem(title: "Pause", start: 14 * 60 + 15, end: 14 * 60 + 30, days: [1, 2, 3, 4, 5, 6, 7]),
         ]
         s.events = [
-            ev(1, "Dansk", 8, 35, 9, 35, room: "Klasse 2"),
-            ev(2, "Engelsk", 9, 55, 10, 55, room: "Klasse 2"),
-            ev(3, "Matematik", 11, 5, 12, 5, room: "Klasse 3"),
-            ViggoEvent(id: 4, rawName: "Fysik", start: at(13, 15), end: at(14, 15), room: "Lab",
+            ev(1, "104 Dansk", 8, 35, 9, 35, room: "Klasse 2"),
+            ev(2, "104 Engelsk", 9, 55, 10, 55, room: "Klasse 2"),
+            ev(3, "104 Matematik", 11, 5, 12, 5, room: "Klasse 3"),
+            ViggoEvent(id: 4, rawName: "104 Fysik", start: at(13, 15), end: at(14, 15), room: "Lab",
                        notes: "Vi laver forsøg med strøm og spænding. Husk lommeregner og hæftet fra sidst.\n\nSe videoen inden timen:\n• Ohms lov på 5 minutter\n• Opgave 4.1 til 4.3",
                        kind: .lesson, teachers: ["Maja Holm"], groups: ["Fysik (Fys104)"],
                        links: [URL(string: "https://www.youtube.com/watch?v=demo")!, URL(string: "https://drive.google.com/file/d/demo/view")!]),
-            ev(5, "Gymnastik", 14, 30, 16, 0, room: "Store hal"),
+            ev(5, "104 Gymnastik", 14, 30, 16, 0, room: "Store hal"),
             ev(10, "Aftensmad", 18, 0, 18, 30, room: "Spisesalen", kind: .routine),
             ev(80, "Middag", 12, 10, 13, 0, room: "Spisesalen", kind: .routine, day: mon(0)),
             ev(81, "Middag", 12, 10, 13, 0, room: "Spisesalen", kind: .routine, day: mon(1)),
@@ -102,8 +101,7 @@ enum DocRenderer {
             ev(73, "Kor", 14, 0, 15, 0, room: "Musikhuset", day: mon(2)),
             ev(61, "Biologi", 8, 35, 9, 35, room: "Lab", day: mon(3)), ev(62, "Dansk", 9, 55, 10, 55, room: "Klasse 2", day: mon(3)),
             ev(63, "Medborgerskab", 11, 5, 12, 5, room: "Klasse 2", day: mon(3)),
-            ev(57, "Dansk", 8, 35, 9, 35, room: "Klasse 2", day: mon(0)), ev(58, "Historie", 9, 55, 10, 55, room: "Klasse 4", day: mon(0)),
-            ev(59, "Matematik", 11, 5, 12, 5, room: "Klasse 3", day: mon(0)), ev(60, "Kor", 13, 15, 14, 15, room: "Musikhuset", day: mon(0)),
+            ev(60, "Kor", 13, 15, 14, 15, room: "Musikhuset", day: mon(0)),
             ev(20, "Fællessang", 8, 0, 8, 30, room: "Foredragssalen", kind: .lesson, day: 1),
             ev(21, "Tysk", 8, 35, 9, 35, room: "Klasse 2", day: 1),
             ev(22, "Historie", 9, 55, 10, 55, room: "Klasse 4", day: 1),

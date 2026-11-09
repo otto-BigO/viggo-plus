@@ -551,6 +551,24 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Breaks between class lessons ("104 Tysk", "104 Dansk"), not between electives or line subjects.
+    /// A gap of up to 30 minutes with nothing else in it counts as a break.
+    func breaks(_ day: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
+        guard prefs.panelBreaks else { return [] }
+        let todays = (list ?? events).filter { DateUtil.cal.isDate($0.start, inSameDayAs: day) && $0.kind != .duty && $0.kind != .birthday }
+        let classes = todays.filter { $0.kind == .lesson && $0.rawName.firstMatch("^\\d+\\s") != nil }
+            .sorted { $0.start < $1.start }
+        var out: [ViggoEvent] = []
+        for (a, b) in zip(classes, classes.dropFirst()) {
+            let gap = b.start.timeIntervalSince(a.end)
+            guard gap > 0, gap <= 30 * 60,
+                  !todays.contains(where: { $0.start < b.start && $0.end > a.end && $0.id != a.id && $0.id != b.id }) else { continue }
+            out.append(ViggoEvent(id: -(Int(a.end.timeIntervalSince1970) / 60), rawName: "Pause", start: a.end, end: b.start,
+                                  room: "", notes: "", kind: .pause, teachers: [], groups: []))
+        }
+        return out
+    }
+
     /// Your own items (Indstillinger › Egne punkter) on the given day.
     func customEvents(on day: Date) -> [ViggoEvent] {
         prefs.customItems.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
@@ -566,7 +584,7 @@ final class AppState: ObservableObject {
             && $0.start >= lastEnd && inMenubar($0.title) }
         let meal = lunch(now, from: list).filter { e in !evening.contains { $0.id == e.id } }
         let own = list == nil ? customEvents(on: now) : []
-        return (school + evening + meal + own).sorted { $0.start < $1.start }
+        return (school + evening + meal + breaks(now, from: list) + own).sorted { $0.start < $1.start }
     }
 
     private func visibleOrFriend(_ e: ViggoEvent, _ friend: Bool) -> Bool { friend || visible(e) }

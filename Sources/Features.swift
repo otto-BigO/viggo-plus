@@ -172,7 +172,8 @@ struct WeekView: View {
         let school = events.filter { ($0.kind == .lesson || $0.kind == .event) && (person != nil || state.visible($0))
             && DateUtil.cal.isDate($0.start, inSameDayAs: d) }
         // Lunch from Viggo, like on Viggo's own schedule, and your own items (only in your own week).
-        let extra = state.lunch(d, from: person == nil ? nil : events) + (person == nil ? state.customEvents(on: d) : [])
+        let extra = state.lunch(d, from: person == nil ? nil : events) + state.breaks(d, from: person == nil ? nil : events)
+            + (person == nil ? state.customEvents(on: d) : [])
         return (school + extra).sorted { $0.start < $1.start }
     }
 
@@ -327,7 +328,7 @@ struct DayGridColumn: View {
                 ForEach(laid, id: \.e.id) { item in
                     let s = max(item.e.start, top), en = min(item.e.end, bottom)
                     let w = (geo.size.width - CGFloat(item.lanes - 1) * 3) / CGFloat(item.lanes)
-                    GridBlock(e: item.e, height: max(20, y(en) - y(s) - 2))
+                    GridBlock(e: item.e, height: item.e.kind == .pause ? max(6, y(en) - y(s) - 2) : max(20, y(en) - y(s) - 2))
                         .frame(width: w)
                         .offset(x: CGFloat(item.lane) * (w + 3), y: y(s) + 1)
                 }
@@ -353,9 +354,27 @@ struct GridBlock: View {
     let height: CGFloat
 
     var body: some View {
-        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : e.kind == .custom ? .green : e.kind == .routine ? .gray : .purple)
+        if e.kind == .pause { pauseBody } else { block }
+    }
+
+    /// A pause is only a thin gray strip, so it never covers the lessons around it.
+    private var pauseBody: some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(Color.gray.opacity(0.14))
+            .overlay(alignment: .leading) {
+                if height >= 14 {
+                    Text("Pause").font(.system(size: 9, weight: .medium)).foregroundStyle(.tertiary).padding(.leading, 7)
+                }
+            }
+            .frame(height: height)
+            .opacity(e.end < Date() ? 0.55 : 1)
+            .help("Pause \(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))")
+    }
+
+    private var block: some View {
+        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : e.kind == .custom ? .green : e.kind == .routine || e.kind == .pause ? .gray : .purple)
         let roomy = height >= 44
-        VStack(alignment: .leading, spacing: 1) {
+        return VStack(alignment: .leading, spacing: 1) {
             Text(e.shortTitle).font(.system(size: 11, weight: .semibold))
                 .lineLimit(height >= 70 ? 3 : (roomy ? 2 : 1))
                 .minimumScaleFactor(0.75)

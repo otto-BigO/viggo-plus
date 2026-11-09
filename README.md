@@ -20,6 +20,8 @@ Klik på en time i panelet eller uge-overblikket, så ser du hvad læreren har s
 
 ## Uge-overblik
 
+Hele ugen med timer, middag, pauser mellem klassens timer og dine egne punkter.
+
 <p align="center">
   <img src="docs/screens/week.png" alt="Uge-overblik" width="800">
 </p>

@@ -1,6 +1,6 @@
 import Foundation
 
-enum EventKind: String, Codable { case lesson, event, routine, birthday, duty, custom }
+enum EventKind: String, Codable { case lesson, event, routine, birthday, duty, custom, pause }
 
 /// Your own everyday item, like "Frokost 12:00 to 12:30 on weekdays". Shown in the panel and the menubar.
 struct CustomItem: Codable, Identifiable, Hashable {
