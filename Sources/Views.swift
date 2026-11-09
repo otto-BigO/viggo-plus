@@ -523,7 +523,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .panel: return "rectangle.grid.1x2.fill"
         case .menubar: return "menubar.rectangle"
         case .timer: return "paintpalette.fill"
-        case .egne: return "fork.knife"
+        case .egne: return "checklist"
         case .kalender: return "calendar"
         case .notifikationer: return "bell.badge.fill"
         case .venner: return "person.2.fill"
@@ -1158,7 +1158,7 @@ struct CustomItemsTab: View {
             } header: {
                 Text("Tilføj")
             } footer: {
-                Text("Punkterne står i panelet og i menubaren på de dage du vælger, fx \"Middag 12:00\".")
+                Text("Punkterne står i panelet og i menubaren på de dage du vælger, fx \"Frokost 12:00\".")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -1190,7 +1190,7 @@ struct CustomItemRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                TextField("", text: $item.title, prompt: Text("Navn, fx Middag"))
+                TextField("", text: $item.title, prompt: Text("Navn, fx Frokost"))
                     .labelsHidden()
                     .textFieldStyle(.plain).font(.system(size: 13, weight: .semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)

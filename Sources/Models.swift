@@ -2,7 +2,7 @@ import Foundation
 
 enum EventKind: String, Codable { case lesson, event, routine, birthday, duty, custom }
 
-/// Your own everyday item, like "Middag 12:00 to 12:30 on weekdays". Shown in the panel and the menubar.
+/// Your own everyday item, like "Frokost 12:00 to 12:30 on weekdays". Shown in the panel and the menubar.
 struct CustomItem: Codable, Identifiable, Hashable {
     var id = UUID()
     var title: String
@@ -13,9 +13,9 @@ struct CustomItem: Codable, Identifiable, Hashable {
     var days: Set<Int> = [1, 2, 3, 4, 5]
 
     static let suggestions: [CustomItem] = [
-        CustomItem(title: "Middag", start: 12 * 60, end: 12 * 60 + 30),
-        CustomItem(title: "Pause", start: 10 * 60, end: 10 * 60 + 15),
-        CustomItem(title: "Aftensmad", start: 18 * 60, end: 18 * 60 + 30, days: [1, 2, 3, 4, 5, 6, 7]),
+        CustomItem(title: "Frokost", start: 12 * 60, end: 12 * 60 + 30),
+        CustomItem(title: "Træning", start: 16 * 60, end: 17 * 60),
+        CustomItem(title: "Lektier", start: 19 * 60, end: 20 * 60),
     ]
 
     /// This item as an event on the given day, or nil if it is not on that weekday.
