@@ -55,7 +55,7 @@ final class AppState: ObservableObject {
     }
 
     let prefs = Prefs.shared
-    private let client = ViggoClient()
+    let client = ViggoClient()
     private let calSync = CalendarSync()
     private var calendarAccess = false
     private var snapshot = Snapshot.load()

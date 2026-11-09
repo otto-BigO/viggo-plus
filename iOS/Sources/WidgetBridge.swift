@@ -11,10 +11,31 @@ extension AppState {
         let open = openList.count
         let first = profile.map { $0.name.components(separatedBy: " ").first ?? $0.name }
         WidgetStore.save(WidgetData(name: first, items: items, homework: open, updated: Date(), loggedOut: needsLogin,
-                                    homeworkList: openList.map(\.title)))
+                                    homeworkList: openList.map(\.title),
+                                    homeworkItems: homework.filter { $0.due >= today }.prefix(10).map {
+                                        WidgetHomework(id: $0.id, title: $0.title, subject: $0.group, due: $0.due, done: $0.done)
+                                    }))
         WidgetCenter.shared.reloadAllTimelines()
         WidgetShots.run()
         updateLiveActivity()
+    }
+}
+
+extension AppState {
+    /// A tick from the homework widget: shows it at once, saves it on Viggo, and undoes it if that fails.
+    func setHomeworkFromWidget(_ id: Int, done: Bool) async {
+        CookieJar.restore()
+        func mark(_ v: Bool) {
+            if let i = homework.firstIndex(where: { $0.id == id }) { homework[i].done = v }
+            var d = WidgetStore.load()
+            if let i = d.homeworkItems?.firstIndex(where: { $0.id == id }) { d.homeworkItems?[i].done = v }
+            d.homework = d.homeworkItems?.filter { !$0.done }.count ?? d.homework
+            WidgetStore.save(d)
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+        mark(done)
+        do { try await client.setHomework(id, done: done) }
+        catch { mark(!done) }
     }
 }
 
@@ -53,6 +74,15 @@ enum WidgetShots {
                 if let img = r.uiImage, let png = img.pngData() {
                     try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name)-\(fname).png"))
                 }
+            }
+        }
+        for (name, data) in [("lektier", d), ("lektier-eksempel", WidgetData.homeworkSample)] {
+            for (fam, size, fname) in sizes.prefix(3) {
+                let v = HomeworkWidgetView(family: fam, entry: HomeworkEntry(date: Date(), data: data))
+                    .padding(16).frame(width: size.width, height: size.height).background(Color(white: 0.94))
+                let r = ImageRenderer(content: v)
+                r.scale = 3
+                if let png = r.uiImage?.pngData() { try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name)-\(fname).png")) }
             }
         }
         print("[widget-shots] \(moments.map(\.0)) -> \(dir)")

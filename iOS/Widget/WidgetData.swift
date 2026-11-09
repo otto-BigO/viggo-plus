@@ -13,6 +13,14 @@ struct WidgetItem: Codable, Hashable {
     var isPause: Bool { kind == "pause" }
 }
 
+struct WidgetHomework: Codable, Hashable, Identifiable {
+    let id: Int
+    let title: String
+    let subject: String
+    let due: Date
+    var done: Bool
+}
+
 struct WidgetData: Codable {
     var name: String?
     var items: [WidgetItem]
@@ -21,6 +29,8 @@ struct WidgetData: Codable {
     var loggedOut: Bool
     /// The open homework, for the large widget and Siri.
     var homeworkList: [String]? = nil
+    /// Homework with ids, so the widget can tick it off.
+    var homeworkItems: [WidgetHomework]? = nil
 
     static let empty = WidgetData(name: nil, items: [], homework: 0, updated: .distantPast, loggedOut: false)
 

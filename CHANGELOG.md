@@ -1,5 +1,9 @@
 # Ændringer
 
+## iPhone-app 0.4.0 (2026-11-09)
+
+- **Lektie-widget** til hjemmeskærmen (lille, mellem og stor). Tryk på cirklen for at markere en lektie som færdig på Viggo, direkte fra widgetten.
+
 ## iPhone-app 0.3.0 (2026-11-09)
 
 - **Beskeder i appen**: indbakke med søgning og ulæst-tæller, tråde som chat, svar alle eller kun afsender, og nye beskeder med søgning på navn og gruppe.
