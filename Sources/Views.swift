@@ -107,15 +107,17 @@ struct TimelineRow: View {
         let current = e.start <= now && e.end > now
         let mins = Int(e.end.timeIntervalSince(e.start) / 60)
         return HStack(spacing: 10) {
-            Text(DateUtil.hm(e.start)).font(Sz.mono(11))
+            Text(DateUtil.hm(e.start)).font(Sz.mono(10.5))
                 .foregroundStyle(current ? Color.accentColor : Color.secondary.opacity(0.6))
                 .frame(width: 42 * Sz.k, alignment: .leading)
-            Image(systemName: "cup.and.saucer").font(Sz.f(10)).foregroundStyle(.tertiary)
-            Text("Pause · \(mins) min").font(Sz.f(11, current ? .semibold : .regular)).foregroundStyle(current ? .secondary : .tertiary)
+            Text("Pause · \(mins) min").font(Sz.f(10.5, current ? .semibold : .regular)).foregroundStyle(current ? .secondary : .tertiary)
             Spacer()
         }
         .opacity(e.end <= now ? 0.35 : 1)
     }
+
+    /// Everyday routines (aftensmad, godnat) are shown a little smaller, so the lessons stand out.
+    private var quiet: Bool { e.kind == .routine }
 
     private var row: some View {
         let current = e.start <= now && e.end > now
@@ -131,14 +133,15 @@ struct TimelineRow: View {
             }
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(DateUtil.hm(e.start))
-                    .font(Sz.mono(12))
+                    .font(Sz.mono(quiet ? 11 : 12))
                     .foregroundStyle(current ? Color.accentColor : .secondary)
                     .frame(width: 42 * Sz.k, alignment: .leading)
                 if let c = e.customColor ?? (e.kind == .custom ? Color.green : nil) {
                     RoundedRectangle(cornerRadius: 1.5).fill(c).frame(width: 3, height: 13 * Sz.k)
                 }
                 Text(e.shortTitle)
-                    .font(Sz.f(13, current ? .semibold : .regular))
+                    .font(Sz.f(quiet ? 12 : 13, current ? .semibold : .regular))
+                    .foregroundStyle(quiet && !current ? .secondary : .primary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
@@ -171,17 +174,21 @@ struct NowCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             if let c = current {
                 Text(name.map { "\($0) har nu" } ?? "Nu").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline) {
-                    Text(c.shortTitle).font(Sz.f(19, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                    Text(c.shortTitle).font(Sz.f(17, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Text("\(mins(now, c.end)) tilbage").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
                         .contentTransition(.numericText(countsDown: true))
                 }
-                ProgressView(value: min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start)))))
-                    .progressViewStyle(.linear).tint(.accentColor)
+                let frac = min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start))))
+                Capsule().fill(.primary.opacity(0.1)).frame(height: 4)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { g in Capsule().fill(Color.accentColor).frame(width: g.size.width * frac) }
+                    }
+                    .clipShape(Capsule())
                     .animation(.easeInOut(duration: 0.6), value: now)
                 HStack {
                     if !c.room.isEmpty { Label(c.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
@@ -191,7 +198,7 @@ struct NowCard: View {
             } else if let n = next {
                 Text(name.map { "\($0) er fri" } ?? "Fri").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline) {
-                    Text(n.shortTitle).font(Sz.f(19, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                    Text(n.shortTitle).font(Sz.f(17, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Text("om \(mins(now, n.start))").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
                         .contentTransition(.numericText(countsDown: true))
@@ -206,7 +213,7 @@ struct NowCard: View {
                         Image(systemName: "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
                             .padding(.top, 2)
                         Text(info.notes.replacingOccurrences(of: "\n", with: " "))
-                            .font(Sz.f(11)).foregroundStyle(.secondary).lineLimit(2)
+                            .font(Sz.f(11)).foregroundStyle(.secondary).lineLimit(1)
                             .multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
                     }
@@ -216,7 +223,7 @@ struct NowCard: View {
                 .help("Se info fra læreren")
             }
             if current != nil, let n = next {
-                Divider().opacity(0.5)
+                Divider().opacity(0.5).padding(.vertical, 1)
                 HStack {
                     Text("Næste").font(Sz.f(11)).foregroundStyle(.secondary)
                     Text(n.shortTitle).font(Sz.f(12, .medium)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
@@ -225,7 +232,7 @@ struct NowCard: View {
                 }
             }
         }
-        .padding(12)
+        .padding(.horizontal, 12).padding(.vertical, 10)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.primary.opacity(0.06)))
         .animation(.viggo, value: now)
         .animation(.viggo, value: current?.id)
@@ -242,8 +249,7 @@ struct PersonChip: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 3) {
-                Avatar(url: url, size: 30, name: fullName)
+            Avatar(url: url, size: 24, name: fullName)
                     .overlay {
                         if selected {
                             if let ring {
@@ -256,15 +262,13 @@ struct PersonChip: View {
                     }
                     .opacity(expired ? 0.4 : 1)
                     .overlay(alignment: .topTrailing) {
-                        if expired { Circle().fill(.orange).frame(width: 9, height: 9).overlay(Circle().stroke(.background, lineWidth: 1.5)) }
+                        if expired { Circle().fill(.orange).frame(width: 8, height: 8).overlay(Circle().stroke(.background, lineWidth: 1.5)) }
                     }
-                Text(label).font(.system(size: 10, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? .primary : .secondary).lineLimit(1)
-            }
-            .frame(width: 48)
-            .contentShape(Rectangle())
+                    .padding(3)
+                    .contentShape(Circle())
         }
         .buttonStyle(PressScale())
+        .help(fullName ?? label)
     }
 }
 
@@ -276,17 +280,36 @@ struct MenuView: View {
     @ObservedObject var updater = Updater.shared
     @Namespace private var ring
 
+    private var headerTitle: String {
+        if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) { return f.name }
+        return state.profile.map { "Hej \($0.name.components(separatedBy: " ").first ?? $0.name)" } ?? "Viggo+"
+    }
+
     var body: some View {
         let now = state.tick
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                if let prof = state.profile { Avatar(url: prof.image, size: 30, name: prof.name) }
+            HStack(spacing: 8) {
+                if state.friends.isEmpty, let prof = state.profile { Avatar(url: prof.image, size: 26, name: prof.name) }
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(state.profile.map { "Hej \($0.name.components(separatedBy: " ").first ?? $0.name)" } ?? "Viggo+")
-                        .font(Sz.f(15, .bold))
-                    Text(DateUtil.longDayF.string(from: now).capitalized).font(Sz.f(11)).foregroundStyle(.secondary)
+                    Text(headerTitle).font(Sz.f(14, .bold)).lineLimit(1)
+                        .contentTransition(.opacity)
+                    Text(DateUtil.longDayF.string(from: now).capitalized).font(Sz.f(10.5)).foregroundStyle(.secondary)
                 }
-                Spacer()
+                Spacer(minLength: 6)
+                if !state.friends.isEmpty, updater.available == nil {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 0) {
+                            PersonChip(ring: ring, url: state.profile?.image, label: "Mig", fullName: state.profile?.name, selected: state.selectedFriend == nil) {
+                                withAnimation(.viggo) { state.selectedFriend = nil }
+                            }
+                            ForEach(state.friends) { f in
+                                PersonChip(ring: ring, url: f.image, label: f.firstName, fullName: f.name, selected: state.selectedFriend == f.id,
+                                           expired: state.friendExpired.contains(f.id)) { withAnimation(.viggo) { state.selectedFriend = f.id } }
+                            }
+                        }
+                    }
+                    .fixedSize(horizontal: state.friends.count <= 4, vertical: false)
+                }
                 if let r = updater.available {
                     Button { updater.show() } label: {
                         Label("Ny version \(r.version)", systemImage: "arrow.down.circle.fill")
@@ -310,9 +333,9 @@ struct MenuView: View {
                 Text(state.status).font(Sz.f(11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
 
-            if !state.friends.isEmpty {
+            if !state.friends.isEmpty, updater.available != nil {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 2) {
                         PersonChip(ring: ring, url: state.profile?.image, label: "Mig", fullName: state.profile?.name, selected: state.selectedFriend == nil) {
                             withAnimation(.viggo) { state.selectedFriend = nil }
                         }
@@ -321,8 +344,6 @@ struct MenuView: View {
                                        expired: state.friendExpired.contains(f.id)) { withAnimation(.viggo) { state.selectedFriend = f.id } }
                         }
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 4)
                 }
             }
 
@@ -364,7 +385,7 @@ struct MenuView: View {
         .animation(.viggo, value: state.needsLogin)
         .animation(.viggo, value: updater.available?.version)
         .animation(.viggo, value: state.lastSync)
-        .padding(14)
+        .padding(.horizontal, 14).padding(.vertical, 12)
         .frame(width: 320 * (p.panelLarge ? 1.12 : 1))
     }
 }
@@ -389,7 +410,7 @@ struct DayPanel: View {
         let hasSchool = shown.contains { $0.kind == .lesson || $0.kind == .event }
         let hw = homework.filter { $0.day >= DateUtil.startOfDay(now) }
 
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             if p.panelNow, !events.isEmpty {
                 NowCard(current: current, next: next, now: now, name: name)
             }
@@ -420,7 +441,7 @@ struct DayPanel: View {
             }
 
             if p.panelTimeline, !shown.isEmpty {
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 6) {
                     SectionHeader(title: name.map { "\($0)s dag" } ?? "Resten af dagen")
                     ForEach(shown) { e in
                         TimelineRow(e: e, now: now, dividerAbove: hasSchool && e.id == firstEvening, tappable: isMe)
@@ -446,7 +467,7 @@ struct DayPanel: View {
             }
 
             if p.panelHomework, !hw.isEmpty {
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 6) {
                     SectionHeader(title: "Lektier")
                     ForEach(hw.prefix(5)) { h in
                         HStack(spacing: 8) {
