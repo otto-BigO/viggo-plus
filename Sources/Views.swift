@@ -98,6 +98,9 @@ struct TimelineRow: View {
     let now: Date
     var dividerAbove = false
     var tappable = true
+    /// Rows with a note from the teacher open in place, so you can read it right in the panel.
+    @State private var expanded = ProcessInfo.processInfo.environment["VIGGO_EXPAND_NOTES"] != nil
+    private var hasNote: Bool { e.hasInfo || !e.links.isEmpty }
     var body: some View {
         if e.kind == .pause { pauseRow } else { row }
     }
@@ -114,6 +117,43 @@ struct TimelineRow: View {
             Spacer()
         }
         .opacity(e.end <= now ? 0.35 : 1)
+    }
+
+    private func linkLabel(_ u: URL) -> String {
+        let host = (u.host ?? u.absoluteString).replacingOccurrences(of: "www.", with: "")
+        if host.contains("youtube") || host.contains("youtu.be") { return "YouTube" }
+        if host.contains("drive.google") || host.contains("docs.google") { return "Drev" }
+        return host
+    }
+
+    /// The teacher's note, shown under the row.
+    private var noteBox: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if e.hasInfo {
+                Text(e.notes).font(Sz.f(11.5)).foregroundStyle(.primary.opacity(0.85))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 6) {
+                ForEach(e.links, id: \.self) { u in
+                    Link(destination: u) {
+                        Label(linkLabel(u), systemImage: "arrow.up.right").font(Sz.f(10.5, .medium)).lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+                    .foregroundStyle(Color.accentColor)
+                }
+                Spacer(minLength: 0)
+                Button("Detaljer") { AppState.shared.openLesson(e) }
+                    .buttonStyle(.plain).font(Sz.f(10.5)).foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.primary.opacity(0.05)))
+        .padding(.leading, 52 * Sz.k)
+        .padding(.bottom, 2)
     }
 
     /// Everyday routines (aftensmad, godnat) are shown a little smaller, so the lessons stand out.
@@ -146,19 +186,24 @@ struct TimelineRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                 Spacer(minLength: 6)
-                if e.hasInfo || !e.links.isEmpty {
-                    Image(systemName: "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
-                        .help("Der er info fra læreren")
+                if hasNote {
+                    Image(systemName: expanded ? "chevron.up" : "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
+                        .contentTransition(.symbolEffect(.replace))
+                        .help(expanded ? "Skjul info" : "Der er info fra læreren")
                 }
                 if !e.room.isEmpty {
                     Text(e.room).font(Sz.f(11)).foregroundStyle(.tertiary).lineLimit(1).fixedSize()
                 }
             }
             .opacity(past ? 0.35 : 1)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if hasNote { withAnimation(.viggo) { expanded.toggle() } }
+                else if e.kind != .custom { AppState.shared.openLesson(e) }
+            }
+            if expanded && hasNote { noteBox.transition(.opacity.combined(with: .move(edge: .top))) }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { if e.kind != .custom { AppState.shared.openLesson(e) } }
-        .help(e.kind == .custom ? "Dit eget punkt" : e.hasInfo ? "Se info fra læreren" : "Se detaljer")
+        .help(e.kind == .custom ? "Dit eget punkt" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
     }
 }
 

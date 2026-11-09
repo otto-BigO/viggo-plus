@@ -6,6 +6,7 @@
 - **Pauser mellem timerne**: pauserne mellem klassens timer står i panelet og uge-overblikket (ikke ved valgfag og linjefag). Kan slås fra under Indstillinger › Panel. Under Indstillinger › Menubar kan du også få pausen vist i menubaren, fx "Pause → 09:55".
 - **Uge-overblikket** viser også middag og pauser (grå) og dine egne punkter (grønne).
 - **Egne punkter**: tilføj frokost, træning, lektier og andet under Indstillinger › Egne punkter, med tidspunkt og hvilke dage. De står i panelet med en grøn streg og i menubaren, fx "Frokost 12:00".
+- **Læs lærerens info direkte i panelet**: tryk på en time med info, så folder den ud med hele beskeden og links, i stedet for at åbne et nyt vindue. "Detaljer" åbner stadig vinduet med lærere og hold.
 - **Mere kompakt panel**: dig og dine venner sidder nu som små billeder oppe i toppen ved siden af navnet, Nu-kortet er strammet op, og aftenens faste punkter står lidt mindre, så timerne træder frem. Panelet fylder ca. en sjettedel mindre.
 - **Små animationer**: lektier hopper når du krydser af, minutterne ruller på Nu-kortet, ringen glider hen til den ven du vælger, og dagen tones ind. Synk-pilen drejer mens den henter, og knapperne giver lidt efter når du trykker.
 - I indstillingerne glider markeringen i siden med, og siderne tones ind.
