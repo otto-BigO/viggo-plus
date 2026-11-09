@@ -18,6 +18,7 @@ struct ViggoPlusPhoneApp: App {
                 .task {
                     // Test hooks: render the widgets and print Siri's answers from the cached schedule.
                     let env = ProcessInfo.processInfo.environment
+                    if let dir = env["VIGGO_RENDER_ICONS"] { IconRenderer.run(to: dir) }
                     if env["VIGGO_WIDGET_SHOTS"] != nil || env["VIGGO_SAY"] != nil {
                         try? await Task.sleep(for: .seconds(2))
                         state.pushWidget()
@@ -33,8 +34,50 @@ struct ViggoPlusPhoneApp: App {
 struct RootView: View {
     @EnvironmentObject var state: AppState
     @State private var tab = 0
+    @State private var splash = true
 
     var body: some View {
+        ZStack {
+            main
+                .scaleEffect(splash ? 0.94 : 1)
+                .opacity(splash ? 0 : 1)
+            if splash {
+                LaunchScreen()
+                    .transition(.asymmetric(insertion: .identity,
+                                            removal: .scale(scale: 1.12).combined(with: .opacity)))
+                    .zIndex(1)
+            }
+        }
+        .modifier(LoginCardOverlay())
+        .animation(.viggo, value: state.needsLogin)
+        .task { await leaveSplash() }
+        .sheet(item: $state.shownLesson) { e in
+            NavigationStack {
+                LessonDetailView(e: e)
+                        .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .onAppear { Haptic.soft() }
+        }
+    }
+
+    /// Keep the launch screen up until the first sync is done (at least long enough for the
+    /// icon animation, at most 15 s), then zoom through it into the app.
+    private func leaveSplash() async {
+        let start = Date()
+        while state.lastSync == nil, !state.needsLogin, state.syncAttempts == 0,
+              Date().timeIntervalSince(start) < 15 {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        let left = 1.5 - Date().timeIntervalSince(start)
+        if left > 0 { try? await Task.sleep(for: .seconds(left)) }
+        Haptic.soft()
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) { splash = false }
+    }
+
+    @ViewBuilder private var main: some View {
         Group {
             if state.needsLogin && state.events.isEmpty {
                 LoginScreen()
@@ -49,18 +92,6 @@ struct RootView: View {
                 }
                 .onChange(of: tab) { Haptic.select() }
             }
-        }
-        .modifier(LoginCardOverlay())
-        .animation(.viggo, value: state.needsLogin)
-        .sheet(item: $state.shownLesson) { e in
-            NavigationStack {
-                LessonDetailView(e: e)
-                        .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .onAppear { Haptic.soft() }
         }
     }
 }

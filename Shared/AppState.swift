@@ -18,6 +18,8 @@ final class AppState: ObservableObject {
     @Published var messages: [ViggoMessage] = []
     @Published var lastSync: Date?
     @Published var syncing = false
+    /// Finished sync attempts (success or not), so the iPhone launch screen knows when to step aside.
+    @Published private(set) var syncAttempts = 0
     @Published var status = ""
     @Published var needsLogin = false
     @Published var loginMessage = ""
@@ -443,7 +445,7 @@ final class AppState: ObservableObject {
         guard !syncing else { return }
         syncing = true
         lastAttempt = Date()
-        defer { syncing = false }
+        defer { syncing = false; syncAttempts += 1 }
         do {
             let c = client
             let (ev, hw, msg) = try await withRelogin { () async throws -> ([ViggoEvent], [Homework], [ViggoMessage]) in

@@ -234,6 +234,15 @@ struct SettingsScreen: View {
                     NavigationLink { FriendsTab().navigationTitle("Venner") } label: { row("Venner", "person.2.fill", .blue) }
                 }
                 Section {
+                    NavigationLink { IconPicker().navigationTitle("App-ikon") } label: {
+                        Label {
+                            Text("App-ikon")
+                        } icon: {
+                            IconArt(style: IconStyle.current, size: 28)
+                        }
+                    }
+                }
+                Section {
                     Toggle(isOn: $p.liveActivity) { row("Live Activity i skoletiden", "clock.badge.fill", .orange) }
                         .onChange(of: p.liveActivity) { state.updateLiveActivity() }
                 } footer: {

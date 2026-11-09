@@ -1,5 +1,10 @@
 # Ændringer
 
+## iPhone-app 0.6.0 (2026-11-09)
+
+- **Ny opstartsskærm**: ikonet tegner sig selv, plusset popper ind, og en blød glorie pulserer mens skemaet hentes. Derefter zoomer appen ind med alt klar, i stedet for grå pladsholdere.
+- **Vælg app-ikon** under Indstillinger: Viggo, Midnat, Solnedgang, Mint, Lilla, Lys, Neon og Guld. Opstartsskærmen følger det ikon du har valgt.
+
 ## iPhone-app 0.5.0 (2026-11-09)
 
 - **Beskeder som iMessage**: fastgør samtaler øverst med et langt tryk eller ved at swipe, korte tider ("2 t", "I går"), beskeder samlet per afsender med tidsstempel, og en svarlinje hvor send-knappen først dukker op når du skriver.
