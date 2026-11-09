@@ -1,9 +1,13 @@
 import Foundation
-import AppKit
 import SwiftUI
 import EventKit
 import WebKit
+#if os(macOS)
+import AppKit
 import ServiceManagement
+#else
+import UIKit
+#endif
 
 @MainActor
 final class AppState: ObservableObject {
@@ -30,8 +34,11 @@ final class AppState: ObservableObject {
     @Published var bulletins: [Bulletin] = []
     /// Food per day from the kitchen's meal plan posts.
     @Published var meals: [Date: MealDay] = [:]
+    #if os(macOS)
     private var weekWindow: NSWindow?
     private var lessonWindow: NSWindow?
+    private var settingsWindow: NSWindow?
+    #endif
     private var focusActive: Bool?
     private var friendLogin: WebLogin?
 
@@ -52,7 +59,6 @@ final class AppState: ObservableObject {
     private var lastAttempt = Date.distantPast
     private var lastPing = Date()
     private var timer: Timer?
-    private var settingsWindow: NSWindow?
     private let webLogin = WebLogin()
     private let autoLogin = AutoLogin()
     private var expiryNotified = false
@@ -67,6 +73,7 @@ final class AppState: ObservableObject {
     private var lastLoginLog: [String] = []
 
     private init() {
+        #if os(macOS)
         if let dir = DocRenderer.outDir {
             Task { @MainActor in await DocRenderer.run(self, dir: dir) }
         } else if CommandLine.arguments.contains("--update-now") {
@@ -208,6 +215,9 @@ final class AppState: ObservableObject {
         } else {
             Task { await start() }
         }
+        #else
+        Task { await start() }
+        #endif
     }
 
     // MARK: lifecycle
@@ -223,16 +233,22 @@ final class AppState: ObservableObject {
             for name in Config.allCalendars { try? calSync.remove(named: name) }
             UserDefaults.standard.set(true, forKey: "cleanedAutoImport")
         }
+        #if os(macOS)
         setupHotKey()
+        #endif
         await sync()
+        #if os(macOS)
         if needsLogin { openSettings() }
         Updater.shared.checkIfDue()
+        #endif
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.onTick() }
         }
+        #if os(macOS)
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.keepAlive(); await self?.sync() }
         }
+        #endif
     }
 
     private func onTick() {
@@ -245,7 +261,9 @@ final class AppState: ObservableObject {
             Task { await keepAlive() }
         }
         checkBriefs()
+        #if os(macOS)
         Updater.shared.checkIfDue()
+        #endif
     }
 
     /// Pings Viggo every few minutes so sessions stay alive as long as possible.
@@ -285,7 +303,7 @@ final class AppState: ObservableObject {
 
     /// Handles clicks on "log ind igen" notifications.
     func handle(_ url: URL) {
-        guard url.scheme == "viggoplus" else { NSWorkspace.shared.open(url); return }
+        guard url.scheme == "viggoplus" else { Platform.open(url); return }
         if url.host == "login" { loginWithBrowser() }
         if url.host == "friend", let id = UUID(uuidString: url.lastPathComponent),
            let f = friends.first(where: { $0.id == id }) { addFriend(relogin: f) }
@@ -759,12 +777,15 @@ final class AppState: ObservableObject {
 
     func runShortcut(_ name: String) {
         guard !name.isEmpty else { return }
+        #if os(macOS)
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
         p.arguments = ["run", name]
         try? p.run()
+        #endif
     }
 
+    #if os(macOS)
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
         set {
@@ -774,6 +795,7 @@ final class AppState: ObservableObject {
             objectWillChange.send()
         }
     }
+    #endif
 
     var menuTitle: String {
         let now = tick
@@ -859,7 +881,7 @@ final class AppState: ObservableObject {
                 }
             }
 
-            func put(_ on: Bool, _ name: String, _ color: NSColor, _ items: [CalItem], _ f: Date, _ t: Date) throws {
+            func put(_ on: Bool, _ name: String, _ color: PlatformColor, _ items: [CalItem], _ f: Date, _ t: Date) throws {
                 if on {
                     try calSync.sync(items, into: calSync.calendar(named: name, color: color), from: f, to: t)
                 } else {
@@ -981,6 +1003,7 @@ final class AppState: ObservableObject {
 
     // MARK: windows
 
+    #if os(macOS)
     /// Closes the panel and puts `w` next to where the panel was, under the menu bar,
     /// so a window opened from the panel shows up beside it instead of on top of it.
     private func showBesidePanel(_ w: NSWindow) {
@@ -1051,4 +1074,7 @@ final class AppState: ObservableObject {
         HotKey.shared.action = { Task { @MainActor in HotKey.togglePanel() } }
         if prefs.hotkeyEnabled { HotKey.shared.register(choice: prefs.hotkeyChoice) } else { HotKey.shared.unregister() }
     }
+    #else
+    func openViggo(_ url: URL = Config.baseURL) { Platform.open(url) }
+    #endif
 }

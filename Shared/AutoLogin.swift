@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import WebKit
 
 /// Saved SkoleIT logins (yours and your friends'), in one file only your user can read.
@@ -102,7 +106,9 @@ enum AutoLoginResult {
 @MainActor
 final class AutoLogin: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
+    #if os(macOS)
     private var window: NSWindow?
+    #endif
     private var done: ((AutoLoginResult) -> Void)?
     private var timeout: Task<Void, Never>?
     private var username = ""
@@ -133,9 +139,10 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
         log = []
         let cfg = WKWebViewConfiguration()
         cfg.websiteDataStore = store
-        let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 720), configuration: cfg)
+        let wv = WKWebView(frame: CGRect(x: 0, y: 0, width: 480, height: 720), configuration: cfg)
         wv.navigationDelegate = self
         wv.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+        #if os(macOS)
         // A window far off screen keeps the page running at full speed without showing anything.
         let w = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 480, height: 720),
                          styleMask: [.borderless], backing: .buffered, defer: false)
@@ -145,6 +152,13 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
         w.contentView = wv
         w.orderBack(nil)
         window = w
+        #else
+        // On the iPhone the web view sits invisibly in the app's window, so the page keeps running.
+        wv.isUserInteractionEnabled = false
+        wv.alpha = 0.01
+        let host = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
+        host?.insertSubview(wv, at: 0)
+        #endif
         webView = wv
         timeout = Task { [weak self] in
             try? await Task.sleep(for: .seconds(45))
@@ -167,9 +181,13 @@ final class AutoLogin: NSObject, WKNavigationDelegate {
         timeout?.cancel()
         webView?.stopLoading()
         webView?.navigationDelegate = nil
+        #if os(macOS)
         window?.orderOut(nil)
-        webView = nil
         window = nil
+        #else
+        webView?.removeFromSuperview()
+        #endif
+        webView = nil
         password = ""
         switch r {
         case .success: note("ok"); onStage?(.success)

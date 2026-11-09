@@ -2,7 +2,9 @@ import Foundation
 import Security
 import UserNotifications
 import EventKit
+#if os(macOS)
 import AppKit
+#endif
 
 /// Only used to remove passwords that older versions saved. Viggo+ no longer stores any.
 enum Keychain {
@@ -59,11 +61,11 @@ final class CalendarSync {
         (try? await store.requestFullAccessToEvents()) ?? false
     }
 
-    func calendar(named name: String, color: NSColor) throws -> EKCalendar {
+    func calendar(named name: String, color: PlatformColor) throws -> EKCalendar {
         if let c = store.calendars(for: .event).first(where: { $0.title == name }) { return c }
         let c = EKCalendar(for: .event, eventStore: store)
         c.title = name
-        c.color = color
+        c.cgColor = color.cgColor
         let icloud = store.sources.first { $0.sourceType == .calDAV && $0.title.localizedCaseInsensitiveContains("icloud") }
         guard let src = icloud ?? store.defaultCalendarForNewEvents?.source
                 ?? store.sources.first(where: { $0.sourceType == .local }) else {
