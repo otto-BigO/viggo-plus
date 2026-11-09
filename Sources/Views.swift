@@ -145,7 +145,7 @@ struct MenuView: View {
 // MARK: - Settings (tabs)
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", timer = "Timer", egne = "Egne punkter", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner"
+    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", timer = "Timer", egne = "Egne punkter", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner", iphone = "iPhone-app"
     var id: String { rawValue }
     var slug: String {
         rawValue.lowercased().replacingOccurrences(of: "ø", with: "o").replacingOccurrences(of: "æ", with: "ae").replacingOccurrences(of: " ", with: "-")
@@ -161,6 +161,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .kalender: return "calendar"
         case .notifikationer: return "bell.badge.fill"
         case .venner: return "person.2.fill"
+        case .iphone: return "iphone"
         }
     }
     var color: Color {
@@ -174,6 +175,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .kalender: return .orange
         case .notifikationer: return .red
         case .venner: return .blue
+        case .iphone: return .mint
         }
     }
 }
@@ -270,6 +272,7 @@ struct SettingsView: View {
                 case .kalender: CalendarTab()
                 case .notifikationer: NotificationsTab()
                 case .venner: FriendsTab()
+                case .iphone: PhoneTab()
                 }
                 }
                 .id(page ?? .konto)

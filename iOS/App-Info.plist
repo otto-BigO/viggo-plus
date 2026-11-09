@@ -5,7 +5,9 @@
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array><string>com.ottobigo.viggoplus.ios.refresh</string></array>
+	<array><string>$(PRODUCT_BUNDLE_IDENTIFIER).refresh</string></array>
+	<key>ViggoAppGroup</key>
+	<string>group.$(VIGGO_PREFIX).viggoplus</string>
 	<key>UIBackgroundModes</key>
 	<array><string>fetch</string></array>
 	<key>CFBundleURLTypes</key>

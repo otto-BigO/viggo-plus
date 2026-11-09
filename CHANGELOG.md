@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.7.0 (2026-11-09)
+
+- **Læg iPhone-appen på din iPhone fra Mac'en**: ny side under Indstillinger > iPhone-app. Den siger først hvad du skal bruge og hvor lang tid det tager, og har en trin for trin-guide der selv krydser af, når Xcode er hentet, dit Apple-ID er logget ind, iPhonen er sat til og Udviklertilstand er slået til. Et tryk bygger appen og lægger den på iPhonen.
+- **Fornyes automatisk**: med et gratis Apple-ID virker iPhone-appen 7 dage ad gangen. Viggo+ fornyer den i baggrunden, når der er under 2 dage tilbage og iPhonen er sat til eller på samme wifi, og giver besked hvis den ikke kan nås.
+- Virker med ethvert Apple-ID, også dine venners på deres egen Mac. iPhone-appens kode ligger inde i Viggo+, så Mac-appens opdateringer også giver en ny iPhone-version ved næste fornyelse.
+
 ## iPhone-app 0.7.0 (2026-11-09)
 
 - **ASCII-opstart**: opstartsskærmen er nu en ASCII-animation. Ikonet bygges op af tegn: firkanten fyldes ud fra midten, V'et afkodes langs stregen, plusset popper ind, og ringe af tegn bølger ud mens skemaet hentes. Status skrives som i en terminal med blinkende markør. Følger det valgte app-ikon og mørk tilstand, og står stille hvis Reducer bevægelse er slået til.

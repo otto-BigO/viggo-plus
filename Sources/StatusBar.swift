@@ -177,7 +177,38 @@ struct VisualEffect: NSViewRepresentable {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        MainActor.assumeIsolated { PanelController.shared.setup() }
+        MainActor.assumeIsolated {
+            PanelController.shared.setup()
+            PhoneInstaller.shared.startRenewal()
+        }
+        // For testing the iPhone installer from Terminal.
+        if CommandLine.arguments.contains("--phone-status") || CommandLine.arguments.contains("--phone-install") {
+            Task { @MainActor in
+                let p = PhoneInstaller.shared
+                await p.refresh()
+                print("[phone] xcode=\(p.xcodeApp?.path ?? "-") firstLaunch=\(p.firstLaunchDone) ios=\(p.iosPlatform)")
+                print("[phone] team=\(p.team.map { "\($0.id) \($0.name) free=\($0.free)" } ?? "-") signer=\(p.signer ?? "-")")
+                for d in p.devices { print("[phone] device \(d.name) \(d.model) iOS \(d.os) wired=\(d.wired) reachable=\(d.reachable) paired=\(d.paired) devmode=\(d.developerMode.map(String.init) ?? "-")") }
+                for (k, r) in p.records { print("[phone] record \(k) \(r.name) \(r.version) expires=\(r.expires) trusted=\(r.trusted.map(String.init) ?? "-")") }
+                if CommandLine.arguments.contains("--phone-install"), let d = p.device {
+                    let watch = Task { @MainActor in
+                        var last = ""
+                        while !Task.isCancelled {
+                            if let j = p.job, "\(j.detail) \(Int(j.progress * 100))" != last {
+                                last = "\(j.detail) \(Int(j.progress * 100))"
+                                print("[phone] \(j.detail) \(Int(j.progress * 100))% \(Int(-j.started.timeIntervalSinceNow))s")
+                            }
+                            try? await Task.sleep(for: .milliseconds(300))
+                        }
+                    }
+                    let ok = await p.install(d, quiet: CommandLine.arguments.contains("--quiet"))
+                    watch.cancel()
+                    print("[phone] ok=\(ok) error=\(p.error ?? "-")")
+                    for (k, r) in p.records { print("[phone] record \(k) \(r.version) expires=\(r.expires) trusted=\(r.trusted.map(String.init) ?? "-")") }
+                }
+                exit(0)
+            }
+        }
         // For checking from Terminal: --open-messages opens the messages window at start.
         if CommandLine.arguments.contains("--open-messages") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { AppState.shared.openMessages(thread: ProcessInfo.processInfo.environment["VIGGO_THREAD"].flatMap(Int.init)) } }

@@ -43,7 +43,8 @@ struct WidgetData: Codable {
 }
 
 enum WidgetStore {
-    static let group = "group.com.ottobigo.viggoplus"
+    /// Set per Apple ID at build time (see VIGGO_PREFIX in project.yml).
+    static let group = Bundle.main.object(forInfoDictionaryKey: "ViggoAppGroup") as? String ?? "group.com.ottobigo.viggoplus"
     static var url: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)?
             .appendingPathComponent("widget.json")

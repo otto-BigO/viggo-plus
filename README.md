@@ -150,15 +150,21 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 - **Notifikationer**: påmindelse før timer, morgen- og aften-brief og fødselsdage, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
 - **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island.
 
-Den er ikke i App Store. Sådan kommer den på din egen iPhone med en gratis Apple-konto:
+Den er ikke i App Store, men Viggo+ på Mac'en kan lægge den på din iPhone. Åbn **Indstillinger > iPhone-app** i Mac-appen. Der står hvad du skal bruge og hvor lang tid det tager, og en guide der krydser trinene af efterhånden:
 
-1. Installer Xcode, log ind med dit Apple-id under **Xcode > Settings > Accounts**, og sæt dit team i `iOS/project.yml` (`DEVELOPMENT_TEAM`).
-2. Installer XcodeGen (`brew install xcodegen`).
-3. Sæt iPhonen til med kabel, lås den op og slå **Udviklertilstand** til under **Indstillinger > Anonymitet og sikkerhed**.
-4. Kør `iOS/install.sh`.
-5. Første gang: åbn **Indstillinger > Generelt > VPN og enhedsadministration** på iPhonen og stol på din udvikler-profil.
+1. Hent Xcode fra App Store (gratis, ca. 15 GB, 20 til 60 min).
+2. Åbn Xcode én gang og vælg iOS (5 til 15 min).
+3. Log ind med dit Apple-ID under **Xcode > Indstillinger > Apple Accounts**. Et gratis Apple-ID er nok.
+4. Sæt iPhonen til med kabel, lås den op og tryk **Stol på**.
+5. Slå **Udviklertilstand** til under **Indstillinger > Anonymitet og sikkerhed** på iPhonen.
+6. Tryk **Installer** i Viggo+ (2 til 5 min første gang).
+7. Første gang: stol på dit Apple-ID under **Indstillinger > Generelt > VPN og enhedsadministration** på iPhonen.
 
-Med en gratis konto holder signaturen i 7 dage. Kør `iOS/install.sh` igen inden da, så virker appen en uge mere. Dine data og dit login bliver liggende.
+Med et gratis Apple-ID virker appen 7 dage ad gangen og på højst 3 iPhones. Viggo+ fornyer den selv, når der er under 2 dage tilbage og iPhonen er sat til eller på samme wifi. Det tager under et minut, og dine data bliver liggende.
+
+<p align="center"><img src="docs/screens/settings-iphone-app.png" alt="iPhone-app" width="680"></p>
+
+Udviklere kan også køre `iOS/install.sh` direkte (kræver XcodeGen).
 
 ## Byg selv
 

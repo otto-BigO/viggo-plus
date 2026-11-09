@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.application-groups</key>
-	<array><string>group.com.ottobigo.viggoplus</string></array>
+	<array><string>group.$(VIGGO_PREFIX).viggoplus</string></array>
 </dict>
 </plist>

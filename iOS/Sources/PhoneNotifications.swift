@@ -6,7 +6,7 @@ import UserNotifications
 /// time (lesson reminders, the morning and evening brief, birthdays) is handed to iOS ahead
 /// of time. Changes, new homework and messages are found by a background refresh instead.
 extension AppState {
-    static let refreshTask = "com.ottobigo.viggoplus.ios.refresh"
+    static let refreshTask = (Bundle.main.bundleIdentifier ?? "com.ottobigo.viggoplus.ios") + ".refresh"
     private static let prefix = "vp-"
 
     func scheduleAhead() {

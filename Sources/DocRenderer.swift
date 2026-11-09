@@ -32,6 +32,16 @@ enum DocRenderer {
         snap(UpdateView(updater: Updater.shared), name: "update", dir: dir)
         Updater.shared.available = nil
 
+        // The iPhone page with made-up state: halfway through the guide, then installed.
+        PhoneInstaller.shared.loadDemo(done: false)
+        snap(SettingsView(initial: .iphone).environmentObject(state), name: "settings-iphone-guide", dir: dir,
+             size: NSSize(width: 680, height: 500))
+        if ProcessInfo.processInfo.environment["VIGGO_PHONE_TALL"] != nil {
+            // Only for checking the whole guide; not part of the README pictures.
+            snap(PhoneTab().frame(width: 470, height: 1250).background(Color(nsColor: .windowBackgroundColor)),
+                 name: "iphone-guide-tall", dir: dir, size: NSSize(width: 470, height: 1250))
+        }
+        PhoneInstaller.shared.loadDemo(done: true)
         for page in SettingsPage.allCases {
             snap(SettingsView(initial: page).environmentObject(state), name: "settings-\(page.slug)", dir: dir,
                  size: NSSize(width: 680, height: 500))

@@ -6,6 +6,8 @@ options:
 settings:
   base:
     DEVELOPMENT_TEAM: M9H38A3AGD
+    # The Mac app's iPhone installer overrides these two for other Apple IDs.
+    VIGGO_PREFIX: com.ottobigo
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: minimal
@@ -31,7 +33,7 @@ targets:
       - target: ViggoWidget
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ottobigo.viggoplus.ios
+        PRODUCT_BUNDLE_IDENTIFIER: $(VIGGO_PREFIX).viggoplus.ios
         CODE_SIGN_ENTITLEMENTS: App.entitlements
         INFOPLIST_FILE: App-Info.plist
         PRODUCT_NAME: Viggo+
@@ -53,7 +55,7 @@ targets:
           - Info.plist
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ottobigo.viggoplus.ios.widget
+        PRODUCT_BUNDLE_IDENTIFIER: $(VIGGO_PREFIX).viggoplus.ios.widget
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: WIDGET
         PRODUCT_NAME: ViggoWidget
         INFOPLIST_FILE: Widget/Info.plist
