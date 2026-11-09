@@ -34,6 +34,9 @@ final class AppState: ObservableObject {
     @Published var bulletins: [Bulletin] = []
     /// Food per day from the kitchen's meal plan posts.
     @Published var meals: [Date: MealDay] = [:]
+    #if os(iOS)
+    @Published var shownLesson: ViggoEvent?
+    #endif
     #if os(macOS)
     private var weekWindow: NSWindow?
     private var lessonWindow: NSWindow?
@@ -1076,5 +1079,7 @@ final class AppState: ObservableObject {
     }
     #else
     func openViggo(_ url: URL = Config.baseURL) { Platform.open(url) }
+    /// The iPhone shows a lesson's details as a sheet.
+    func openLesson(_ e: ViggoEvent) { shownLesson = e }
     #endif
 }
