@@ -1,5 +1,9 @@
 # Ændringer
 
+## 1.5.1 (2026-11-09)
+
+- Når du åbner Indstillinger, Detaljer eller uge-overblikket fra panelet, lukker panelet, og vinduet åbner lige ved siden af hvor panelet sad, i stedet for midt på skærmen oven i det.
+
 ## 1.5.0 (2026-11-09)
 
 - **Middag og værelsestjek mellem timerne**: middagen og det der kommer lige efter (Tjek af værelser, Hovedrengøring af værelser, Formiddagspause) står nu i panelet mellem timerne og i menubaren, ligesom på Viggo. Kan slås fra under Indstillinger › Panel.

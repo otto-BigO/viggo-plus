@@ -104,6 +104,30 @@ final class AppState: ObservableObject {
                 }
                 exit(0)
             }
+        } else if CommandLine.arguments.contains("--window-test") {
+            // For checking from Terminal: open the panel, then Indstillinger and a lesson, and print where things end up.
+            Task { @MainActor in
+                CookieJar.restore()
+                await sync()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // A stand-in for the panel, at the top right under the menu bar where the real one opens.
+                let vf = NSScreen.main!.visibleFrame
+                let fake = NSWindow(contentRect: NSRect(x: vf.maxX - 420, y: vf.maxY - 700, width: 320, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
+                fake.isReleasedWhenClosed = false
+                fake.orderFront(nil); panelWindowRef = fake
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                print("[vindue] panel åbent: \(panelWindow.map { "\($0.frame)" } ?? "nej")")
+                openSettings()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                print("[vindue] efter indstillinger, panel åbent: \(panelWindow != nil), indstillinger: \(settingsWindow?.frame ?? .zero)")
+                settingsWindow?.close()
+                fake.orderFront(nil)
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if let e = events.first(where: { $0.kind == .lesson }) { openLesson(e) }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                print("[vindue] efter detaljer, panel åbent: \(panelWindow != nil), detaljer: \(lessonWindow?.frame ?? .zero)")
+                exit(0)
+            }
         } else if CommandLine.arguments.contains("--friend-autologin-test") {
             // For testing the friend path from Terminal with your own saved login: Keychain round trip,
             // a login in a private store like a friend's, and a Viggo request with those cookies. Adds no friend.
@@ -895,6 +919,32 @@ final class AppState: ObservableObject {
 
     // MARK: windows
 
+    /// The menubar panel's window, set by the panel itself (see PanelWindowReader).
+    weak var panelWindowRef: NSWindow?
+    private var panelWindow: NSWindow? { panelWindowRef.flatMap { $0.isVisible ? $0 : nil } }
+
+    /// Closes the panel and puts `w` next to where the panel was, under the menu bar,
+    /// so a window opened from the panel shows up beside it instead of on top of it.
+    private func showBesidePanel(_ w: NSWindow) {
+        let panel = panelWindow?.frame
+        panelWindow?.close()
+        w.layoutIfNeeded()
+        if let panel, let screen = (NSScreen.screens.first { $0.frame.intersects(panel) } ?? NSScreen.main)?.visibleFrame {
+            let size = w.frame.size
+            let gap: CGFloat = 12
+            var x = panel.minX - gap - size.width                      // left of the panel
+            if x < screen.minX + gap { x = panel.maxX + gap }           // else right of it
+            if x + size.width > screen.maxX - gap { x = screen.maxX - gap - size.width }
+            x = max(screen.minX + gap, x)
+            let y = max(screen.minY + gap, panel.maxY - size.height)   // top lines up with the panel
+            w.setFrameOrigin(NSPoint(x: x, y: y))
+        } else if !w.isVisible {
+            w.center()
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+    }
+
     func openSettings() {
         if settingsWindow == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView().environmentObject(self)))
@@ -903,11 +953,9 @@ final class AppState: ObservableObject {
             w.titlebarAppearsTransparent = true
             w.toolbarStyle = .unified
             w.isReleasedWhenClosed = false
-            w.center()
             settingsWindow = w
         }
-        NSApp.activate(ignoringOtherApps: true)
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        if let w = settingsWindow { showBesidePanel(w) }
     }
 
     func openViggo(_ url: URL = Config.baseURL) { NSWorkspace.shared.open(url) }
@@ -925,9 +973,7 @@ final class AppState: ObservableObject {
             lessonWindow = w
         }
         lessonWindow?.title = e.title
-        lessonWindow?.center()
-        NSApp.activate(ignoringOtherApps: true)
-        lessonWindow?.makeKeyAndOrderFront(nil)
+        if let w = lessonWindow { showBesidePanel(w) }
     }
 
     func openWeek() {
@@ -938,11 +984,9 @@ final class AppState: ObservableObject {
             w.titlebarAppearsTransparent = true
             w.isReleasedWhenClosed = false
             w.setContentSize(NSSize(width: 1040, height: 760))
-            w.center()
             weekWindow = w
         }
-        NSApp.activate(ignoringOtherApps: true)
-        weekWindow?.makeKeyAndOrderFront(nil)
+        if let w = weekWindow { showBesidePanel(w) }
     }
 
     func setupHotKey() {

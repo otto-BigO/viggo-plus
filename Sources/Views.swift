@@ -319,6 +319,18 @@ struct PersonChip: View {
 
 // MARK: - Menubar panel
 
+/// Tells AppState which window the panel lives in, so it can close it when a window opens from the panel.
+struct PanelWindowReader: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { Probe() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+    final class Probe: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let w = window { MainActor.assumeIsolated { AppState.shared.panelWindowRef = w } }
+        }
+    }
+}
+
 struct MenuView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
@@ -432,6 +444,7 @@ struct MenuView: View {
         .animation(.viggo, value: state.lastSync)
         .padding(.horizontal, 14).padding(.vertical, 12)
         .frame(width: 320 * (p.panelLarge ? 1.12 : 1))
+        .background(PanelWindowReader())
     }
 }
 
