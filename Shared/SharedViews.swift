@@ -561,3 +561,42 @@ struct CustomItemRow: View {
         .padding(.vertical, 2)
     }
 }
+
+struct NotificationsTab: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
+    var body: some View {
+        Form {
+            Section("Giv besked om") {
+                Toggle("Flyttede eller aflyste timer", isOn: $p.notifyChanges)
+                Toggle("Nye lektier", isOn: $p.notifyHomework)
+                Toggle("Nye beskeder", isOn: $p.notifyMessages)
+                Toggle("Nye opslag på opslagstavlen", isOn: $p.notifyBulletin)
+                Toggle("Fødselsdage om morgenen", isOn: $p.notifyBirthdays)
+            }
+            #if os(iOS)
+            Section("Påmindelse før timer") {
+                Picker("Før hver time", selection: $p.lessonAlarmMinutes) {
+                    Text("Fra").tag(0)
+                    ForEach([5, 10, 15, 30], id: \.self) { Text("\($0) min").tag($0) }
+                }
+            }
+            #endif
+            Section("Daglig brief") {
+                Toggle("Slået til", isOn: $p.briefs)
+                Stepper("Morgen kl. \(p.morningHour)", value: $p.morningHour, in: 5...11).disabled(!p.briefs)
+                Stepper("Aften kl. \(p.eveningHour)", value: $p.eveningHour, in: 16...23).disabled(!p.briefs)
+            }
+            Section {
+                Button("Send test-notifikation") {
+                    Notifier.shared.post("Viggo+ test", state.brief(for: Date(), prefix: "I dag"))
+                }
+            }
+        }
+        .formStyle(.grouped)
+        #if os(iOS)
+        // New settings take effect right away: the waiting reminders are made again.
+        .onChange(of: "\(p.lessonAlarmMinutes)\(p.briefs)\(p.morningHour)\(p.eveningHour)\(p.notifyBirthdays)") { state.scheduleAhead() }
+        #endif
+    }
+}

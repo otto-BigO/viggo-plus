@@ -212,6 +212,7 @@ struct SettingsScreen: View {
                 }
                 Section {
                     NavigationLink { PanelTab().navigationTitle("I dag") } label: { row("I dag-skærmen", "sun.max.fill", .teal) }
+                    NavigationLink { NotificationsTab().navigationTitle("Notifikationer") } label: { row("Notifikationer", "bell.badge.fill", .red) }
                     NavigationLink { LessonsTab().navigationTitle("Timer") } label: { row("Timer", "paintpalette.fill", .pink) }
                     NavigationLink { CustomItemsTab().navigationTitle("Egne punkter") } label: { row("Egne punkter", "checklist", .green) }
                     NavigationLink { FriendsTab().navigationTitle("Venner") } label: { row("Venner", "person.2.fill", .blue) }

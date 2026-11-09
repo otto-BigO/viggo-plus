@@ -28,6 +28,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ottobigo.viggoplus.ios
         CODE_SIGN_ENTITLEMENTS: App.entitlements
+        INFOPLIST_FILE: App-Info.plist
         PRODUCT_NAME: Viggo+
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

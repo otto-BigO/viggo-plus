@@ -441,6 +441,8 @@ final class AppState: ObservableObject {
             lastSync = Date()
             #if os(iOS)
             pushWidget()
+            scheduleAhead()
+            scheduleRefresh()
             #endif
             CookieJar.save()
             if !status.hasPrefix("Kalender") { status = "" }
@@ -998,6 +1000,10 @@ final class AppState: ObservableObject {
     }
 
     private func checkBriefs() {
+        // The iPhone app hands these to iOS ahead of time (scheduleAhead), so it never sends them twice.
+        #if os(iOS)
+        return
+        #endif
         let now = Date(), today = DateUtil.ymd(now)
         let hour = DateUtil.cal.component(.hour, from: now)
         if prefs.notifyBirthdays, hour >= prefs.morningHour, snapshot.lastBirthdayDay != today, !events.isEmpty {

@@ -436,32 +436,6 @@ struct CalRow: View {
     }
 }
 
-struct NotificationsTab: View {
-    @EnvironmentObject var state: AppState
-    @ObservedObject var p = Prefs.shared
-    var body: some View {
-        Form {
-            Section("Giv besked om") {
-                Toggle("Flyttede eller aflyste timer", isOn: $p.notifyChanges)
-                Toggle("Nye lektier", isOn: $p.notifyHomework)
-                Toggle("Nye beskeder", isOn: $p.notifyMessages)
-                Toggle("Nye opslag på opslagstavlen", isOn: $p.notifyBulletin)
-                Toggle("Fødselsdage om morgenen", isOn: $p.notifyBirthdays)
-            }
-            Section("Daglig brief") {
-                Toggle("Slået til", isOn: $p.briefs)
-                Stepper("Morgen kl. \(p.morningHour)", value: $p.morningHour, in: 5...11).disabled(!p.briefs)
-                Stepper("Aften kl. \(p.eveningHour)", value: $p.eveningHour, in: 16...23).disabled(!p.briefs)
-            }
-            Section {
-                Button("Send test-notifikation") {
-                    Notifier.shared.post("Viggo+ test", state.brief(for: Date(), prefix: "I dag"))
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
 
 /// Username and password fields. "otto1161" is shown as "otto1161@cloud.skoleit.dk".
 /// The key next to a friend: save or remove their SkoleIT login.
