@@ -27,7 +27,13 @@ import Foundation
         var bundleID: String
         var trusted: Bool?
         var warned: Date?
+        var renewed: Date?
+        /// From when the automatic renewal kicks in.
+        var renewFrom: Date { expires.addingTimeInterval(-PhoneInstaller.renewBefore) }
     }
+
+    /// Renew once there is this little left. Three days gives several evenings at home to catch the phone on wifi.
+    nonisolated static let renewBefore: TimeInterval = 3 * 86400
 
     struct Job: Equatable {
         var title: String
@@ -231,7 +237,7 @@ import Foundation
 
         // 5. When does the signature run out?
         var rec = Record(name: d.name, expires: Date().addingTimeInterval(7 * 86400), version: bundledVersion,
-                         bundleID: bundleID, trusted: records[d.id]?.trusted)
+                         bundleID: bundleID, trusted: records[d.id]?.trusted, renewed: Date())
         let prof = await Shell.run("/usr/bin/security", ["cms", "-D", "-i", app.appendingPathComponent("embedded.mobileprovision").path])
         if let data = prof.output.data(using: .utf8),
            let p = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
@@ -255,7 +261,7 @@ import Foundation
         job = nil
         startRenewal()
         Notifier.shared.post(quiet ? "Viggo+ er fornyet på \(d.name)" : "Viggo+ er installeret på \(d.name)",
-                             "Virker til \(Self.when(rec.expires)).")
+                             "Virker til \(Self.when(rec.expires))\(d.wired ? "" : ". Klaret over wifi").")
         return true
     }
 
@@ -380,21 +386,34 @@ import Foundation
 
     // MARK: renewing
 
-    /// Every couple of hours: renew any install with less than two days left, if the phone is reachable.
+    /// Every 20 minutes, and right after the Mac wakes up: renew any install that is due, if the
+    /// phone can be reached by cable or on the same wifi. Nothing is run until one is due.
     func startRenewal() {
         guard renewTask == nil, !records.isEmpty else { return }
         renewTask = Task {
             try? await Task.sleep(for: .seconds(90))
             while !Task.isCancelled {
                 await renewIfNeeded()
-                try? await Task.sleep(for: .seconds(2 * 3600))
+                try? await Task.sleep(for: .seconds(20 * 60))
+            }
+        }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in
+                // Give wifi a minute to come back before looking for the phone.
+                try? await Task.sleep(for: .seconds(60))
+                await PhoneInstaller.shared.renewIfNeeded()
             }
         }
     }
+    private var wakeObserver: NSObjectProtocol?
+
+    /// VIGGO_RENEW_DUE=1 treats every install as due, for testing the automatic path from Terminal.
+    private var forceDue: Bool { ProcessInfo.processInfo.environment["VIGGO_RENEW_DUE"] == "1" }
 
     func renewIfNeeded() async {
         guard autoRenew, job == nil else { return }
-        let due = records.filter { $0.value.expires.timeIntervalSinceNow < 2 * 86400 }
+        let due = records.filter { forceDue || $0.value.renewFrom < Date() }
         guard !due.isEmpty else { return }
         await refresh()
         for (udid, rec) in due {
@@ -418,12 +437,13 @@ import Foundation
         iosPlatform = true
         team = Team(id: "DEMO", name: "Emma Jensen (Personal Team)", free: true)
         signer = "Apple Development: emma@example.com"
-        devices = [Device(id: "demo", name: "Emmas iPhone", model: "iPhone 15", os: "18.2", wired: true,
+        devices = [Device(id: "demo", name: "Emmas iPhone", model: "iPhone 15", os: "18.2", wired: !done,
                           reachable: true, paired: true, developerMode: done)]
         selected = "demo"
         checked = true
         records = done ? ["demo": Record(name: "Emmas iPhone", expires: Date().addingTimeInterval(5 * 86400 + 3 * 3600),
-                                         version: bundledVersion, bundleID: "demo", trusted: true)] : [:]
+                                         version: bundledVersion, bundleID: "demo", trusted: true,
+                                         renewed: Date().addingTimeInterval(-2 * 86400 + 3 * 3600))] : [:]
     }
 
     func forget(_ udid: String) {

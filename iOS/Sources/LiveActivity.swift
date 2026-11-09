@@ -8,17 +8,9 @@ extension AppState {
     }
 
     /// For checking from Terminal: VIGGO_LIVE_AT="2026-11-10 10:30" pretends it is that time,
-    /// so the Live Activity can be seen in a lesson outside school hours.
-    private var liveNow: Date { Self.testNow(Date()) }
-
-    /// The real time, or the VIGGO_LIVE_AT time moved along by how long the app has run.
-    static func testNow(_ real: Date) -> Date {
-        guard let s = ProcessInfo.processInfo.environment["VIGGO_LIVE_AT"] else { return real }
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"
-        guard let fake = f.date(from: s) else { return real }
-        return fake.addingTimeInterval(real.timeIntervalSince(launched))
-    }
-    private static let launched = Date()
+    /// so the Live Activity can be seen in a lesson outside school hours (see LiveDay.now).
+    private var liveNow: Date { LiveDay.now() }
+    static func testNow(_ real: Date) -> Date { LiveDay.now() }
 
     /// Starts the Live Activity when school begins, keeps it current and ends it after the last lesson.
     /// iOS only lets the app start one while it is open; after that it is updated from every sync.
@@ -26,21 +18,16 @@ extension AppState {
         let now = liveNow
         let running = Activity<LessonAttributes>.activities
         let items = timeline(now).map(widgetItem)
-        let school = items.filter { $0.kind == "lesson" || $0.kind == "event" }
+        let day = LiveDay.state(items, at: now)
         if ProcessInfo.processInfo.environment["VIGGO_LIVE_AT"] != nil {
-            print("[live] now=\(now) pref=\(prefs.liveActivity) login=\(needsLogin) enabled=\(ActivityAuthorizationInfo().areActivitiesEnabled) items=\(items.count) school=\(school.count) first=\(String(describing: school.first?.start)) running=\(running.count)")
+            print("[live] now=\(now) pref=\(prefs.liveActivity) login=\(needsLogin) enabled=\(ActivityAuthorizationInfo().areActivitiesEnabled) items=\(items.count) school=\(day != nil) running=\(running.count)")
         }
-        guard prefs.liveActivity, !needsLogin, ActivityAuthorizationInfo().areActivitiesEnabled,
-              let first = school.first, let last = school.map(\.end).max(),
-              now >= first.start.addingTimeInterval(-30 * 60), now < last else {
+        // Turned off in Settings: leave one started from Shortcuts alone, but never start one here.
+        if !prefs.liveActivity, day != nil { return }
+        guard !needsLogin, ActivityAuthorizationInfo().areActivitiesEnabled, let (state, stale) = day else {
             for a in running { Task { await a.end(nil, dismissalPolicy: .immediate) } }
             return
         }
-        let current = items.first { $0.start <= now && $0.end > now }
-        let upcoming = items.filter { $0.start > now && !$0.isPause && $0.start < last }
-        let state = LessonAttributes.ContentState(current: current, next: upcoming.first, later: Array(upcoming.dropFirst().prefix(3)))
-        // Stale at the next change, so the lock screen shows what comes next if no update arrives in time.
-        let stale = [current?.end, upcoming.first?.start].compactMap { $0 }.min()
         let content = ActivityContent(state: state, staleDate: stale)
         if let a = running.first {
             guard a.content.state != state else { return }

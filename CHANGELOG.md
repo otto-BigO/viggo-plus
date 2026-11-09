@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.9.0 og iPhone-app 0.9.0 (2026-11-10)
+
+- **Fornyelse over wifi uden kabel**: Viggo+ fornyer iPhone-appen når der er under 3 dage tilbage, så snart iPhonen er på samme wifi som Mac'en (eller sat til med kabel). Den kigger hvert 20. minut og lige efter Mac'en vågner, og iPhonen må gerne være låst. Indstillinger > iPhone-app viser om iPhonen er forbundet over wifi eller kabel, hvornår den sidst blev fornyet, og hvornår næste fornyelse sker.
+- **Live Activity uden at åbne appen**: ny handling, Vis skoledagen, i Genveje og Siri ("Vis skoledagen i Viggo+"). Lav en automatisering, fx kl. 7.45 på hverdage eller når du kommer på skolen, så står timen og nedtællingen på låseskærmen uden at du åbner Viggo+. Der er også en knap til Kontrolcenter og låseskærmen.
+
 ## 1.8.0 og iPhone-app 0.8.0 (2026-11-09)
 
 - **Overfør login til iPhonen**: når Viggo+ på Mac'en installerer iPhone-appen, sender den dit login med, så appen er logget ind med det samme uden at du skal skrive noget. Dine venner og deres logins kommer også med. Der er også en knap, Overfør login nu, under Indstillinger > iPhone-app.

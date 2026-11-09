@@ -190,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // For testing the iPhone installer from Terminal.
         if CommandLine.arguments.contains("--phone-status") || CommandLine.arguments.contains("--phone-install")
-            || CommandLine.arguments.contains("--phone-send-login") {
+            || CommandLine.arguments.contains("--phone-send-login") || CommandLine.arguments.contains("--phone-renew") {
             Task { @MainActor in
                 let p = PhoneInstaller.shared
                 await p.refresh()
@@ -198,6 +198,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("[phone] team=\(p.team.map { "\($0.id) \($0.name) free=\($0.free)" } ?? "-") signer=\(p.signer ?? "-")")
                 for d in p.devices { print("[phone] device \(d.name) \(d.model) iOS \(d.os) wired=\(d.wired) reachable=\(d.reachable) paired=\(d.paired) devmode=\(d.developerMode.map(String.init) ?? "-")") }
                 for (k, r) in p.records { print("[phone] record \(k) \(r.name) \(r.version) expires=\(r.expires) trusted=\(r.trusted.map(String.init) ?? "-")") }
+                if CommandLine.arguments.contains("--phone-renew") {
+                    // The same path the timer takes. VIGGO_RENEW_DUE=1 makes it renew now.
+                    let before = p.records.mapValues(\.expires)
+                    await p.renewIfNeeded()
+                    for (k, r) in p.records { print("[phone] renew \(k) \(before[k] == r.expires ? "unchanged" : "renewed") expires=\(r.expires) error=\(p.error ?? "-")") }
+                }
                 if CommandLine.arguments.contains("--phone-send-login"), let d = p.device {
                     await p.sendLogin(to: d)
                     print("[phone] sent=\(p.loginSent ?? "-") error=\(p.error ?? "-")")

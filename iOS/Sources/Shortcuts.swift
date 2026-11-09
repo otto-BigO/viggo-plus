@@ -54,6 +54,11 @@ struct ViggoShortcuts: AppShortcutsProvider {
             "Hvilke lektier har jeg i \(.applicationName)",
             "Lektier i \(.applicationName)",
         ], shortTitle: "Lektier", systemImageName: "book.fill")
+        AppShortcut(intent: StartLiveIntent(), phrases: [
+            "Vis skoledagen i \(.applicationName)",
+            "Start skoledagen i \(.applicationName)",
+            "\(.applicationName) skoledag",
+        ], shortTitle: "Vis skoledagen", systemImageName: "clock.badge.fill")
         AppShortcut(intent: TomorrowIntent(), phrases: [
             "Hvad har jeg i morgen i \(.applicationName)",
         ], shortTitle: "I morgen", systemImageName: "sunrise.fill")

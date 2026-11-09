@@ -81,6 +81,7 @@ struct ViggoWidgets: WidgetBundle {
         NowWidget()
         LessonLiveActivity()
         ViggoControl()
+        LiveControl()
         HomeworkWidget()
     }
 }

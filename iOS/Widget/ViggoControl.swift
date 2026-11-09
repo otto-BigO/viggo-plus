@@ -24,3 +24,17 @@ struct ViggoControl: ControlWidget {
         .description("Viser hvad du har nu og åbner Viggo+.")
     }
 }
+
+/// A Control Center (or Lock Screen / Action button) control that puts the school day on the
+/// Lock Screen without opening the app.
+struct LiveControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "ViggoLiveControl") {
+            ControlWidgetButton(action: StartLiveIntent()) {
+                Label("Vis skoledagen", systemImage: "clock.badge.fill")
+            }
+        }
+        .displayName("Vis skoledagen")
+        .description("Sætter timen og nedtællingen på låseskærmen.")
+    }
+}

@@ -148,7 +148,7 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 - **Siri og Genveje**: "Hvad har jeg nu i Viggo+", "Hvornår har jeg fri i Viggo+", lektier og i morgen. Virker uden at åbne appen.
 - **Kontrolcenter**: en knap der viser hvad du har nu og åbner appen.
 - **Notifikationer**: påmindelse før timer, morgen- og aften-brief og fødselsdage, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
-- **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island.
+- **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island. Kan startes uden at åbne appen med handlingen **Vis skoledagen** i Genveje (fx som automatisering kl. 7.45 på hverdage) eller fra Kontrolcenter.
 
 Den er ikke i App Store, men Viggo+ på Mac'en kan lægge den på din iPhone. Åbn **Indstillinger > iPhone-app** i Mac-appen. Der står hvad du skal bruge og hvor lang tid det tager, og en guide der krydser trinene af efterhånden:
 
@@ -162,7 +162,7 @@ Den er ikke i App Store, men Viggo+ på Mac'en kan lægge den på din iPhone. Å
 
 Dit login (og dine venner) sendes med fra Mac'en, så iPhone-appen er logget ind med det samme. Det kan slås fra, og der er en knap til at sende det igen.
 
-Med et gratis Apple-ID virker appen 7 dage ad gangen og på højst 3 iPhones. Viggo+ fornyer den selv, når der er under 2 dage tilbage og iPhonen er sat til eller på samme wifi. Det tager under et minut, og dine data bliver liggende.
+Med et gratis Apple-ID virker appen 7 dage ad gangen og på højst 3 iPhones. Viggo+ fornyer den selv, når der er under 3 dage tilbage og iPhonen er på samme wifi som Mac'en eller sat til med kabel. Kablet skal kun bruges første gang. Det tager under et minut, iPhonen må gerne være låst, og dine data bliver liggende.
 
 <p align="center"><img src="docs/screens/settings-iphone-app.png" alt="iPhone-app" width="680"></p>
 

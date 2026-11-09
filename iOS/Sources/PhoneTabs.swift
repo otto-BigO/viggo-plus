@@ -246,7 +246,7 @@ struct SettingsScreen: View {
                     Toggle(isOn: $p.liveActivity) { row("Live Activity i skoletiden", "clock.badge.fill", .orange) }
                         .onChange(of: p.liveActivity) { state.updateLiveActivity() }
                 } footer: {
-                    Text("Timen der er i gang og nedtællingen står på låseskærmen og i Dynamic Island, fra en halv time før første time til sidste time slutter.")
+                    Text("Timen der er i gang og nedtællingen står på låseskærmen og i Dynamic Island, fra en halv time før første time til sidste time slutter. Den starter når du åbner Viggo+. Vil du have den uden at åbne appen, så lav en automatisering i Genveje (fx kl. 7.45 på hverdage) med \"Vis skoledagen\" fra Viggo+, eller læg knappen \"Vis skoledagen\" i Kontrolcenter.")
                 }
                 Section {
                     Button { state.openViggo() } label: { row("Åbn Viggo", "safari.fill", .indigo) }

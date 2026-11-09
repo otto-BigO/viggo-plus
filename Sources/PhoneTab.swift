@@ -41,7 +41,7 @@ struct PhoneTab: View {
             Step(id: 4, title: "Sæt iPhonen til med kabel", time: "1 min",
                  done: d.map { $0.paired && $0.reachable } ?? false,
                  detail: "Brug et USB-kabel og lås iPhonen op. Når den spørger \"Stol på denne computer?\", tryk Stol på og skriv din kode. Kablet skal kun bruges første gang; derefter kan Mac'en finde den på samme wifi.",
-                 doneNote: d.map { "\($0.name), \($0.model), iOS \($0.os)" }),
+                 doneNote: d.map { "\($0.name), \($0.model), iOS \($0.os), \($0.wired ? "med kabel" : "over wifi")" }),
             Step(id: 5, title: "Slå Udviklertilstand til på iPhonen", time: "3 min",
                  done: d?.developerMode == true,
                  detail: "På iPhonen: Indstillinger > Anonymitet og sikkerhed > Udviklertilstand (helt nederst) > slå til. iPhonen genstarter. Tryk Slå til når den er tændt igen, og skriv din kode. Menuen dukker først op efter iPhonen har været sat til en Mac med Xcode, så gør trin 4 først."),
@@ -205,7 +205,7 @@ struct PhoneTab: View {
     private var renewal: some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle("Forny automatisk", isOn: $inst.autoRenew)
-            Text("Viggo+ kigger hver anden time. Når der er under 2 dage tilbage og iPhonen kan nås, bygger den appen igen i baggrunden. Det tager under et minut, og dine data på iPhonen bliver liggende.")
+            Text("Når der er under 3 dage tilbage, bygger Viggo+ appen igen i baggrunden, så snart iPhonen kan nås med kabel eller på samme wifi. Den kigger hvert 20. minut og når Mac'en vågner. Det tager under et minut, iPhonen må gerne være låst, og dine data bliver liggende.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(14)
@@ -300,8 +300,10 @@ private struct StatusCard: View {
                 if rec.version != inst.bundledVersion {
                     Text("Version \(inst.bundledVersion) er klar. Forny for at få den.").font(.caption).foregroundStyle(.secondary)
                 } else if inst.autoRenew {
-                    Text("Fornyes automatisk").font(.caption).foregroundStyle(.secondary)
+                    Text(rec.renewFrom < Date() ? "Fornyes så snart iPhonen kan nås" : "Fornyes automatisk fra \(PhoneInstaller.when(rec.renewFrom))")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
+                connection
             }
             Spacer()
             if let d = inst.device {
@@ -311,5 +313,23 @@ private struct StatusCard: View {
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 12).fill(color.opacity(0.08)))
+    }
+
+    /// How the Mac can reach the phone right now, and when it was last renewed.
+    private var connection: some View {
+        let d = inst.devices.first { $0.name == rec.name } ?? inst.device
+        let (icon, text, tint): (String, String, Color) = {
+            guard let d, d.reachable else { return ("wifi.slash", "Ikke i nærheden lige nu", .secondary) }
+            return d.wired ? ("cable.connector", "Forbundet med kabel", .green) : ("wifi", "Forbundet over wifi", .green)
+        }()
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).foregroundStyle(tint).contentTransition(.symbolEffect(.replace))
+                Text(text)
+            }
+            if let r = rec.renewed { Text("Sidst fornyet \(PhoneInstaller.when(r))").foregroundStyle(.secondary) }
+        }
+        .font(.caption)
+        .padding(.top, 2)
     }
 }
