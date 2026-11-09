@@ -169,8 +169,11 @@ struct WeekView: View {
     private var range: ClosedRange<Int> { person == nil ? -Config.weeksBack...Config.weeksAhead : 0...1 }
 
     private func dayItems(_ d: Date) -> [ViggoEvent] {
-        events.filter { ($0.kind == .lesson || $0.kind == .event) && (person != nil || state.visible($0))
-            && DateUtil.cal.isDate($0.start, inSameDayAs: d) }.sorted { $0.start < $1.start }
+        let school = events.filter { ($0.kind == .lesson || $0.kind == .event) && (person != nil || state.visible($0))
+            && DateUtil.cal.isDate($0.start, inSameDayAs: d) }
+        // Lunch from Viggo, like on Viggo's own schedule, and your own items (only in your own week).
+        let extra = state.lunch(d, from: person == nil ? nil : events) + (person == nil ? state.customEvents(on: d) : [])
+        return (school + extra).sorted { $0.start < $1.start }
     }
 
     var body: some View {
@@ -350,7 +353,7 @@ struct GridBlock: View {
     let height: CGFloat
 
     var body: some View {
-        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : .purple)
+        let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : e.kind == .custom ? .green : e.kind == .routine ? .gray : .purple)
         let roomy = height >= 44
         VStack(alignment: .leading, spacing: 1) {
             Text(e.shortTitle).font(.system(size: 11, weight: .semibold))
@@ -381,7 +384,7 @@ struct GridBlock: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture { AppState.shared.openLesson(e) }
+        .onTapGesture { if e.kind != .custom { AppState.shared.openLesson(e) } }
     }
 }
 

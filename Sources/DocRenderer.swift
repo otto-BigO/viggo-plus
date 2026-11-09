@@ -68,7 +68,7 @@ enum DocRenderer {
     private static func loadDemo(_ s: AppState) {
         s.profile = Profile(id: 1, name: "Alex Jensen", image: nil)
         Prefs.shared.customItems = [
-            CustomItem(title: "Frokost", start: 12 * 60, end: 12 * 60 + 30),
+            CustomItem(title: "Træning", start: 16 * 60 + 30, end: 17 * 60 + 30, days: [2, 3, 4]),
             CustomItem(title: "Pause", start: 14 * 60 + 15, end: 14 * 60 + 30, days: [1, 2, 3, 4, 5, 6, 7]),
         ]
         s.events = [
@@ -81,6 +81,11 @@ enum DocRenderer {
                        links: [URL(string: "https://www.youtube.com/watch?v=demo")!, URL(string: "https://drive.google.com/file/d/demo/view")!]),
             ev(5, "Gymnastik", 14, 30, 16, 0, room: "Store hal"),
             ev(10, "Aftensmad", 18, 0, 18, 30, room: "Spisesalen", kind: .routine),
+            ev(80, "Middag", 12, 10, 13, 0, room: "Spisesalen", kind: .routine, day: mon(0)),
+            ev(81, "Middag", 12, 10, 13, 0, room: "Spisesalen", kind: .routine, day: mon(1)),
+            ev(82, "Middag", 12, 10, 13, 0, room: "Spisesalen", kind: .routine, day: mon(2)),
+            ev(83, "Middag", 12, 10, 13, 0, room: "Spisesalen", kind: .routine, day: mon(3)),
+            ev(84, "Middag", 12, 10, 13, 0, room: "Spisesalen", kind: .routine, day: mon(4)),
             ev(11, "Stilletime og oprydning på værelset", 18, 30, 19, 30, kind: .routine),
             ev(12, "Fællessamling og aflevering af telefon", 19, 30, 19, 50, kind: .routine),
             ev(13, "Alle på eget område", 21, 45, 22, 0, kind: .routine),

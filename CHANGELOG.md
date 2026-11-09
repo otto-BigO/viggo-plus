@@ -3,6 +3,7 @@
 ## 1.5.0 (2026-11-09)
 
 - **Middag mellem timerne**: middagen fra dit Viggo-skema står nu i panelet mellem timerne og i menubaren, ligesom på Viggo. Kan slås fra under Indstillinger › Panel.
+- **Uge-overblikket** viser også middag (grå) og dine egne punkter (grønne).
 - **Egne punkter**: tilføj frokost, træning, lektier og andet under Indstillinger › Egne punkter, med tidspunkt og hvilke dage. De står i panelet med en grøn streg og i menubaren, fx "Frokost 12:00".
 - **Små animationer**: lektier hopper når du krydser af, minutterne ruller på Nu-kortet, ringen glider hen til den ven du vælger, og dagen tones ind. Synk-pilen drejer mens den henter, og knapperne giver lidt efter når du trykker.
 - I indstillingerne glider markeringen i siden med, og siderne tones ind.
