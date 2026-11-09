@@ -101,6 +101,8 @@ struct TimelineRow: View {
     /// Rows with a note from the teacher open in place, so you can read it right in the panel.
     @State private var expanded = ProcessInfo.processInfo.environment["VIGGO_EXPAND_NOTES"] != nil
     private var hasNote: Bool { e.hasInfo || !e.links.isEmpty }
+    /// Middag and Aftensmad carry the day's food as their note.
+    private var isFood: Bool { e.kind == .routine && e.hasInfo }
     var body: some View {
         if e.kind == .pause { pauseRow } else { row }
     }
@@ -186,7 +188,7 @@ struct TimelineRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                 Spacer(minLength: 6)
-                if hasNote {
+                if hasNote && !isFood {
                     Image(systemName: expanded ? "chevron.up" : "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
                         .contentTransition(.symbolEffect(.replace))
                         .help(expanded ? "Skjul info" : "Der er info fra læreren")
@@ -201,9 +203,21 @@ struct TimelineRow: View {
                 if hasNote { withAnimation(.viggo) { expanded.toggle() } }
                 else if e.kind != .custom { AppState.shared.openLesson(e) }
             }
-            if expanded && hasNote { noteBox.transition(.opacity.combined(with: .move(edge: .top))) }
+            if isFood {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Image(systemName: "fork.knife").font(Sz.f(9)).foregroundStyle(.tertiary)
+                    Text(e.notes).font(Sz.f(11)).foregroundStyle(.secondary)
+                        .lineLimit(expanded ? nil : 1)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+                .padding(.leading, 52 * Sz.k)
+                .opacity(past ? 0.35 : 1)
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation(.viggo) { expanded.toggle() } }
+            } else if expanded && hasNote { noteBox.transition(.opacity.combined(with: .move(edge: .top))) }
         }
-        .help(e.kind == .custom ? "Dit eget punkt" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
+        .help(e.kind == .custom ? "Dit eget punkt" : isFood ? "Dagens mad fra madplanen" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
     }
 }
 
@@ -860,6 +874,7 @@ struct PanelTab: View {
                 Toggle("Resten af dagen", isOn: $p.panelTimeline)
                 Toggle("Middag og værelsestjek mellem timerne", isOn: $p.panelLunch)
                 Toggle("Pauser mellem klassens timer", isOn: $p.panelBreaks)
+                Toggle("Dagens mad fra madplanen under Middag og Aftensmad", isOn: $p.panelMeals)
                 Toggle("I morgen", isOn: $p.panelTomorrow)
                 Toggle("Lektier", isOn: $p.panelHomework)
                 if p.panelHomework {

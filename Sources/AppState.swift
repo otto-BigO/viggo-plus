@@ -28,6 +28,8 @@ final class AppState: ObservableObject {
     @Published var unreadCount = 0
     @Published var questionnaireCount = 0
     @Published var bulletins: [Bulletin] = []
+    /// Food per day from the kitchen's meal plan posts.
+    @Published var meals: [Date: MealDay] = [:]
     private var weekWindow: NSWindow?
     private var lessonWindow: NSWindow?
     private var focusActive: Bool?
@@ -88,6 +90,22 @@ final class AppState: ObservableObject {
                 CookieJar.restore()
                 await sync()
                 for e in timeline(Date()) { print("[dag] \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.kind.rawValue) \(e.shortTitle)") }
+                if CommandLine.arguments.contains("--bulletin-html") { let c = client
+                    for t in [28, 29] {
+                        let d = (try? await c.getPublic("/Basic/BulletinBoard/HomeWidget?show=60&userType=\(t)&ajax=1")) ?? Data()
+                        try? d.write(to: URL(fileURLWithPath: "/tmp/viggo-board-\(t).html"))
+                    }
+                    for path in ["/Basic/BulletinBoard/GetOldBulletins/?useTypsId=28", "/Basic/BulletinBoard/GetOldBulletins/?useTypsId=29", "/"] {
+                        let d = (try? await c.getPublic(path)) ?? Data()
+                        try? d.write(to: URL(fileURLWithPath: "/tmp/viggo-board-\(path.hashValue & 0xffff).html"))
+                    }
+                }
+                if CommandLine.arguments.contains("--meals") {
+                    for (d, m) in meals.sorted(by: { $0.key < $1.key }) { print("[mad] \(DateUtil.day(d)): \(m.lunch) | aften: \(m.dinner ?? "-")") }
+                }
+                if CommandLine.arguments.contains("--bulletins") {
+                    for b in bulletins { print("[opslag] \(b.board) | \(b.title) | \(b.when)\n\(b.text)\n---") }
+                }
                 if CommandLine.arguments.contains("--raw") {
                     for e in events.filter({ $0.kind == .routine }).sorted(by: { $0.start < $1.start }) {
                         print("[rå] \(DateUtil.day(e.start)) \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.rawName)")
@@ -354,6 +372,7 @@ final class AppState: ObservableObject {
             if let p = c.profile { profile = p }
             if let n = try? await c.fetchCounts() { unreadCount = n.unread; questionnaireCount = n.questionnaires }
             if let b = try? await c.fetchBulletins() { bulletins = b }
+            if let m = try? await c.fetchMealPosts() { meals = MealPlan.parse(m) }
             needsLogin = false
             if prefs.imported { applyCalendar() }
             Task { await syncFriends() }
@@ -580,6 +599,15 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Puts the day's food from the meal plan on Middag and Aftensmad, as the event's notes.
+    func withFood(_ e: ViggoEvent) -> ViggoEvent {
+        guard prefs.panelMeals, e.kind == .routine, e.notes.isEmpty, let day = meals[DateUtil.startOfDay(e.start)] else { return e }
+        let t = e.title.lowercased()
+        if t.hasPrefix("middag") { return e.withNotes(day.lunch) }
+        if t.hasPrefix("aftensmad"), let d = day.dinner { return e.withNotes(d) }
+        return e
+    }
+
     /// Everyday items from Viggo's schedule that fall inside the school day, shown between the lessons
     /// like on Viggo: Middag, Tjek af værelser, Hovedrengøring af værelser, Formiddagspause.
     func lunch(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
@@ -598,7 +626,7 @@ final class AppState: ObservableObject {
                 picked.append(r); grew = true
             }
         }
-        return picked.sorted { $0.start < $1.start }
+        return picked.sorted { $0.start < $1.start }.map(withFood)
     }
 
     /// Breaks between class lessons ("104 Tysk", "104 Dansk"), not between electives or line subjects.
@@ -634,7 +662,7 @@ final class AppState: ObservableObject {
             && $0.start >= lastEnd && inMenubar($0.title) }
         let meal = lunch(now, from: list).filter { e in !evening.contains { $0.id == e.id } }
         let own = list == nil ? customEvents(on: now) : []
-        return (school + evening + meal + breaks(now, from: list) + own).sorted { $0.start < $1.start }
+        return (school + evening.map(withFood) + meal + breaks(now, from: list) + own).sorted { $0.start < $1.start }
     }
 
     private func visibleOrFriend(_ e: ViggoEvent, _ friend: Bool) -> Bool { friend || visible(e) }

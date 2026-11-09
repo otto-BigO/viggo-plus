@@ -111,6 +111,7 @@ enum DocRenderer {
             ev(21, "Tysk", 8, 35, 9, 35, room: "Klasse 2", day: 1),
             ev(22, "Historie", 9, 55, 10, 55, room: "Klasse 4", day: 1),
         ]
+        s.meals = [DateUtil.startOfDay(at(12, 0)): MealDay(lunch: "Svampefrikadeller m/ris, svampesauce og broccoli", dinner: "Kold buffet")]
         s.homework = [
             Homework(id: 1, title: "Læs kapitel 4", group: "Dansk", day: at(0, 0, day: 1), start: nil, end: nil,
                      notes: "", author: "", done: false),
