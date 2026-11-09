@@ -121,14 +121,17 @@ struct TodayScreen: View {
                             VStack(spacing: 0) {
                                 ForEach(Array(state.messages.prefix(p.panelMsgCount).enumerated()), id: \.element.id) { i, m in
                                     if i > 0 { Divider() }
-                                    Button { state.openViggo(m.link) } label: {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            HStack {
-                                                Text(m.sender).font(.subheadline.weight(.semibold)).lineLimit(1)
-                                                Spacer()
-                                                Text(m.when).font(.caption).foregroundStyle(.secondary)
+                                    NavigationLink(value: m.id) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                HStack {
+                                                    Text(m.sender).font(.subheadline.weight(.semibold)).lineLimit(1)
+                                                    Spacer()
+                                                    Text(m.when).font(.caption).foregroundStyle(.secondary)
+                                                }
+                                                Text(m.subject).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                                             }
-                                            Text(m.subject).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                                         }
                                         .padding(.vertical, 9)
                                         .contentShape(Rectangle())
@@ -205,6 +208,7 @@ struct TodayScreen: View {
             }
             .background(Color(.systemGroupedBackground))
             .refreshable { await state.sync() }
+            .navigationDestination(for: Int.self) { ThreadScreen(id: $0) }
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {

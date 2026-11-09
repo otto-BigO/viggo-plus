@@ -1,5 +1,10 @@
 # Ændringer
 
+## iPhone-app 0.3.0 (2026-11-09)
+
+- **Beskeder i appen**: indbakke med søgning og ulæst-tæller, tråde som chat, svar alle eller kun afsender, og nye beskeder med søgning på navn og gruppe.
+- Beskeder på I dag åbner nu i appen i stedet for på Viggo.
+
 ## iPhone-app 0.2.0 (2026-11-09)
 
 - **Ny I dag-skærm** med stort Nu-kort, tal for dagen, farve per fag, mad i dag og fri sammen med venner.

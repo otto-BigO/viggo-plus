@@ -41,6 +41,8 @@ struct RootView: View {
                 TabView {
                     Tab("I dag", systemImage: "sun.max.fill") { TodayScreen() }
                     Tab("Uge", systemImage: "calendar") { WeekScreen() }
+                    Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill") { MessagesScreen() }
+                        .badge(state.unreadCount)
                     Tab("Venner", systemImage: "person.2.fill") { FriendsScreen() }
                     Tab("Indstillinger", systemImage: "gearshape.fill") { SettingsScreen() }
                 }

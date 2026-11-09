@@ -110,6 +110,25 @@ final class AppState: ObservableObject {
                         try? d.write(to: URL(fileURLWithPath: "/tmp/viggo-board-\(path.hashValue & 0xffff).html"))
                     }
                 }
+                // VIGGO_PAGES="/a|/b" VIGGO_OUT=dir saves those pages with your session, for working out new features.
+                if let pages = ProcessInfo.processInfo.environment["VIGGO_PAGES"], let out = ProcessInfo.processInfo.environment["VIGGO_OUT"] {
+                    for (n, path) in pages.split(separator: "|").enumerated() {
+                        let d = (try? await client.getPublic(String(path))) ?? Data("FEJL".utf8)
+                        try? d.write(to: URL(fileURLWithPath: out).appendingPathComponent("page\(n).html"))
+                    }
+                }
+                // --messages prints the inbox; VIGGO_THREAD=<id> also opens that thread (it gets marked read).
+                if CommandLine.arguments.contains("--messages") {
+                    let c = client
+                    if let ts = try? await c.fetchThreads() {
+                        for t in ts.prefix(8) { print("[tråd] \(t.id) \(t.unread ? "•" : " ") \(t.sender) (+\(t.others)) | \(t.when) | \(t.subject) | \(t.preview.prefix(50)) | \(t.image?.lastPathComponent ?? "-")") }
+                    } else { print("[tråd] kunne ikke hente") }
+                    if let id = ProcessInfo.processInfo.environment["VIGGO_THREAD"].flatMap(Int.init), let d = try? await c.fetchThread(id) {
+                        print("[emne] \(d.subject) fra=\(d.from) til=\(d.to.count) svar-alle=\(d.canReplyAll)")
+                        for m in d.messages { print("[besked] \(m.authorID) \(m.author) | \(m.date) | links=\(m.links.count)\n\(m.text)\n---") }
+                    }
+                    if let dir = try? await c.fetchDirectory() { print("[folk] \(dir.people.count) personer, \(dir.groups.count) grupper; fx \(dir.people.first.map { "\($0.name) [\($0.info)]" } ?? "-")") }
+                }
                 if CommandLine.arguments.contains("--meals") {
                     for (d, m) in meals.sorted(by: { $0.key < $1.key }) { print("[mad] \(DateUtil.day(d)): \(m.lunch) | aften: \(m.dinner ?? "-")") }
                 }
