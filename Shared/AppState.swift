@@ -703,6 +703,27 @@ final class AppState: ObservableObject {
     }
 
     /// Your own items (Indstillinger › Egne punkter) on the given day.
+    /// What a friend is doing now, and whether they are free.
+    func friendStatus(_ f: Friend, now: Date) -> (String, Bool) {
+        let today = (friendEvents[f.id] ?? []).filter {
+            ($0.kind == .lesson || $0.kind == .event) && DateUtil.cal.isDate($0.start, inSameDayAs: now)
+        }.sorted { $0.start < $1.start }
+        if let c = today.first(where: { $0.start <= now && $0.end > now }) {
+            return ("\(c.shortTitle) til \(DateUtil.hm(c.end))", false)
+        }
+        if let n = today.first(where: { $0.start > now }) { return ("Fri til \(DateUtil.hm(n.start))", true) }
+        return ("Fri", true)
+    }
+
+    /// One day in the week view: lessons and events, plus lunch, pauses and (for you) your own items.
+    func weekItems(_ d: Date, person: UUID?) -> [ViggoEvent] {
+        let list = person.flatMap { friendEvents[$0] }
+        let school = (list ?? events).filter { ($0.kind == .lesson || $0.kind == .event) && (person != nil || visible($0))
+            && DateUtil.cal.isDate($0.start, inSameDayAs: d) }
+        let extra = lunch(d, from: list) + breaks(d, from: list) + (person == nil ? customEvents(on: d) : [])
+        return (school + extra).sorted { $0.start < $1.start }
+    }
+
     func customEvents(on day: Date) -> [ViggoEvent] {
         prefs.customItems.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
     }

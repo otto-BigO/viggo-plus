@@ -25,11 +25,24 @@ struct RootView: View {
             if state.needsLogin && state.events.isEmpty {
                 LoginScreen()
             } else {
-                TodayScreen()
+                TabView {
+                    Tab("I dag", systemImage: "sun.max.fill") { TodayScreen() }
+                    Tab("Uge", systemImage: "calendar") { WeekScreen() }
+                    Tab("Venner", systemImage: "person.2.fill") { FriendsScreen() }
+                    Tab("Indstillinger", systemImage: "gearshape.fill") { SettingsScreen() }
+                }
             }
         }
         .modifier(LoginCardOverlay())
         .animation(.viggo, value: state.needsLogin)
+        .sheet(item: $state.shownLesson) { e in
+            NavigationStack {
+                LessonDetailView(e: e)
+                        .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 }
 
@@ -79,15 +92,6 @@ struct TodayScreen: View {
                         else { Image(systemName: "person.crop.circle") }
                     }
                 }
-            }
-            .sheet(item: $state.shownLesson) { e in
-                NavigationStack {
-                    LessonDetailView(e: e)
-                        .navigationTitle(e.shortTitle)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
-                }
-                .presentationDetents([.medium, .large])
             }
         }
     }

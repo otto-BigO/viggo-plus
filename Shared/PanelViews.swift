@@ -580,16 +580,7 @@ struct FriendsNow: View {
     @EnvironmentObject var state: AppState
     let now: Date
 
-    private func status(_ f: Friend) -> (String, Bool) {
-        let today = (state.friendEvents[f.id] ?? []).filter {
-            ($0.kind == .lesson || $0.kind == .event) && DateUtil.cal.isDate($0.start, inSameDayAs: now)
-        }.sorted { $0.start < $1.start }
-        if let c = today.first(where: { $0.start <= now && $0.end > now }) {
-            return ("\(c.shortTitle) til \(DateUtil.hm(c.end))", false)
-        }
-        if let n = today.first(where: { $0.start > now }) { return ("Fri til \(DateUtil.hm(n.start))", true) }
-        return ("Fri", true)
-    }
+    private func status(_ f: Friend) -> (String, Bool) { state.friendStatus(f, now: now) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -620,6 +611,11 @@ struct SkoleITFields: View {
     var body: some View {
         TextField("Brugernavn", text: $user, prompt: Text("navn1234"))
             .help(user.isEmpty || user.contains("@") ? "" : SkoleITLogin.normalize(user))
+            #if os(iOS)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .textContentType(.username)
+            #endif
         SecureField("Adgangskode", text: $pass)
             .onSubmit(save)
         Button(button, action: save)

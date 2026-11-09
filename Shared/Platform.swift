@@ -18,3 +18,14 @@ enum Platform {
         #endif
     }
 }
+
+extension Platform {
+    /// "din Mac" or "din iPhone", for texts like "Koden gemmes kun på din Mac".
+    static var deviceName: String {
+        #if os(macOS)
+        "din Mac"
+        #else
+        "din iPhone"
+        #endif
+    }
+}
