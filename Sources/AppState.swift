@@ -88,6 +88,11 @@ final class AppState: ObservableObject {
                 CookieJar.restore()
                 await sync()
                 for e in timeline(Date()) { print("[dag] \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.kind.rawValue) \(e.shortTitle)") }
+                if CommandLine.arguments.contains("--raw") {
+                    for e in events.filter({ $0.kind == .routine }).sorted(by: { $0.start < $1.start }) {
+                        print("[rå] \(DateUtil.day(e.start)) \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.rawName)")
+                    }
+                }
                 print("[menubar] \(menuTitle)")
                 // --at 09:40 prints the menubar text at that time today.
                 if let i = CommandLine.arguments.firstIndex(of: "--at"), i + 1 < CommandLine.arguments.count {
@@ -551,12 +556,25 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Lunch ("Middag") from Viggo's schedule, shown between the lessons like on Viggo.
+    /// Everyday items from Viggo's schedule that fall inside the school day, shown between the lessons
+    /// like on Viggo: Middag, Tjek af værelser, Hovedrengøring af værelser, Formiddagspause.
     func lunch(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
         guard prefs.panelLunch else { return [] }
-        return (list ?? events).filter {
-            $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now) && $0.title.lowercased().hasPrefix("middag")
+        let todays = (list ?? events).filter { DateUtil.cal.isDate($0.start, inSameDayAs: now) }
+        let school = todays.filter { $0.kind == .lesson || $0.kind == .event }
+        let routines = todays.filter { $0.kind == .routine }
+        let first = school.map(\.start).min() ?? .distantFuture, last = school.map(\.end).max() ?? .distantPast
+        var picked = routines.filter { $0.title.lowercased().hasPrefix("middag") || ($0.start >= first && $0.start < last) }
+        // Also what follows right after (Tjek af værelser after Middag), even when the lessons are over.
+        var grew = true
+        while grew {
+            grew = false
+            for r in routines where !picked.contains(where: { $0.id == r.id })
+                && picked.contains(where: { r.start >= $0.end && r.start.timeIntervalSince($0.end) <= 5 * 60 }) && (school.isEmpty || r.start < last.addingTimeInterval(2 * 3600)) {
+                picked.append(r); grew = true
+            }
         }
+        return picked.sorted { $0.start < $1.start }
     }
 
     /// Breaks between class lessons ("104 Tysk", "104 Dansk"), not between electives or line subjects.

@@ -2,7 +2,7 @@
 
 ## 1.5.0 (2026-11-09)
 
-- **Middag mellem timerne**: middagen fra dit Viggo-skema står nu i panelet mellem timerne og i menubaren, ligesom på Viggo. Kan slås fra under Indstillinger › Panel.
+- **Middag og værelsestjek mellem timerne**: middagen og det der kommer lige efter (Tjek af værelser, Hovedrengøring af værelser, Formiddagspause) står nu i panelet mellem timerne og i menubaren, ligesom på Viggo. Kan slås fra under Indstillinger › Panel.
 - **Pauser mellem timerne**: pauserne mellem klassens timer står i panelet og uge-overblikket (ikke ved valgfag og linjefag). Kan slås fra under Indstillinger › Panel. Under Indstillinger › Menubar kan du også få pausen vist i menubaren, fx "Pause → 09:55".
 - **Uge-overblikket** viser også middag og pauser (grå) og dine egne punkter (grønne).
 - **Egne punkter**: tilføj frokost, træning, lektier og andet under Indstillinger › Egne punkter, med tidspunkt og hvilke dage. De står i panelet med en grøn streg og i menubaren, fx "Frokost 12:00".

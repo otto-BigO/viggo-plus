@@ -328,7 +328,7 @@ struct DayGridColumn: View {
                 ForEach(laid, id: \.e.id) { item in
                     let s = max(item.e.start, top), en = min(item.e.end, bottom)
                     let w = (geo.size.width - CGFloat(item.lanes - 1) * 3) / CGFloat(item.lanes)
-                    GridBlock(e: item.e, height: item.e.kind == .pause ? max(6, y(en) - y(s) - 2) : max(20, y(en) - y(s) - 2))
+                    GridBlock(e: item.e, height: max(item.e.kind == .pause ? 6 : item.e.kind == .routine ? 13 : 20, y(en) - y(s) - 2))
                         .frame(width: w)
                         .offset(x: CGFloat(item.lane) * (w + 3), y: y(s) + 1)
                 }
@@ -375,7 +375,7 @@ struct GridBlock: View {
         let tint = e.customColor ?? (e.kind == .lesson ? Color.accentColor : e.kind == .custom ? .green : e.kind == .routine || e.kind == .pause ? .gray : .purple)
         let roomy = height >= 44
         return VStack(alignment: .leading, spacing: 1) {
-            Text(e.shortTitle).font(.system(size: 11, weight: .semibold))
+            Text(e.shortTitle).font(.system(size: height < 18 ? 9.5 : 11, weight: .semibold))
                 .lineLimit(height >= 70 ? 3 : (roomy ? 2 : 1))
                 .minimumScaleFactor(0.75)
             if roomy {
@@ -386,7 +386,7 @@ struct GridBlock: View {
                 Text(e.room).font(.system(size: 9.5)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
-        .padding(.leading, 7).padding(.trailing, 4).padding(.vertical, roomy ? 4 : 2)
+        .padding(.leading, 7).padding(.trailing, 4).padding(.vertical, roomy ? 4 : height < 18 ? 0 : 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .frame(height: height)
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tint.opacity(0.22)))

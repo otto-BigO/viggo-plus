@@ -800,7 +800,7 @@ struct PanelTab: View {
             Section("Vis i panelet") {
                 Toggle("Nu-kort (hvad sker der lige nu)", isOn: $p.panelNow)
                 Toggle("Resten af dagen", isOn: $p.panelTimeline)
-                Toggle("Middag mellem timerne", isOn: $p.panelLunch)
+                Toggle("Middag og værelsestjek mellem timerne", isOn: $p.panelLunch)
                 Toggle("Pauser mellem klassens timer", isOn: $p.panelBreaks)
                 Toggle("I morgen", isOn: $p.panelTomorrow)
                 Toggle("Lektier", isOn: $p.panelHomework)
