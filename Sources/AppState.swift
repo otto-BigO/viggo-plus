@@ -125,25 +125,35 @@ final class AppState: ObservableObject {
         } else if CommandLine.arguments.contains("--window-test") {
             // For checking from Terminal: open the panel, then Indstillinger and a lesson, and print where things end up.
             Task { @MainActor in
+                setvbuf(stdout, nil, _IONBF, 0)
+                setupHotKey()
                 CookieJar.restore()
                 await sync()
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                // A stand-in for the panel, at the top right under the menu bar where the real one opens.
-                let vf = NSScreen.main!.visibleFrame
-                let fake = NSWindow(contentRect: NSRect(x: vf.maxX - 420, y: vf.maxY - 700, width: 320, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
-                fake.isReleasedWhenClosed = false
-                fake.orderFront(nil); panelWindowRef = fake
+                HotKey.shared.action?()          // same as pressing the hotkey
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                print("[vindue] genvejstast åbnede panelet: \(PanelController.shared.frame.map { "\($0)" } ?? "nej")")
+                if let out = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"], let f = PanelController.shared.frame {
+                    let p = Process()
+                    p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                    let top = (NSScreen.main?.frame.maxY ?? 0) - f.maxY
+                    p.arguments = ["-x", "-R\(Int(f.minX) - 20),\(Int(top) - 30),\(Int(f.width) + 40),\(Int(f.height) + 50)", out]
+                    try? p.run(); p.waitUntilExit()
+                }
+                HotKey.shared.action?()
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                print("[vindue] panel åbent: \(panelWindow.map { "\($0.frame)" } ?? "nej")")
+                print("[vindue] genvejstast igen lukkede det: \(!PanelController.shared.isShown)")
+                PanelController.shared.show()
+                try? await Task.sleep(nanoseconds: 800_000_000)
                 openSettings()
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                print("[vindue] efter indstillinger, panel åbent: \(panelWindow != nil), indstillinger: \(settingsWindow?.frame ?? .zero)")
+                print("[vindue] efter indstillinger, panel åbent: \(PanelController.shared.isShown), indstillinger: \(settingsWindow?.frame ?? .zero)")
                 settingsWindow?.close()
-                fake.orderFront(nil)
+                PanelController.shared.show()
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 if let e = events.first(where: { $0.kind == .lesson }) { openLesson(e) }
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                print("[vindue] efter detaljer, panel åbent: \(panelWindow != nil), detaljer: \(lessonWindow?.frame ?? .zero)")
+                print("[vindue] efter detaljer, panel åbent: \(PanelController.shared.isShown), detaljer: \(lessonWindow?.frame ?? .zero)")
                 exit(0)
             }
         } else if CommandLine.arguments.contains("--friend-autologin-test") {
@@ -947,15 +957,11 @@ final class AppState: ObservableObject {
 
     // MARK: windows
 
-    /// The menubar panel's window, set by the panel itself (see PanelWindowReader).
-    weak var panelWindowRef: NSWindow?
-    private var panelWindow: NSWindow? { panelWindowRef.flatMap { $0.isVisible ? $0 : nil } }
-
     /// Closes the panel and puts `w` next to where the panel was, under the menu bar,
     /// so a window opened from the panel shows up beside it instead of on top of it.
     private func showBesidePanel(_ w: NSWindow) {
-        let panel = panelWindow?.frame
-        panelWindow?.close()
+        let panel = PanelController.shared.frame
+        PanelController.shared.close()
         w.layoutIfNeeded()
         if let panel, let screen = (NSScreen.screens.first { $0.frame.intersects(panel) } ?? NSScreen.main)?.visibleFrame {
             let size = w.frame.size

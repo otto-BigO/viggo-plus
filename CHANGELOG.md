@@ -2,6 +2,8 @@
 
 ## 1.5.1 (2026-11-09)
 
+- **Dagens mad**: retten fra køkkenets madplan på opslagstavlen ("Madplan uge 45") står nu under Middag i panelet, og aftenens mad (fx kold buffet) under Aftensmad. Kan slås fra under Indstillinger › Panel.
+- **Genvejstasten virker igen**: ⌥V åbner og lukker panelet. Menubar-punktet og panelet er nu Viggo+'s egne, så appen selv kan åbne dem. Panelet lukker når du klikker udenfor, trykker Esc eller skifter app.
 - Når du åbner Indstillinger, Detaljer eller uge-overblikket fra panelet, lukker panelet, og vinduet åbner lige ved siden af hvor panelet sad, i stedet for midt på skærmen oven i det.
 
 ## 1.5.0 (2026-11-09)

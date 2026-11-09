@@ -215,21 +215,8 @@ final class HotKey {
         if let r = ref { UnregisterEventHotKey(r); ref = nil }
     }
 
-    /// Clicks Viggo+'s own menu bar item, which opens or closes the panel.
-    @MainActor static func togglePanel() {
-        func find(_ v: NSView) -> NSButton? {
-            if String(describing: type(of: v)).contains("StatusBarButton"), let b = v as? NSButton { return b }
-            for s in v.subviews { if let b = find(s) { return b } }
-            return nil
-        }
-        for w in NSApp.windows where String(describing: type(of: w)).contains("StatusBar") {
-            if let root = w.contentView, let b = find(root) {
-                NSApp.activate(ignoringOtherApps: true)
-                b.performClick(nil)
-                return
-            }
-        }
-    }
+    /// Opens or closes the panel.
+    @MainActor static func togglePanel() { PanelController.shared.toggle() }
 }
 
 // MARK: - Week overview
@@ -526,7 +513,7 @@ struct LessonDetailView: View {
 
                 if e.hasInfo {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(e.kind == .routine ? "Dagens mad" : "Info fra læreren").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                        Text(e.kind == .routine && ["middag", "aftensmad"].contains(where: { e.title.lowercased().hasPrefix($0) }) ? "Dagens mad" : "Info fra læreren").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                         Text(e.notes).font(.system(size: 13)).textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                     }

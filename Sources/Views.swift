@@ -2,19 +2,12 @@ import SwiftUI
 
 @main
 struct ViggoPlusApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var state = AppState.shared
 
+    // The menu bar item and panel are Viggo+'s own (PanelController), so the hotkey can open them.
     var body: some Scene {
-        MenuBarExtra {
-            MenuView().environmentObject(state)
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: state.badgeCount > 0 ? "graduationcap.circle.fill" : "graduationcap.fill")
-                let badge = state.badgeCount > 0 ? "  ✉︎ \(state.badgeCount)" : ""
-                if !state.menuTitle.isEmpty || !badge.isEmpty { Text(state.menuTitle + badge) }
-            }
-        }
-        .menuBarExtraStyle(.window)
+        Settings { EmptyView() }
     }
 }
 
@@ -102,7 +95,10 @@ struct TimelineRow: View {
     @State private var expanded = ProcessInfo.processInfo.environment["VIGGO_EXPAND_NOTES"] != nil
     private var hasNote: Bool { e.hasInfo || !e.links.isEmpty }
     /// Middag and Aftensmad carry the day's food as their note.
-    private var isFood: Bool { e.kind == .routine && e.hasInfo }
+    private var isFood: Bool {
+        let t = e.title.lowercased()
+        return e.kind == .routine && e.hasInfo && (t.hasPrefix("middag") || t.hasPrefix("aftensmad"))
+    }
     var body: some View {
         if e.kind == .pause { pauseRow } else { row }
     }
@@ -333,18 +329,6 @@ struct PersonChip: View {
 
 // MARK: - Menubar panel
 
-/// Tells AppState which window the panel lives in, so it can close it when a window opens from the panel.
-struct PanelWindowReader: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { Probe() }
-    func updateNSView(_ nsView: NSView, context: Context) {}
-    final class Probe: NSView {
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if let w = window { MainActor.assumeIsolated { AppState.shared.panelWindowRef = w } }
-        }
-    }
-}
-
 struct MenuView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
@@ -458,7 +442,6 @@ struct MenuView: View {
         .animation(.viggo, value: state.lastSync)
         .padding(.horizontal, 14).padding(.vertical, 12)
         .frame(width: 320 * (p.panelLarge ? 1.12 : 1))
-        .background(PanelWindowReader())
     }
 }
 
