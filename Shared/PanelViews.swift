@@ -478,7 +478,7 @@ struct DayPanel: View {
                             Text(m.subject).font(Sz.f(12)).foregroundStyle(.secondary).lineLimit(1)
                         }
                         .contentShape(Rectangle())
-                        .onTapGesture { state.openViggo(m.link) }
+                        .onTapGesture { state.openMessages(thread: m.id) }
                     }
                 }
             }

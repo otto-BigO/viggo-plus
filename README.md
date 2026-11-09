@@ -101,6 +101,7 @@ Klik på en side for at se den.
 - Klik på en time for at se lærerens info: hvad I skal, hvad du skal have med, og links til videoer og filer.
 - Sæt lektier som færdige direkte i panelet. Det bliver gemt i Viggo.
 - Ulæste beskeder og spørgeskemaer vises som et tal i menubaren.
+- Et Beskeder-vindue som Mail: læs tråde som en chat, svar direkte og skriv nye beskeder med søgning på elever, lærere og grupper.
 - Notifikationer når en time bliver flyttet, aflyst eller skifter lokale, når der kommer nye lektier eller en ny besked, og en brief morgen og aften.
 - Import til Apple Kalender som separate kalendere (skema, lektier, begivenheder, hverdag), som holdes opdateret. Én kontakt fjerner dem igen.
 - Venner: en ven logger ind på sin egen konto i et privat vindue. Du ser vennens dag i samme layout, og hvornår I begge har fri. Gemmer du vennens SkoleIT-login, logger Viggo+ også vennen ind igen af sig selv.

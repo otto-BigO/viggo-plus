@@ -39,6 +39,7 @@ final class AppState: ObservableObject {
     #endif
     #if os(macOS)
     private var weekWindow: NSWindow?
+    private var messagesWindow: NSWindow?
     private var lessonWindow: NSWindow?
     private var settingsWindow: NSWindow?
     #endif
@@ -1130,12 +1131,28 @@ final class AppState: ObservableObject {
         if let w = weekWindow { showBesidePanel(w) }
     }
 
+    /// The messages window, like Mail: the inbox on the left, the thread on the right.
+    func openMessages(thread: Int? = nil) {
+        if let thread { Inbox.shared.selected = thread }
+        if messagesWindow == nil {
+            let w = NSWindow(contentViewController: NSHostingController(rootView: MessagesWindow().environmentObject(self)))
+            w.title = "Beskeder"
+            w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
+            w.isReleasedWhenClosed = false
+            w.setContentSize(NSSize(width: 980, height: 680))
+            w.setFrameAutosaveName("ViggoMessages")
+            messagesWindow = w
+        }
+        if let w = messagesWindow { showBesidePanel(w) }
+    }
+
     func setupHotKey() {
         HotKey.shared.action = { Task { @MainActor in HotKey.togglePanel() } }
         if prefs.hotkeyEnabled { HotKey.shared.register(choice: prefs.hotkeyChoice) } else { HotKey.shared.unregister() }
     }
     #else
     func openViggo(_ url: URL = Config.baseURL) { Platform.open(url) }
+    func openMessages(thread: Int? = nil) { openViggo() }
     /// The iPhone shows a lesson's details as a sheet.
     func openLesson(_ e: ViggoEvent) { shownLesson = e }
     #endif

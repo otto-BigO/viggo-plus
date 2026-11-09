@@ -115,6 +115,16 @@ struct MenuView: View {
                 Spacer()
                 Button { Task { await state.sync() } } label: { SyncIcon(spinning: state.syncing) }.help("Synk nu")
                 Button { state.openWeek() } label: { Image(systemName: "calendar") }.help("Uge-overblik")
+                Button { state.openMessages() } label: {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                        .overlay(alignment: .topTrailing) {
+                            if state.unreadCount > 0 {
+                                Text("\(state.unreadCount)").font(.system(size: 8, weight: .bold)).foregroundStyle(.white)
+                                    .padding(.horizontal, 3).frame(minWidth: 12, minHeight: 12)
+                                    .background(Capsule().fill(.red)).offset(x: 7, y: -6)
+                            }
+                        }
+                }.help("Beskeder")
                 Button { state.openViggo() } label: { Image(systemName: "safari") }.help("Åbn Viggo")
                 Button { state.openSettings() } label: { Image(systemName: "gearshape") }.help("Indstillinger")
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }.help("Afslut")

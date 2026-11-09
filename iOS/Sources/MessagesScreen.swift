@@ -1,57 +1,5 @@
 import SwiftUI
 
-/// Viggo's inbox inside the app: read threads, answer and write new messages.
-@MainActor
-final class Inbox: ObservableObject {
-    static let shared = Inbox()
-    private let client = ViggoClient()
-
-    @Published var threads: [MessageThread] = []
-    @Published var loading = false
-    @Published var error: String?
-    @Published var people: [Person] = []
-    @Published var groups: [PersonGroup] = []
-
-    func load() async {
-        loading = true
-        defer { loading = false }
-        do {
-            threads = try await client.fetchThreads()
-            error = nil
-            AppState.shared.unreadCount = threads.filter(\.unread).count
-        } catch ViggoError.notLoggedIn {
-            error = "Du er logget ud af Viggo."
-        } catch {
-            self.error = "Kunne ikke hente beskeder."
-        }
-    }
-
-    func open(_ id: Int) async throws -> ThreadDetail {
-        let d = try await client.fetchThread(id)
-        if let i = threads.firstIndex(where: { $0.id == id }), threads[i].unread {
-            threads[i].unread = false
-            AppState.shared.unreadCount = max(0, AppState.shared.unreadCount - 1)
-        }
-        return d
-    }
-
-    func reply(_ id: Int, kind: ReplyKind, text: String) async throws {
-        try await client.reply(to: id, kind: kind, text: text)
-        await load()
-    }
-
-    func send(to: [Int], subject: String, text: String) async throws {
-        try await client.newMessage(to: to, subject: subject, text: text)
-        await load()
-    }
-
-    func loadDirectory() async {
-        guard people.isEmpty, let d = try? await client.fetchDirectory() else { return }
-        people = d.people
-        groups = d.groups
-    }
-}
-
 // MARK: - Inbox list
 
 struct MessagesScreen: View {

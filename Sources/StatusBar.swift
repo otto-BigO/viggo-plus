@@ -178,5 +178,9 @@ struct VisualEffect: NSViewRepresentable {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated { PanelController.shared.setup() }
+        // For checking from Terminal: --open-messages opens the messages window at start.
+        if CommandLine.arguments.contains("--open-messages") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { AppState.shared.openMessages(thread: ProcessInfo.processInfo.environment["VIGGO_THREAD"].flatMap(Int.init)) } }
+        }
     }
 }

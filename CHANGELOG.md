@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.6.0 (2026-11-09)
+
+- **Beskeder på Mac**: et Beskeder-vindue som Mail, med indbakke og søgning til venstre og tråden som chat til højre. Svar direkte (⌘↩ sender), vælg Svar alle eller kun afsender i gruppebeskeder, og skriv nye beskeder med søgning på elever, lærere og grupper.
+- Ny knap i panelet med antal ulæste, og beskeder i panelet åbner nu i vinduet i stedet for på Viggo.
+
 ## iPhone-app 0.4.0 (2026-11-09)
 
 - **Lektie-widget** til hjemmeskærmen (lille, mellem og stor). Tryk på cirklen for at markere en lektie som færdig på Viggo, direkte fra widgetten.
