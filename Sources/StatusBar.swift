@@ -181,8 +181,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             PanelController.shared.setup()
             PhoneInstaller.shared.startRenewal()
         }
+        // For testing the login transfer in the simulator: write the transfer file and quit.
+        if let i = CommandLine.arguments.firstIndex(of: "--write-transfer"), i + 1 < CommandLine.arguments.count {
+            let t = LoginTransfer.make()
+            try? PropertyListEncoder().encode(t).write(to: URL(fileURLWithPath: CommandLine.arguments[i + 1]))
+            print("[transfer] own=\(t.own != nil) session=\(t.session != nil) friends=\(t.friends.count)")
+            exit(0)
+        }
         // For testing the iPhone installer from Terminal.
-        if CommandLine.arguments.contains("--phone-status") || CommandLine.arguments.contains("--phone-install") {
+        if CommandLine.arguments.contains("--phone-status") || CommandLine.arguments.contains("--phone-install")
+            || CommandLine.arguments.contains("--phone-send-login") {
             Task { @MainActor in
                 let p = PhoneInstaller.shared
                 await p.refresh()
@@ -190,6 +198,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("[phone] team=\(p.team.map { "\($0.id) \($0.name) free=\($0.free)" } ?? "-") signer=\(p.signer ?? "-")")
                 for d in p.devices { print("[phone] device \(d.name) \(d.model) iOS \(d.os) wired=\(d.wired) reachable=\(d.reachable) paired=\(d.paired) devmode=\(d.developerMode.map(String.init) ?? "-")") }
                 for (k, r) in p.records { print("[phone] record \(k) \(r.name) \(r.version) expires=\(r.expires) trusted=\(r.trusted.map(String.init) ?? "-")") }
+                if CommandLine.arguments.contains("--phone-send-login"), let d = p.device {
+                    await p.sendLogin(to: d)
+                    print("[phone] sent=\(p.loginSent ?? "-") error=\(p.error ?? "-")")
+                }
                 if CommandLine.arguments.contains("--phone-install"), let d = p.device {
                     let watch = Task { @MainActor in
                         var last = ""
@@ -203,7 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                     let ok = await p.install(d, quiet: CommandLine.arguments.contains("--quiet"))
                     watch.cancel()
-                    print("[phone] ok=\(ok) error=\(p.error ?? "-")")
+                    print("[phone] ok=\(ok) error=\(p.error ?? "-") login=\(p.loginSent ?? "-")")
                     for (k, r) in p.records { print("[phone] record \(k) \(r.version) expires=\(r.expires) trusted=\(r.trusted.map(String.init) ?? "-")") }
                 }
                 exit(0)

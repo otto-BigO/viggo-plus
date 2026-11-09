@@ -50,11 +50,14 @@ import Foundation
     @Published private(set) var error: String?
     @Published private(set) var records: [String: Record] = [:]
     @Published var autoRenew: Bool { didSet { UserDefaults.standard.set(autoRenew, forKey: "phoneAutoRenew") } }
+    @Published var sendLoginOnInstall: Bool { didSet { UserDefaults.standard.set(sendLoginOnInstall, forKey: "phoneSendLogin") } }
+    @Published private(set) var loginSent: String?
 
     private var renewTask: Task<Void, Never>?
 
     private init() {
         autoRenew = UserDefaults.standard.object(forKey: "phoneAutoRenew") as? Bool ?? true
+        sendLoginOnInstall = UserDefaults.standard.object(forKey: "phoneSendLogin") as? Bool ?? true
         if let d = UserDefaults.standard.data(forKey: "phoneInstalls"),
            let r = try? JSONDecoder().decode([String: Record].self, from: d) { records = r }
     }
@@ -236,7 +239,14 @@ import Foundation
         records[d.id] = rec
         save()
 
-        // 6. Open it on the phone: that also tells us whether the phone trusts the Apple ID yet.
+        // 6. Your login, so the iPhone app is ready without typing anything.
+        if !quiet, sendLoginOnInstall, !LoginTransfer.make().isEmpty {
+            job?.detail = "Overfører dit login"
+            job?.progress = 0.93
+            _ = await copyLogin(to: d, bundleID: bundleID)
+        }
+
+        // 7. Open it on the phone: that also tells us whether the phone trusts the Apple ID yet.
         if !quiet {
             job?.detail = "Åbner Viggo+ på iPhonen"
             job?.progress = 0.96
@@ -246,6 +256,49 @@ import Foundation
         startRenewal()
         Notifier.shared.post(quiet ? "Viggo+ er fornyet på \(d.name)" : "Viggo+ er installeret på \(d.name)",
                              "Virker til \(Self.when(rec.expires)).")
+        return true
+    }
+
+    /// Sends your login to an iPhone that already has the app, and restarts the app so it reads it.
+    func sendLogin(to d: Device) async {
+        guard job == nil else { return }
+        error = nil
+        loginSent = nil
+        guard !LoginTransfer.make().isEmpty else { error = "Du er ikke logget ind i Viggo+ på Mac'en endnu."; return }
+        guard let bundleID = records[d.id]?.bundleID ?? team.map({ prefix(for: $0) + ".viggoplus.ios" }) else {
+            error = "Installer Viggo+ på iPhonen først."; return
+        }
+        job = Job(title: "Overfører login til \(d.name)", detail: "Sender", progress: 0.3)
+        let ok = await copyLogin(to: d, bundleID: bundleID)
+        if ok {
+            job?.detail = "Genstarter Viggo+ på iPhonen"
+            job?.progress = 0.8
+            if let developerDir {
+                _ = await Shell.run("/usr/bin/xcrun", ["devicectl", "device", "process", "launch", "--terminate-existing",
+                                                       "--device", d.id, bundleID], env: ["DEVELOPER_DIR": developerDir])
+            }
+        }
+        job = nil
+    }
+
+    /// Copies the login file into the iPhone app's data container. The phone deletes it once read.
+    private func copyLogin(to d: Device, bundleID: String) async -> Bool {
+        guard let developerDir else { return false }
+        let t = LoginTransfer.make()
+        let file = Self.home.appendingPathComponent("viggo-import.plist")
+        defer { try? FileManager.default.removeItem(at: file) }
+        do {
+            try FileManager.default.createDirectory(at: Self.home, withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: file.path, contents: nil, attributes: [.posixPermissions: 0o600])
+            try PropertyListEncoder().encode(t).write(to: file)
+        } catch { self.error = "Kunne ikke gemme login-filen."; return false }
+        let r = await Shell.run("/usr/bin/xcrun", ["devicectl", "device", "copy", "to", "--device", d.id,
+                                                   "--source", file.path, "--destination", LoginTransfer.devicePath,
+                                                   "--domain-type", "appDataContainer", "--domain-identifier", bundleID],
+                                env: ["DEVELOPER_DIR": developerDir])
+        guard r.status == 0 else { self.error = Self.explain(r.output); return false }
+        let who = t.own.map { $0.user.components(separatedBy: "@").first ?? $0.user } ?? "din session"
+        loginSent = t.friends.isEmpty ? "Login (\(who)) sendt til \(d.name)." : "Login (\(who)) og \(t.friends.count == 1 ? "1 ven" : "\(t.friends.count) venner") sendt til \(d.name)."
         return true
     }
 

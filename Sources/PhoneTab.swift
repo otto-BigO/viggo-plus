@@ -69,6 +69,7 @@ struct PhoneTab: View {
                 }
                 prep
                 stepList
+                loginCard
                 renewal
             }
             .padding(20)
@@ -164,6 +165,39 @@ struct PhoneTab: View {
             .buttonStyle(.borderedProminent)
             .disabled(inst.job != nil || !d.reachable)
         )
+    }
+
+    // MARK: login
+
+    private var loginCard: some View {
+        let t = LoginTransfer.make()
+        let who = t.own.map { $0.user } ?? (t.session != nil ? "din nuværende Viggo-session" : nil)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("Login", systemImage: "key.fill").font(.headline)
+                Spacer()
+                if let d = inst.device, inst.record != nil {
+                    Button("Overfør login nu") { Task { await inst.sendLogin(to: d) } }
+                        .disabled(inst.job != nil || !d.reachable || t.isEmpty)
+                }
+            }
+            Toggle("Overfør mit login fra Mac'en, når appen installeres", isOn: $inst.sendLoginOnInstall)
+            Group {
+                if let who {
+                    Text("Sender \(who)\(t.friends.isEmpty ? "" : (t.friends.count == 1 ? " og din ven" : " og dine \(t.friends.count) venner")), så iPhone-appen er logget ind med det samme. Det går direkte over kablet eller wifi til Viggo+ på iPhonen, som sletter filen så snart den er læst.")
+                } else {
+                    Text("Log ind i Viggo+ på Mac'en først, så kan dit login sendes med over.")
+                }
+            }
+            .font(.caption).foregroundStyle(.secondary)
+            if let sent = inst.loginSent {
+                Label(sent, systemImage: "checkmark.circle.fill").font(.callout).foregroundStyle(.green)
+                    .transition(.opacity)
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.04)))
+        .animation(.viggo, value: inst.loginSent)
     }
 
     // MARK: renewal

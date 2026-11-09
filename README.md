@@ -160,6 +160,8 @@ Den er ikke i App Store, men Viggo+ på Mac'en kan lægge den på din iPhone. Å
 6. Tryk **Installer** i Viggo+ (2 til 5 min første gang).
 7. Første gang: stol på dit Apple-ID under **Indstillinger > Generelt > VPN og enhedsadministration** på iPhonen.
 
+Dit login (og dine venner) sendes med fra Mac'en, så iPhone-appen er logget ind med det samme. Det kan slås fra, og der er en knap til at sende det igen.
+
 Med et gratis Apple-ID virker appen 7 dage ad gangen og på højst 3 iPhones. Viggo+ fornyer den selv, når der er under 2 dage tilbage og iPhonen er sat til eller på samme wifi. Det tager under et minut, og dine data bliver liggende.
 
 <p align="center"><img src="docs/screens/settings-iphone-app.png" alt="iPhone-app" width="680"></p>

@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.8.0 og iPhone-app 0.8.0 (2026-11-09)
+
+- **Overfør login til iPhonen**: når Viggo+ på Mac'en installerer iPhone-appen, sender den dit login med, så appen er logget ind med det samme uden at du skal skrive noget. Dine venner og deres logins kommer også med. Der er også en knap, Overfør login nu, under Indstillinger > iPhone-app.
+- Login sendes direkte til Viggo+ på iPhonen over kablet eller wifi, og iPhonen sletter filen så snart den er læst.
+
 ## 1.7.0 (2026-11-09)
 
 - **Læg iPhone-appen på din iPhone fra Mac'en**: ny side under Indstillinger > iPhone-app. Den siger først hvad du skal bruge og hvor lang tid det tager, og har en trin for trin-guide der selv krydser af, når Xcode er hentet, dit Apple-ID er logget ind, iPhonen er sat til og Udviklertilstand er slået til. Et tryk bygger appen og lægger den på iPhonen.

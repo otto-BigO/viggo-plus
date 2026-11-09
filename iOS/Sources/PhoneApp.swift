@@ -11,7 +11,9 @@ struct ViggoPlusPhoneApp: App {
                 .environmentObject(state)
                 .onChange(of: phase) { _, p in
                     // Back from the background: fetch again so "I dag" is fresh.
-                    if p == .active, !state.needsLogin, !state.syncing { Task { await state.sync() } }
+                    if p == .active, state.importTransfer() {
+                        Task { await state.sync(); await state.syncFriends() }
+                    } else if p == .active, !state.needsLogin, !state.syncing { Task { await state.sync() } }
                     if p == .background { state.scheduleRefresh() }
                 }
                 .onOpenURL { state.handle($0) }

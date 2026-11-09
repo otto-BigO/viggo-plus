@@ -252,6 +252,9 @@ final class AppState: ObservableObject {
         try? FileManager.default.removeItem(at: CookieJar.dir.appendingPathComponent("login.log"))
         CookieJar.restore()
         loadFriends()
+        #if os(iOS)
+        importTransfer()          // a login sent from the Mac app, if there is one
+        #endif
         purgeSavedPasswords()
         calendarAccess = await calSync.requestAccess()
         if calendarAccess, !prefs.imported, !UserDefaults.standard.bool(forKey: "cleanedAutoImport") {
