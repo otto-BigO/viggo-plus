@@ -1,5 +1,12 @@
 # Ændringer
 
+## iPhone-app 0.2.0 (2026-11-09)
+
+- **Ny I dag-skærm** med stort Nu-kort, tal for dagen, farve per fag, mad i dag og fri sammen med venner.
+- **Siri og Genveje**: spørg hvad du har nu, hvornår du har fri, om lektier og om i morgen.
+- **Kontrolcenter-knap** der viser hvad du har nu.
+- **Stor widget** med hele dagen og lektier.
+
 ## iPhone-app 0.1.0 (2026-11-09)
 
 - **Ny iPhone-app** med samme kode som Mac-appen: I dag, Uge, Venner og Indstillinger.

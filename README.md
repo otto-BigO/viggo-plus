@@ -137,11 +137,13 @@ Skolen står i `Shared/Util.swift` (`Config.baseURL`, lige nu `broeruphus.viggo.
 
 Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Shared/`). Den har:
 
-- **I dag**: samme dag som panelet, med Nu-kortet, resten af dagen og i morgen. Træk ned for at synke.
+- **I dag**: et stort Nu-kort med nedtælling, tal for dagen, dagens skema, mad, i morgen, lektier, beskeder og hvornår du har fri sammen med dine venner. Træk ned for at synke.
 - **Uge**: én dag ad gangen, med ugens dage øverst. Swipe sideværts for at skifte dag.
 - **Venner**: hvad dine venner har lige nu, og deres dag.
 - **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
-- **Widget** til hjemmeskærmen (lille og mellem) og låseskærmen, med det du har nu og hvad der kommer bagefter.
+- **Widget** til hjemmeskærmen (lille, mellem og stor med hele dagen og lektier) og låseskærmen, med det du har nu og hvad der kommer bagefter.
+- **Siri og Genveje**: "Hvad har jeg nu i Viggo+", "Hvornår har jeg fri i Viggo+", lektier og i morgen. Virker uden at åbne appen.
+- **Kontrolcenter**: en knap der viser hvad du har nu og åbner appen.
 - **Notifikationer**: påmindelse før timer, morgen- og aften-brief og fødselsdage, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
 - **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island.
 

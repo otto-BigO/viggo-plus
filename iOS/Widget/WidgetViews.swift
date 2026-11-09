@@ -62,6 +62,7 @@ struct WidgetView: View {
             } else {
                 switch family {
                 case .systemMedium: medium(cur, next, later)
+                case .systemLarge: large(cur, next)
                 case .accessoryRectangular: rectangular(cur, next)
                 case .accessoryInline: inline(cur, next)
                 case .accessoryCircular: circular(cur, next)
@@ -147,6 +148,44 @@ struct WidgetView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+    }
+
+    /// The whole day: what runs now on top, then the rest of the day, then homework.
+    private func large(_ cur: WidgetItem?, _ next: WidgetItem?) -> some View {
+        let day = Calendar.current.isDate(next?.start ?? entry.date, inSameDayAs: entry.date) || cur != nil ? entry.date : (next?.start ?? entry.date)
+        let rest = entry.data.items.filter { Calendar.current.isDate($0.start, inSameDayAs: day) && $0.end > entry.date && !$0.isPause && $0 != cur }
+        let hw = entry.data.homeworkList ?? []
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "da_DK"))).capitalized)
+                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "graduationcap.fill").foregroundStyle(.tint)
+            }
+            VStack(alignment: .leading, spacing: 3) { nowBlock(cur, next, big: true) }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.fill.quaternary))
+            if !rest.isEmpty { label(day == entry.date ? "Resten af dagen" : "I morgen") }
+            ForEach(Array(rest.prefix(hw.isEmpty ? 7 : 5)), id: \.self) { i in
+                HStack(spacing: 8) {
+                    Text(hm(i.start)).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(.secondary)
+                        .frame(width: 38, alignment: .leading)
+                    RoundedRectangle(cornerRadius: 1.5).fill(itemColor(i)).frame(width: 3, height: 16)
+                    Text(i.title).font(.system(size: 14, weight: i.kind == "routine" ? .regular : .semibold)).lineLimit(1)
+                    Spacer(minLength: 4)
+                    if !i.room.isEmpty { Text(i.room).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
+                }
+            }
+            Spacer(minLength: 0)
+            if !hw.isEmpty {
+                label("Lektier")
+                ForEach(Array(hw.prefix(2)), id: \.self) { h in
+                    Label(h, systemImage: "circle").font(.system(size: 12)).lineLimit(1)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder private func rectangular(_ cur: WidgetItem?, _ next: WidgetItem?) -> some View {

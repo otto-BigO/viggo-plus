@@ -72,6 +72,18 @@ struct TodayScreen: View {
                         }
                     }
 
+                    if let meal = state.meals[DateUtil.startOfDay(now)] {
+                        Card(title: "Mad i dag", icon: "fork.knife") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                MealLine(when: "Middag", text: meal.lunch, icon: "sun.max.fill", tint: .orange)
+                                if let d = meal.dinner {
+                                    Divider()
+                                    MealLine(when: "Aftensmad", text: d, icon: "moon.fill", tint: .indigo)
+                                }
+                            }
+                        }
+                    }
+
                     if p.panelTomorrow, let (first, count) = state.tomorrowFirst(now) {
                         Card(title: "I morgen", icon: "sunrise.fill") {
                             HStack(alignment: .firstTextBaseline) {
@@ -134,14 +146,25 @@ struct TodayScreen: View {
                                     if i > 0 { Divider().padding(.leading, 44) }
                                     let (text, free) = state.friendStatus(f, now: now)
                                     let expired = state.friendExpired.contains(f.id)
+                                    let gaps = expired ? [] : state.freeTogether(with: state.friendEvents[f.id] ?? [], now: now)
                                     HStack(spacing: 12) {
-                                        Avatar(url: f.image, size: 32, name: f.name).opacity(expired ? 0.4 : 1)
-                                        Text(f.firstName).font(.body.weight(.medium))
+                                        Avatar(url: f.image, size: 36, name: f.name).opacity(expired ? 0.4 : 1)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(f.firstName).font(.body.weight(.medium))
+                                            Text(expired ? "Skal logge ind" : text).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                                        }
                                         Spacer()
-                                        Text(expired ? "Skal logge ind" : text).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                                        Circle().fill(free ? Color.green : Color.orange).frame(width: 8, height: 8)
+                                        if let g = gaps.first {
+                                            VStack(alignment: .trailing, spacing: 1) {
+                                                Text("Fri sammen").font(.caption2.weight(.semibold)).foregroundStyle(.green)
+                                                Text("\(DateUtil.hm(g.0))-\(DateUtil.hm(g.1))").font(.footnote.monospacedDigit().weight(.semibold))
+                                            }
+                                        } else {
+                                            Circle().fill(free ? Color.green : Color.orange).frame(width: 9, height: 9)
+                                        }
                                     }
                                     .padding(.vertical, 8)
+                                    .contentShape(Rectangle())
                                 }
                             }
                         }
@@ -556,6 +579,24 @@ private struct DayRow: View {
         .onTapGesture {
             if e.hasInfo { withAnimation(.unfold) { open.toggle() } }
             else if e.kind != .custom { state.openLesson(e) }
+        }
+    }
+}
+
+private struct MealLine: View {
+    let when: String
+    let text: String
+    let icon: String
+    let tint: Color
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon).font(.subheadline).foregroundStyle(tint)
+                .frame(width: 32, height: 32).background(Circle().fill(tint.opacity(0.15)))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(when).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(text).font(.body).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
     }
 }

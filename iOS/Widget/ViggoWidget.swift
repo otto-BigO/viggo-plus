@@ -28,7 +28,7 @@ struct NowWidget: Widget {
         StaticConfiguration(kind: "ViggoNow", provider: Provider()) { FamilyView(entry: $0) }
             .configurationDisplayName("Nu og næste")
             .description("Hvad du har nu, hvor længe der er tilbage, og hvad der kommer bagefter.")
-            .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline, .accessoryCircular])
+            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline, .accessoryCircular])
     }
 }
 
@@ -80,6 +80,7 @@ struct ViggoWidgets: WidgetBundle {
     var body: some Widget {
         NowWidget()
         LessonLiveActivity()
+        ViggoControl()
     }
 }
 

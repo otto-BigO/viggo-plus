@@ -7,9 +7,11 @@ extension AppState {
     func pushWidget() {
         let today = DateUtil.startOfDay(Date())
         let items = (0..<7).flatMap { n in timeline(DateUtil.add(.day, n, today)) }.map(widgetItem)
-        let open = homework.filter { !$0.done && $0.due >= today }.count
+        let openList = homework.filter { !$0.done && $0.due >= today }
+        let open = openList.count
         let first = profile.map { $0.name.components(separatedBy: " ").first ?? $0.name }
-        WidgetStore.save(WidgetData(name: first, items: items, homework: open, updated: Date(), loggedOut: needsLogin))
+        WidgetStore.save(WidgetData(name: first, items: items, homework: open, updated: Date(), loggedOut: needsLogin,
+                                    homeworkList: openList.map(\.title)))
         WidgetCenter.shared.reloadAllTimelines()
         WidgetShots.run()
         updateLiveActivity()
@@ -20,6 +22,10 @@ extension AppState {
 /// widget size at a few moments (now, in a lesson and in a pause tomorrow) to PNG files.
 enum WidgetShots {
     @MainActor static func run() {
+        if ProcessInfo.processInfo.environment["VIGGO_SAY"] != nil {
+            let d = WidgetStore.load(), t = AppState.testNow(Date())
+            print("[say] nu: \(d.sayNow(t))\n[say] fri: \(d.sayFree(t))\n[say] lektier: \(d.sayHomework())\n[say] i morgen: \(d.sayTomorrow(t) ?? "-")")
+        }
         guard let dir = ProcessInfo.processInfo.environment["VIGGO_WIDGET_SHOTS"] else { return }
         let d = WidgetStore.load()
         let tomorrow = DateUtil.add(.day, 1, DateUtil.startOfDay(Date()))
@@ -31,6 +37,7 @@ enum WidgetShots {
         let sizes: [(WidgetFamily, CGSize, String)] = [
             (.systemSmall, CGSize(width: 170, height: 170), "small"),
             (.systemMedium, CGSize(width: 364, height: 170), "medium"),
+            (.systemLarge, CGSize(width: 364, height: 382), "large"),
             (.accessoryRectangular, CGSize(width: 172, height: 76), "rect"),
             (.accessoryInline, CGSize(width: 250, height: 24), "inline"),
             (.accessoryCircular, CGSize(width: 76, height: 76), "circle"),

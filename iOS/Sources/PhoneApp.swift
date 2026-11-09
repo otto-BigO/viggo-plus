@@ -15,6 +15,14 @@ struct ViggoPlusPhoneApp: App {
                     if p == .background { state.scheduleRefresh() }
                 }
                 .onOpenURL { state.handle($0) }
+                .task {
+                    // Test hooks: render the widgets and print Siri's answers from the cached schedule.
+                    let env = ProcessInfo.processInfo.environment
+                    if env["VIGGO_WIDGET_SHOTS"] != nil || env["VIGGO_SAY"] != nil {
+                        try? await Task.sleep(for: .seconds(2))
+                        state.pushWidget()
+                    }
+                }
         }
         .backgroundTask(.appRefresh(AppState.refreshTask)) {
             await AppState.shared.backgroundRefresh()
