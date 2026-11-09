@@ -178,6 +178,7 @@ struct FriendDayScreen: View {
 
 struct SettingsScreen: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
@@ -216,6 +217,12 @@ struct SettingsScreen: View {
                     NavigationLink { LessonsTab().navigationTitle("Timer") } label: { row("Timer", "paintpalette.fill", .pink) }
                     NavigationLink { CustomItemsTab().navigationTitle("Egne punkter") } label: { row("Egne punkter", "checklist", .green) }
                     NavigationLink { FriendsTab().navigationTitle("Venner") } label: { row("Venner", "person.2.fill", .blue) }
+                }
+                Section {
+                    Toggle(isOn: $p.liveActivity) { row("Live Activity i skoletiden", "clock.badge.fill", .orange) }
+                        .onChange(of: p.liveActivity) { state.updateLiveActivity() }
+                } footer: {
+                    Text("Timen der er i gang og nedtællingen står på låseskærmen og i Dynamic Island, fra en halv time før første time til sidste time slutter.")
                 }
                 Section {
                     Button { state.openViggo() } label: { row("Åbn Viggo", "safari.fill", .indigo) }

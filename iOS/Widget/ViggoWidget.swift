@@ -32,9 +32,55 @@ struct NowWidget: Widget {
     }
 }
 
+struct LessonLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: LessonAttributes.self) { ctx in
+            LiveLockView(state: ctx.state, stale: ctx.isStale)
+                .activityBackgroundTint(nil)
+        } dynamicIsland: { ctx in
+            let m = LiveMain(ctx.state, stale: ctx.isStale)
+            return DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(m.isNow ? (m.item?.isPause == true ? "PAUSE" : "NU") : "NÆSTE")
+                            .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                        Text(m.item?.title ?? "Fri").font(.system(size: 16, weight: .bold)).lineLimit(1)
+                    }
+                    .padding(.leading, 6).padding(.top, 6)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    LiveCountdown(state: ctx.state, stale: ctx.isStale)
+                        .font(.system(size: 20, weight: .semibold))
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 80, alignment: .trailing)
+                        .padding(.trailing, 6).padding(.top, 6)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    LiveExpandedBottom(state: ctx.state, stale: ctx.isStale).padding(.horizontal, 4)
+                }
+            } compactLeading: {
+                HStack(spacing: 4) {
+                    Circle().fill(m.item.map(liveColor) ?? .gray).frame(width: 7, height: 7)
+                    Text(m.item?.title ?? "Fri").font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                        .frame(maxWidth: 70, alignment: .leading)
+                }
+            } compactTrailing: {
+                LiveCountdown(state: ctx.state, stale: ctx.isStale)
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(maxWidth: 46)
+            } minimal: {
+                Image(systemName: "graduationcap.fill").foregroundStyle(m.item.map(liveColor) ?? .gray)
+            }
+        }
+    }
+}
+
 @main
 struct ViggoWidgets: WidgetBundle {
-    var body: some Widget { NowWidget() }
+    var body: some Widget {
+        NowWidget()
+        LessonLiveActivity()
+    }
 }
 
 /// Reads the widget size from the environment and hands it to the view.

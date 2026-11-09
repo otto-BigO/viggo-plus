@@ -266,6 +266,8 @@ final class AppState: ObservableObject {
         checkBriefs()
         #if os(macOS)
         Updater.shared.checkIfDue()
+        #else
+        updateLiveActivity()
         #endif
     }
 

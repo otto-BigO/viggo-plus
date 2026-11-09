@@ -40,6 +40,8 @@ final class Prefs: ObservableObject {
     @Published var panelBreaks: Bool { didSet { d.set(panelBreaks, forKey: "panelBreaks") } }
     @Published var panelMeals: Bool { didSet { d.set(panelMeals, forKey: "panelMeals") } }
     @Published var menubarBreaks: Bool { didSet { d.set(menubarBreaks, forKey: "menubarBreaks") } }
+    /// iPhone: the current lesson on the lock screen and in the Dynamic Island during school.
+    @Published var liveActivity: Bool { didSet { d.set(liveActivity, forKey: "liveActivity") } }
     @Published var panelLunch: Bool { didSet { d.set(panelLunch, forKey: "panelLunch") } }
     @Published var customItems: [CustomItem] { didSet { d.set(try? JSONEncoder().encode(customItems), forKey: "customItems") } }
     @Published var dismissedVersion: String { didSet { d.set(dismissedVersion, forKey: "dismissedVersion") } }
@@ -63,7 +65,7 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "panelBirthdays": true, "panelLunch": true, "panelBreaks": true, "panelMeals": true, "menubarBreaks": false, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "autoUpdate": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
+            "panelBirthdays": true, "panelLunch": true, "panelBreaks": true, "panelMeals": true, "menubarBreaks": false, "liveActivity": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "autoUpdate": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
@@ -99,6 +101,7 @@ final class Prefs: ObservableObject {
         panelBreaks = d.bool(forKey: "panelBreaks")
         panelMeals = d.bool(forKey: "panelMeals")
         menubarBreaks = d.bool(forKey: "menubarBreaks")
+        liveActivity = d.bool(forKey: "liveActivity")
         customItems = d.data(forKey: "customItems").flatMap { try? JSONDecoder().decode([CustomItem].self, from: $0) } ?? []
         dismissedVersion = d.string(forKey: "dismissedVersion") ?? ""
         imported = d.bool(forKey: "imported")

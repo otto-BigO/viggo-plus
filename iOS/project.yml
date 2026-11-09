@@ -22,6 +22,8 @@ targets:
       - path: Assets.xcassets
       - path: Widget/WidgetData.swift
       - path: Widget/WidgetViews.swift
+      - path: Widget/LiveData.swift
+      - path: Widget/LiveViews.swift
     dependencies:
       - target: ViggoWidget
     settings:

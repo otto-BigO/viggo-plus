@@ -6,15 +6,13 @@ extension AppState {
     /// Hands the coming week to the widgets: today and the next six days, the same items as "I dag".
     func pushWidget() {
         let today = DateUtil.startOfDay(Date())
-        let items = (0..<7).flatMap { n in timeline(DateUtil.add(.day, n, today)) }.map {
-            WidgetItem(title: $0.shortTitle, start: $0.start, end: $0.end, room: $0.room,
-                       kind: $0.kind.rawValue, color: $0.customColor?.hex)
-        }
+        let items = (0..<7).flatMap { n in timeline(DateUtil.add(.day, n, today)) }.map(widgetItem)
         let open = homework.filter { !$0.done && $0.due >= today }.count
         let first = profile.map { $0.name.components(separatedBy: " ").first ?? $0.name }
         WidgetStore.save(WidgetData(name: first, items: items, homework: open, updated: Date(), loggedOut: needsLogin))
         WidgetCenter.shared.reloadAllTimelines()
         WidgetShots.run()
+        updateLiveActivity()
     }
 }
 
