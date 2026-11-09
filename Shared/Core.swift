@@ -14,6 +14,15 @@ struct Bulletin: Identifiable, Hashable {
     let when: String
     let title: String
     let text: String
+    /// The full text with its line breaks, for reading the post.
+    var body = ""
+    var authorImage: URL? = nil
+    /// Pictures attached to the post or put in its text.
+    var images: [URL] = []
+    /// Links in the text, shown as buttons.
+    var links: [URL] = []
+    /// The post's colour on Viggo.
+    var color: Color? = nil
     /// Viggo gives posts no id, so author + title + start of the text identifies one.
     var id: String { "\(board)|\(author)|\(title)|\(text.prefix(120))" }
 }
@@ -21,13 +30,29 @@ struct Bulletin: Identifiable, Hashable {
 extension Parser {
     static func bulletins(_ html: String) -> [Bulletin] {
         let board = html.firstMatch("<h4>.*?</i>(.*?)<small>")?[1].strippedHTML ?? "Opslagstavle"
-        return html.components(separatedBy: "class=\"hinted\">").dropFirst().compactMap { c in
-            let author = c.firstMatch("^(.*?)<small>")?[1].strippedHTML ?? ""
-            let when = c.firstMatch("<small>(.*?)</small>")?[1].strippedHTML ?? ""
-            guard let title = c.firstMatch("<p class=\"h\"><strong>(.*?)</strong>")?[1].strippedHTML else { return nil }
-            let text = c.firstMatch("<div class=\"content\">(.*?)</div></div>")?[1].strippedHTML ?? ""
-            return Bulletin(board: board, author: author, when: when, title: title, text: text)
+        return html.components(separatedBy: "class=\"hinted\">").dropFirst().compactMap { bulletin(String($0), board: board) }
+    }
+
+    private static func bulletin(_ c: String, board: String) -> Bulletin? {
+        guard let title = c.firstMatch("<p class=\"h\"><strong>(.*?)</strong>")?[1].strippedHTML else { return nil }
+        let author = c.firstMatch("^(.*?)<small>")?[1].strippedHTML ?? ""
+        let when = c.firstMatch("<small>(.*?)</small>")?[1].strippedHTML ?? ""
+        let content: String = c.firstMatch("<div class=\"content\">(.*?)</div></div>")?[1] ?? ""
+        var b = Bulletin(board: board, author: author, when: when, title: title, text: content.strippedHTML)
+        b.body = content.messageText
+        if let src = c.firstMatch("<span class=\"hint\">\\s*<img src=\"(.*?)\"")?[1] {
+            b.authorImage = URL(string: src.htmlDecoded, relativeTo: Config.baseURL)?.absoluteURL
         }
+        var images: [URL] = []
+        for m in c.matches("<img[^>]+src=\"([^\"]+)\"") {
+            let src = m[1].htmlDecoded
+            guard src.contains("DownloadFile") || (src.contains("cdn.viggo.dk") && !src.contains("/users/")) else { continue }
+            if let u = URL(string: src.replacingOccurrences(of: "&preview=true", with: ""), relativeTo: Config.baseURL) { images.append(u.absoluteURL) }
+        }
+        b.images = images
+        b.links = content.matches("href=\"(https?://[^\"]+)\"").compactMap { URL(string: $0[1].htmlDecoded) }
+        if let hex = c.firstMatch("background-color: (#[0-9a-fA-F]{6})")?[1] { b.color = Color(hex: hex) }
+        return b
     }
 }
 

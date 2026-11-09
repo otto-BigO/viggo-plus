@@ -4,6 +4,19 @@ import Foundation
 // MARK: - Models
 
 /// A thread in the inbox list.
+extension String {
+    /// Viggo's "57 minutter siden", "I går 13:51" or "5. nov 2026 11:08" shortened like in Beskeder: "57 min", "I går", "5. nov".
+    var shortWhen: String {
+        let t = trimmingCharacters(in: .whitespaces)
+        if let m = t.firstMatch("^(\\d+) minut") { return "\(m[1]) min" }
+        if let m = t.firstMatch("^(\\d+) time") { return "\(m[1]) t" }
+        if t.lowercased().hasPrefix("et øjeblik") || t.lowercased().hasPrefix("lige nu") { return "Nu" }
+        if let m = t.firstMatch("^(i går|i dag)") { return m[1].prefix(1).uppercased() + m[1].dropFirst() }
+        if let m = t.firstMatch("^(\\d{1,2}\\. \\w+)") { return m[1] }
+        return t
+    }
+}
+
 struct MessageThread: Identifiable, Hashable {
     let id: Int
     let sender: String
@@ -228,6 +241,17 @@ final class Inbox: ObservableObject {
     @Published var groups: [PersonGroup] = []
     /// The thread shown in the Mac window.
     @Published var selected: Int?
+    /// Pinned threads, kept at the top like in Beskeder on the iPhone.
+    @Published var pinned: [Int] = UserDefaults.standard.array(forKey: "pinnedThreads") as? [Int] ?? [] {
+        didSet { UserDefaults.standard.set(pinned, forKey: "pinnedThreads") }
+    }
+
+    func isPinned(_ id: Int) -> Bool { pinned.contains(id) }
+    func togglePin(_ id: Int) {
+        if let i = pinned.firstIndex(of: id) { pinned.remove(at: i) } else { pinned.insert(id, at: 0) }
+    }
+    var pinnedThreads: [MessageThread] { pinned.compactMap { id in threads.first { $0.id == id } } }
+    var otherThreads: [MessageThread] { threads.filter { !pinned.contains($0.id) } }
 
     func load() async {
         loading = true

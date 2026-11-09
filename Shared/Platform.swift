@@ -29,3 +29,29 @@ extension Platform {
         #endif
     }
 }
+
+/// Small taps from the Taptic Engine on the iPhone. Does nothing on the Mac.
+@MainActor
+enum Haptic {
+    static func tap() { impact(.light) }
+    static func soft() { impact(.soft) }
+    static func firm() { impact(.medium) }
+    static func select() {
+        #if os(iOS)
+        UISelectionFeedbackGenerator().selectionChanged()
+        #endif
+    }
+    static func success() { notify(.success) }
+    static func warning() { notify(.warning) }
+    static func error() { notify(.error) }
+
+    #if os(iOS)
+    private static func impact(_ s: UIImpactFeedbackGenerator.FeedbackStyle) { UIImpactFeedbackGenerator(style: s).impactOccurred() }
+    private static func notify(_ t: UINotificationFeedbackGenerator.FeedbackType) { UINotificationFeedbackGenerator().notificationOccurred(t) }
+    #else
+    private enum Style { case light, soft, medium }
+    private enum Kind { case success, warning, error }
+    private static func impact(_ s: Style) {}
+    private static func notify(_ t: Kind) {}
+    #endif
+}

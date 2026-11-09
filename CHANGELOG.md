@@ -1,5 +1,14 @@
 # Ændringer
 
+## iPhone-app 0.5.0 (2026-11-09)
+
+- **Beskeder som iMessage**: fastgør samtaler øverst med et langt tryk eller ved at swipe, korte tider ("2 t", "I går"), beskeder samlet per afsender med tidsstempel, og en svarlinje hvor send-knappen først dukker op når du skriver.
+- **Opslagstavlen i appen**: tryk på et opslag for at læse hele teksten med billeder og afsender, i stedet for at blive sendt videre til Viggo. Billeder kan zoomes.
+- **I morgen kan foldes ud**: tryk på I morgen-kortet for at se hele morgendagens skema.
+- **Uge viser hele dagen**: aftensmad, stilletime, fællessamling, på værelse og godnat, ligesom på Viggo.
+- **Nyt login**: kortet sidder nederst på skærmen, tastaturet lukker af sig selv, og telefonen vibrerer ved hvert trin og når du er logget ind.
+- Haptisk feedback og små animationer rundt omkring: faner, dagvælger, lektier, lektionsvinduet og beskeder.
+
 ## 1.6.1 og iPhone-app 0.4.1 (2026-11-09)
 
 - **Farve per fag overalt**: uge-oversigten, panelet, Nu-kortet og lektionsvinduet bruger nu samme faste farve per fag som iPhone-appen, i stedet for at alle timer er blå. Egne farver vinder stadig.

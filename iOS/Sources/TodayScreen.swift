@@ -94,19 +94,7 @@ struct TodayScreen: View {
                     }
 
                     if p.panelTomorrow, let (first, count) = state.tomorrowFirst(now) {
-                        Card(title: "I morgen", icon: "sunrise.fill") {
-                            HStack(alignment: .firstTextBaseline) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(first.shortTitle).font(.headline)
-                                    Text("Første punkt").font(.subheadline).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                VStack(alignment: .trailing, spacing: 2) {
-                                    Text(DateUtil.hm(first.start)).font(.title3.monospacedDigit().weight(.semibold))
-                                    Text("\(count) \(count == 1 ? "punkt" : "punkter")").font(.subheadline).foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+                        TomorrowCard(first: first, count: count, now: now)
                     }
 
                     if p.panelDuty, !state.dutyTonight.isEmpty {
@@ -187,12 +175,13 @@ struct TodayScreen: View {
                             VStack(spacing: 0) {
                                 ForEach(Array(state.bulletins.prefix(3).enumerated()), id: \.element.id) { i, b in
                                     if i > 0 { Divider() }
-                                    Button { state.openViggo() } label: {
+                                    NavigationLink(value: b) {
                                         VStack(alignment: .leading, spacing: 3) {
                                             HStack(alignment: .firstTextBaseline) {
                                                 Text(b.title).font(.subheadline.weight(.semibold)).lineLimit(1)
                                                 Spacer()
                                                 Text(b.when).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                                             }
                                             Text(b.text).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
                                                 .multilineTextAlignment(.leading)
@@ -218,6 +207,7 @@ struct TodayScreen: View {
             .background(Color(.systemGroupedBackground))
             .refreshable { await state.sync() }
             .navigationDestination(for: Int.self) { ThreadScreen(id: $0) }
+            .navigationDestination(for: Bulletin.self) { BulletinScreen(b: $0) }
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -243,6 +233,57 @@ struct TodayScreen: View {
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.orange.opacity(0.12)))
+    }
+}
+
+// MARK: - Tomorrow
+
+/// The first thing tomorrow. Tap it and the whole of tomorrow folds out underneath.
+private struct TomorrowCard: View {
+    @EnvironmentObject var state: AppState
+    let first: ViggoEvent
+    let count: Int
+    let now: Date
+    @State private var open = false
+
+    var body: some View {
+        let day = DateUtil.add(.day, 1, DateUtil.startOfDay(now))
+        let items = state.timeline(day)
+        let school = items.filter { $0.kind == .lesson || $0.kind == .event }
+        Card(title: "I morgen", icon: "sunrise.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                Button {
+                    Haptic.tap()
+                    withAnimation(.unfold) { open.toggle() }
+                } label: {
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(first.shortTitle).font(.headline)
+                            Text(open ? "Første punkt" : "Tryk for hele dagen").font(.subheadline).foregroundStyle(.secondary)
+                                .contentTransition(.opacity)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(DateUtil.hm(first.start)).font(.title3.monospacedDigit().weight(.semibold))
+                            HStack(spacing: 4) {
+                                Text("\(count) \(count == 1 ? "punkt" : "punkter")")
+                                Image(systemName: "chevron.down").font(.caption.weight(.bold))
+                                    .rotationEffect(.degrees(open ? 180 : 0))
+                            }
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressScale(scale: 0.98))
+                if open {
+                    Divider()
+                    DayList(items: items, now: day, schoolEnd: school.map(\.end).max())
+                        .transition(.asymmetric(insertion: .opacity.animation(.easeOut(duration: 0.25).delay(0.08)),
+                                                removal: .opacity.animation(.easeIn(duration: 0.12))))
+                }
+            }
+        }
     }
 }
 
@@ -571,7 +612,7 @@ private struct DayRow: View {
         .opacity(past ? 0.4 : 1)
         .contentShape(Rectangle())
         .onTapGesture {
-            if e.hasInfo { withAnimation(.unfold) { open.toggle() } }
+            if e.hasInfo { Haptic.tap(); withAnimation(.unfold) { open.toggle() } }
             else if e.kind != .custom { state.openLesson(e) }
         }
     }

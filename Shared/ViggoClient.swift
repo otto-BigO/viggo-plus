@@ -30,6 +30,14 @@ final class ViggoClient {
 
     func getPublic(_ path: String) async throws -> Data { try await get(path) }
 
+    /// A file behind the login, like a picture on a post.
+    func data(_ url: URL) async throws -> Data {
+        let (data, resp) = try await session.data(from: url)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(code), resp.url?.path.lowercased().contains("/account") != true else { throw ViggoError.notLoggedIn }
+        return data
+    }
+
     private func get(_ path: String) async throws -> Data {
         let req = URLRequest(url: URL(string: path, relativeTo: base)!.absoluteURL)
         let (data, resp) = try await session.data(for: req)

@@ -32,20 +32,22 @@ struct ViggoPlusPhoneApp: App {
 
 struct RootView: View {
     @EnvironmentObject var state: AppState
+    @State private var tab = 0
 
     var body: some View {
         Group {
             if state.needsLogin && state.events.isEmpty {
                 LoginScreen()
             } else {
-                TabView {
-                    Tab("I dag", systemImage: "sun.max.fill") { TodayScreen() }
-                    Tab("Uge", systemImage: "calendar") { WeekScreen() }
-                    Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill") { MessagesScreen() }
+                TabView(selection: $tab) {
+                    Tab("I dag", systemImage: "sun.max.fill", value: 0) { TodayScreen() }
+                    Tab("Uge", systemImage: "calendar", value: 1) { WeekScreen() }
+                    Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill", value: 2) { MessagesScreen() }
                         .badge(state.unreadCount)
-                    Tab("Venner", systemImage: "person.2.fill") { FriendsScreen() }
-                    Tab("Indstillinger", systemImage: "gearshape.fill") { SettingsScreen() }
+                    Tab("Venner", systemImage: "person.2.fill", value: 3) { FriendsScreen() }
+                    Tab("Indstillinger", systemImage: "gearshape.fill", value: 4) { SettingsScreen() }
                 }
+                .onChange(of: tab) { Haptic.select() }
             }
         }
         .modifier(LoginCardOverlay())
@@ -57,6 +59,8 @@ struct RootView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
             }
             .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .onAppear { Haptic.soft() }
         }
     }
 }

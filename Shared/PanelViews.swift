@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 // The panel's building blocks, used by the Mac menubar panel and the iPhone app's I dag screen.
 
@@ -571,7 +574,11 @@ struct LessonDetailView: View {
                     Button("Åbn i Viggo") { Platform.open(e.link) }
                 }
             }
+            #if os(macOS)
             .padding(.horizontal, 22).padding(.top, 34).padding(.bottom, 18)
+            #else
+            .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 18)
+            #endif
         }
         #if os(macOS)
         .frame(width: 420)
@@ -695,12 +702,27 @@ struct LoginCard: View {
                     .font(.system(size: 10)).foregroundStyle(.tertiary)
             }
         }
+        #if os(macOS)
         .padding(.horizontal, 26).padding(.vertical, 22)
         .frame(width: 300)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.primary.opacity(0.08)))
         .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
+        #else
+        // On the iPhone it comes up from the bottom like Apple Pay, away from the form.
+        .padding(.horizontal, 26).padding(.top, 28).padding(.bottom, 20)
+        .frame(maxWidth: .infinity)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 34, style: .continuous).stroke(.primary.opacity(0.08)))
+        .shadow(color: .black.opacity(0.3), radius: 30, y: 4)
+        .padding(.horizontal, 8).padding(.bottom, 8)
+        #endif
         .animation(.viggo, value: stage)
+        // A tap for every step, and a clear success or error at the end.
+        .onChange(of: stage.step) { Haptic.soft() }
+        .onChange(of: done) { if done { Haptic.success() } }
+        .onChange(of: failed) { if failed { Haptic.error() } }
+        .onAppear { Haptic.firm() }
     }
 }
 
@@ -710,6 +732,7 @@ struct LoginCardOverlay: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay {
             if let st = state.loginStage {
+                #if os(macOS)
                 ZStack {
                     Color.black.opacity(0.18).ignoresSafeArea()
                         .onTapGesture { if case .failure = st { state.dismissLoginCard() } }
@@ -717,6 +740,19 @@ struct LoginCardOverlay: ViewModifier {
                         .transition(.scale(scale: 0.92).combined(with: .opacity))
                 }
                 .transition(.opacity)
+                #else
+                ZStack(alignment: .bottom) {
+                    Rectangle().fill(.black.opacity(0.35)).ignoresSafeArea()
+                        .onTapGesture { if case .failure = st { state.dismissLoginCard() } }
+                        .transition(.opacity)
+                    LoginCard(stage: st)
+                        .transition(.move(edge: .bottom))
+                }
+                .ignoresSafeArea(.keyboard)
+                .onAppear {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                #endif
             }
         }
         .animation(.viggo, value: state.loginStage)

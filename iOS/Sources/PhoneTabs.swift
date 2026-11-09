@@ -29,6 +29,7 @@ struct WeekScreen: View {
     private func go(to d: Date) {
         guard !DateUtil.cal.isDate(d, inSameDayAs: day) else { return }
         forward = d > day
+        Haptic.select()
         withAnimation(.viggo) { day = d }
     }
 
@@ -62,7 +63,7 @@ struct WeekScreen: View {
                 }
                 .padding(.horizontal, 12).padding(.bottom, 8)
 
-                WeekGrid(days: [day], items: { state.weekItems($0, person: person) },
+                WeekGrid(days: [day], items: { state.weekItems($0, person: person, wholeDay: true) },
                          homework: { d in homework.filter { DateUtil.cal.isDate($0.due, inSameDayAs: d) } },
                          hourHeight: 64, dayNames: false)
                     .id(day)

@@ -134,7 +134,7 @@ final class AppState: ObservableObject {
                     for (d, m) in meals.sorted(by: { $0.key < $1.key }) { print("[mad] \(DateUtil.day(d)): \(m.lunch) | aften: \(m.dinner ?? "-")") }
                 }
                 if CommandLine.arguments.contains("--bulletins") {
-                    for b in bulletins { print("[opslag] \(b.board) | \(b.title) | \(b.when)\n\(b.text)\n---") }
+                    for b in bulletins { print("[opslag] \(b.board) | \(b.title) | \(b.when) | img=\(b.images) | av=\(b.authorImage?.absoluteString ?? "-") | links=\(b.links.count)\n\(b.body)\n---") }
                 }
                 if CommandLine.arguments.contains("--raw") {
                     for e in events.filter({ $0.kind == .routine }).sorted(by: { $0.start < $1.start }) {
@@ -749,12 +749,19 @@ final class AppState: ObservableObject {
     }
 
     /// One day in the week view: lessons and events, plus lunch, pauses and (for you) your own items.
-    func weekItems(_ d: Date, person: UUID?) -> [ViggoEvent] {
+    /// `wholeDay` also takes the evening (Aftensmad, Stilletime, Godnat), like Viggo's own schedule.
+    func weekItems(_ d: Date, person: UUID?, wholeDay: Bool = false) -> [ViggoEvent] {
         let list = person.flatMap { friendEvents[$0] }
         let school = (list ?? events).filter { ($0.kind == .lesson || $0.kind == .event) && (person != nil || visible($0))
             && DateUtil.cal.isDate($0.start, inSameDayAs: d) }
-        let extra = lunch(d, from: list) + breaks(d, from: list) + (person == nil ? customEvents(on: d) : [])
-        return (school + extra).sorted { $0.start < $1.start }
+        var extra = lunch(d, from: list) + breaks(d, from: list) + (person == nil ? customEvents(on: d) : [])
+        if wholeDay {
+            let have = Set(extra.map(\.id))
+            let rest = (list ?? events).filter { $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: d)
+                && !have.contains($0.id) }
+            extra += rest
+        }
+        return (school + extra.map(withFood)).sorted { $0.start < $1.start }
     }
 
     func customEvents(on day: Date) -> [ViggoEvent] {
@@ -786,6 +793,7 @@ final class AppState: ObservableObject {
     func toggleHomework(_ h: Homework) {
         guard let i = homework.firstIndex(where: { $0.id == h.id }) else { return }
         let newValue = !homework[i].done
+        if newValue { Haptic.success() } else { Haptic.tap() }
         homework[i].done = newValue
         Task {
             do {
