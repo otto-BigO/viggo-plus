@@ -289,6 +289,9 @@ final class AppState: ObservableObject {
     /// Your own session ran out: one notification, and the menubar shows a log-in button.
     private func sessionExpired() {
         needsLogin = true
+        #if os(iOS)
+        pushWidget()
+        #endif
         guard !expiryNotified, snapshot.initialized else { return }
         expiryNotified = true
         Notifier.shared.post("Viggo+: log ind igen", "Din Viggo-session er udløbet. Klik for at logge ind.",
@@ -402,6 +405,9 @@ final class AppState: ObservableObject {
         lastSync = nil
         needsLogin = true
         loginMessage = "Logget ud"
+        #if os(iOS)
+        pushWidget()
+        #endif
     }
 
     private func withRelogin<T>(_ op: () async throws -> T) async throws -> T {
@@ -433,6 +439,9 @@ final class AppState: ObservableObject {
             Task { await syncFriends() }
             detectChanges()
             lastSync = Date()
+            #if os(iOS)
+            pushWidget()
+            #endif
             CookieJar.save()
             if !status.hasPrefix("Kalender") { status = "" }
         } catch ViggoError.notLoggedIn {
