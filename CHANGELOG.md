@@ -1,5 +1,13 @@
 # Ændringer
 
+## iPhone-app 0.1.0 (2026-11-09)
+
+- **Ny iPhone-app** med samme kode som Mac-appen: I dag, Uge, Venner og Indstillinger.
+- **Widget** til hjemmeskærmen og låseskærmen med det du har nu, nedtælling og hvad der kommer bagefter.
+- **Notifikationer**: påmindelse før hver time, morgen- og aften-brief og fødselsdage lægges klar en uge frem. Flyttede timer, nye lektier, beskeder og opslag kommer fra en baggrundsopdatering.
+- **Live Activity** i skoletiden på låseskærmen og i Dynamic Island.
+- Installeres med `iOS/install.sh` (se README). Med en gratis Apple-konto skal den installeres igen hver 7. dag.
+
 ## 1.5.1 (2026-11-09)
 
 - **Dagens mad**: retten fra køkkenets madplan på opslagstavlen ("Madplan uge 45") står nu under Middag i panelet, og aftenens mad (fx kold buffet) under Aftensmad. Kan slås fra under Indstillinger › Panel.

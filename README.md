@@ -124,7 +124,7 @@ Du logger ind på Viggos egen login-side inde i appen, med UNI-Login, SkoleIT el
 
 En Mac med Apple Silicon og macOS 14 eller nyere, og en Viggo-konto.
 
-Skolen står i `Sources/Util.swift` (`Config.baseURL`, lige nu `broeruphus.viggo.dk`). Skift den til din egen skoles Viggo-adresse og byg appen.
+Skolen står i `Shared/Util.swift` (`Config.baseURL`, lige nu `broeruphus.viggo.dk`). Skift den til din egen skoles Viggo-adresse og byg appen.
 
 ## Installation
 
@@ -132,6 +132,28 @@ Skolen står i `Sources/Util.swift` (`Config.baseURL`, lige nu `broeruphus.viggo
 2. Åbn den og træk Viggo+ over i Programmer.
 3. Appen er ikke notariseret af Apple, så macOS blokerer den første gang. Åbn **Systemindstillinger > Anonymitet og sikkerhed** og klik **Åbn alligevel**.
 4. Tillad Kalender og Notifikationer når macOS spørger, og log ind fra indstillingsvinduet.
+
+## iPhone-appen
+
+Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Shared/`). Den har:
+
+- **I dag**: samme dag som panelet, med Nu-kortet, resten af dagen og i morgen. Træk ned for at synke.
+- **Uge**: én dag ad gangen, med ugens dage øverst. Swipe sideværts for at skifte dag.
+- **Venner**: hvad dine venner har lige nu, og deres dag.
+- **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
+- **Widget** til hjemmeskærmen (lille og mellem) og låseskærmen, med det du har nu og hvad der kommer bagefter.
+- **Notifikationer**: påmindelse før timer, morgen- og aften-brief og fødselsdage, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
+- **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island.
+
+Den er ikke i App Store. Sådan kommer den på din egen iPhone med en gratis Apple-konto:
+
+1. Installer Xcode, log ind med dit Apple-id under **Xcode > Settings > Accounts**, og sæt dit team i `iOS/project.yml` (`DEVELOPMENT_TEAM`).
+2. Installer XcodeGen (`brew install xcodegen`).
+3. Sæt iPhonen til med kabel, lås den op og slå **Udviklertilstand** til under **Indstillinger > Anonymitet og sikkerhed**.
+4. Kør `iOS/install.sh`.
+5. Første gang: åbn **Indstillinger > Generelt > VPN og enhedsadministration** på iPhonen og stol på din udvikler-profil.
+
+Med en gratis konto holder signaturen i 7 dage. Kør `iOS/install.sh` igen inden da, så virker appen en uge mere. Dine data og dit login bliver liggende.
 
 ## Byg selv
 
