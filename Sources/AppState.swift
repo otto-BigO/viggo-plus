@@ -82,6 +82,15 @@ final class AppState: ObservableObject {
                 if case .failure(let why) = r { print("[autologin] \(why)") }
                 exit(0)
             }
+        } else if CommandLine.arguments.contains("--dump-day") {
+            // For checking from Terminal: fetch your real schedule and print today's timeline and the menubar text.
+            Task { @MainActor in
+                CookieJar.restore()
+                await sync()
+                for e in timeline(Date()) { print("[dag] \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.kind.rawValue) \(e.shortTitle)") }
+                print("[menubar] \(menuTitle)")
+                exit(0)
+            }
         } else if CommandLine.arguments.contains("--friend-autologin-test") {
             // For testing the friend path from Terminal with your own saved login: Keychain round trip,
             // a login in a private store like a friend's, and a Viggo request with those cookies. Adds no friend.
@@ -534,6 +543,14 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Lunch ("Middag") from Viggo's schedule, shown between the lessons like on Viggo.
+    func lunch(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
+        guard prefs.panelLunch else { return [] }
+        return (list ?? events).filter {
+            $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now) && $0.title.lowercased().hasPrefix("middag")
+        }
+    }
+
     /// Your own items (Indstillinger › Egne punkter) on the given day.
     func customEvents(on day: Date) -> [ViggoEvent] {
         prefs.customItems.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
@@ -547,8 +564,9 @@ final class AppState: ObservableObject {
         let lastEnd = school.map(\.end).max() ?? DateUtil.startOfDay(now)
         let evening = all.filter { $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now)
             && $0.start >= lastEnd && inMenubar($0.title) }
+        let meal = lunch(now, from: list).filter { e in !evening.contains { $0.id == e.id } }
         let own = list == nil ? customEvents(on: now) : []
-        return (school + evening + own).sorted { $0.start < $1.start }
+        return (school + evening + meal + own).sorted { $0.start < $1.start }
     }
 
     private func visibleOrFriend(_ e: ViggoEvent, _ friend: Bool) -> Bool { friend || visible(e) }
@@ -629,7 +647,7 @@ final class AppState: ObservableObject {
 
     var menuTitle: String {
         let now = tick
-        let today = (items(on: now).filter { $0.kind == .lesson || $0.kind == .event } + customEvents(on: now))
+        let today = (items(on: now).filter { $0.kind == .lesson || $0.kind == .event } + lunch(now) + customEvents(on: now))
             .sorted { $0.start < $1.start }
         if let cur = today.first(where: { $0.start <= now && $0.end > now }) {
             return "\(cur.menuBarTitle) → \(DateUtil.hm(cur.end))"

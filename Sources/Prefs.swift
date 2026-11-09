@@ -37,6 +37,7 @@ final class Prefs: ObservableObject {
     @Published var hotkeyChoice: Int { didSet { d.set(hotkeyChoice, forKey: "hotkeyChoice") } }
     @Published var lessonNames: [String: String] { didSet { d.set(lessonNames, forKey: "lessonNames") } }
     @Published var lessonColors: [String: String] { didSet { d.set(lessonColors, forKey: "lessonColors") } }
+    @Published var panelLunch: Bool { didSet { d.set(panelLunch, forKey: "panelLunch") } }
     @Published var customItems: [CustomItem] { didSet { d.set(try? JSONEncoder().encode(customItems), forKey: "customItems") } }
     @Published var dismissedVersion: String { didSet { d.set(dismissedVersion, forKey: "dismissedVersion") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
@@ -59,7 +60,7 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "panelBirthdays": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "autoUpdate": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
+            "panelBirthdays": true, "panelLunch": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "autoUpdate": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "briefs": true,
@@ -91,6 +92,7 @@ final class Prefs: ObservableObject {
         hotkeyChoice = d.integer(forKey: "hotkeyChoice")
         lessonNames = d.dictionary(forKey: "lessonNames") as? [String: String] ?? [:]
         lessonColors = d.dictionary(forKey: "lessonColors") as? [String: String] ?? [:]
+        panelLunch = d.bool(forKey: "panelLunch")
         customItems = d.data(forKey: "customItems").flatMap { try? JSONDecoder().decode([CustomItem].self, from: $0) } ?? []
         dismissedVersion = d.string(forKey: "dismissedVersion") ?? ""
         imported = d.bool(forKey: "imported")
