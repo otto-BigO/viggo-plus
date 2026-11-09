@@ -1,5 +1,9 @@
 # Ændringer
 
+## iPhone-app 0.7.0 (2026-11-09)
+
+- **ASCII-opstart**: opstartsskærmen er nu en ASCII-animation. Ikonet bygges op af tegn: firkanten fyldes ud fra midten, V'et afkodes langs stregen, plusset popper ind, og ringe af tegn bølger ud mens skemaet hentes. Status skrives som i en terminal med blinkende markør. Følger det valgte app-ikon og mørk tilstand, og står stille hvis Reducer bevægelse er slået til.
+
 ## iPhone-app 0.6.0 (2026-11-09)
 
 - **Ny opstartsskærm**: ikonet tegner sig selv, plusset popper ind, og en blød glorie pulserer mens skemaet hentes. Derefter zoomer appen ind med alt klar, i stedet for grå pladsholdere.

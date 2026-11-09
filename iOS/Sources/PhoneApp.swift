@@ -66,12 +66,13 @@ struct RootView: View {
     /// Keep the launch screen up until the first sync is done (at least long enough for the
     /// icon animation, at most 15 s), then zoom through it into the app.
     private func leaveSplash() async {
+        if LaunchScreen.frozen != nil { return }
         let start = Date()
         while state.lastSync == nil, !state.needsLogin, state.syncAttempts == 0,
               Date().timeIntervalSince(start) < 15 {
             try? await Task.sleep(for: .milliseconds(100))
         }
-        let left = 1.5 - Date().timeIntervalSince(start)
+        let left = 1.9 - Date().timeIntervalSince(start)
         if left > 0 { try? await Task.sleep(for: .seconds(left)) }
         Haptic.soft()
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) { splash = false }
