@@ -27,6 +27,9 @@ extension AppState {
         let running = Activity<LessonAttributes>.activities
         let items = timeline(now).map(widgetItem)
         let school = items.filter { $0.kind == "lesson" || $0.kind == "event" }
+        if ProcessInfo.processInfo.environment["VIGGO_LIVE_AT"] != nil {
+            print("[live] now=\(now) pref=\(prefs.liveActivity) login=\(needsLogin) enabled=\(ActivityAuthorizationInfo().areActivitiesEnabled) items=\(items.count) school=\(school.count) first=\(String(describing: school.first?.start)) running=\(running.count)")
+        }
         guard prefs.liveActivity, !needsLogin, ActivityAuthorizationInfo().areActivitiesEnabled,
               let first = school.first, let last = school.map(\.end).max(),
               now >= first.start.addingTimeInterval(-30 * 60), now < last else {
@@ -45,7 +48,14 @@ extension AppState {
             for extra in running.dropFirst() { Task { await extra.end(nil, dismissalPolicy: .immediate) } }
         } else {
             let first = profile.map { $0.name.components(separatedBy: " ").first ?? $0.name } ?? ""
-            _ = try? Activity.request(attributes: LessonAttributes(name: first), content: content)
+            do {
+                let a = try Activity.request(attributes: LessonAttributes(name: first), content: content)
+                if ProcessInfo.processInfo.environment["VIGGO_LIVE_AT"] != nil {
+                    print("[live] started \(a.id) state=\(a.activityState)")
+                    Task { for await st in a.activityStateUpdates { print("[live] state -> \(st)") } }
+                }
+            }
+            catch { print("[live] request failed: \(error)") }
         }
     }
 }
