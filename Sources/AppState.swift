@@ -122,6 +122,30 @@ final class AppState: ObservableObject {
                 }
                 exit(0)
             }
+        } else if CommandLine.arguments.contains("--unfold-test") {
+            // For checking the fold-out animation: open the panel, fold out the first note and take pictures meanwhile.
+            Task { @MainActor in
+                setvbuf(stdout, nil, _IONBF, 0)
+                CookieJar.restore()
+                await sync()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                PanelController.shared.show()
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                guard let e = timeline(Date()).first(where: { $0.hasInfo }), let f = PanelController.shared.frame,
+                      let dir = ProcessInfo.processInfo.environment["VIGGO_SHOTS"] else { print("[fold] intet at folde ud"); exit(1) }
+                let top = (NSScreen.main?.frame.maxY ?? 0) - f.maxY
+                let r = "-R\(Int(f.minX) - 10),\(Int(top) - 10),\(Int(f.width) + 20),\(Int(f.height) + 260)"
+                let sh = Process()
+                sh.executableURL = URL(fileURLWithPath: "/bin/sh")
+                sh.arguments = ["-c", "for i in 0 1 2 3 4 5 6 7 8; do /usr/sbin/screencapture -x \(r) \(dir)/f$i.png; done"]
+                try? sh.run()
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                print("[fold] folder \(e.shortTitle) ud")
+                NotificationCenter.default.post(name: .viggoToggleNote, object: e.id)
+                sh.waitUntilExit()
+                print("[fold] kort efter: \(PanelController.shared.cardSize)")
+                exit(0)
+            }
         } else if CommandLine.arguments.contains("--window-test") {
             // For checking from Terminal: open the panel, then Indstillinger and a lesson, and print where things end up.
             Task { @MainActor in

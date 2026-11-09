@@ -17,7 +17,15 @@ final class PanelController: NSObject {
     private var top: CGFloat = 0
 
     var isShown: Bool { panel?.isVisible == true }
-    var frame: NSRect? { isShown ? panel?.frame : nil }
+    /// Room around the card for its shadow.
+    static let pad: CGFloat = 24
+    /// The size of the visible card (the window around it is taller and see-through).
+    var cardSize: CGSize = .zero
+    /// Where the visible card sits on screen.
+    var frame: NSRect? {
+        guard isShown, let p = panel else { return nil }
+        return NSRect(x: p.frame.minX + Self.pad, y: top - cardSize.height, width: cardSize.width, height: cardSize.height)
+    }
 
     func setup() {
         guard item == nil else { return }
@@ -58,9 +66,11 @@ final class PanelController: NSObject {
         let anchor = bw.convertToScreen(button.convert(button.bounds, to: nil))
         let screen = (NSScreen.screens.first { $0.frame.intersects(anchor) } ?? NSScreen.main)?.visibleFrame ?? .zero
         top = screen.maxY - 4
-        let size = host?.fittingSize ?? NSSize(width: 320, height: 600)
-        let x = min(max(screen.minX + 8, anchor.minX), screen.maxX - 8 - size.width)
-        p.setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
+        // The window reaches from the menu bar to the bottom of the screen; the card inside grows
+        // and shrinks with SwiftUI's own animation, so nothing jumps when a note folds out.
+        let width = MenuView.width + 2 * Self.pad
+        let x = min(max(screen.minX + 8, anchor.minX), screen.maxX - 8 - MenuView.width) - Self.pad
+        p.setFrame(NSRect(x: x, y: screen.minY, width: width, height: top - screen.minY), display: true)
         NSApp.activate(ignoringOtherApps: true)
         p.alphaValue = 0
         p.makeKeyAndOrderFront(nil)
@@ -80,11 +90,8 @@ final class PanelController: NSObject {
     }
 
     private func makePanel() -> KeyPanel {
-        let root = MenuView().environmentObject(AppState.shared)
-            .background(VisualEffect())
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        let root = PanelCard()
         let h = PanelHost(rootView: AnyView(root))
-        h.onResize = { [weak self] in self?.fit() }
         host = h
         let p = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: 320, height: 600),
                          styleMask: [.borderless, .fullSizeContentView], backing: .buffered, defer: false)
@@ -93,20 +100,11 @@ final class PanelController: NSObject {
         p.level = .statusBar
         p.backgroundColor = .clear
         p.isOpaque = false
-        p.hasShadow = true
+        p.hasShadow = false   // drawn by the card itself, so it follows the card while it animates
         p.isReleasedWhenClosed = false
         p.hidesOnDeactivate = false
         p.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         return p
-    }
-
-    /// Resizes the panel to its content, keeping the top edge where it is (a note folding out grows it downward).
-    private func fit() {
-        guard let p = panel, p.isVisible, let h = host else { return }
-        let size = h.fittingSize
-        guard abs(size.height - p.frame.height) > 0.5 || abs(size.width - p.frame.width) > 0.5 else { return }
-        p.setFrame(NSRect(x: p.frame.minX, y: top - size.height, width: size.width, height: size.height), display: true)
-        p.invalidateShadow()
     }
 
     /// Closes on a click outside, on Escape, and when you switch to another app.
@@ -116,6 +114,15 @@ final class PanelController: NSObject {
         if let m = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown], handler: { _ in
             Task { @MainActor in PanelController.shared.close() }
         }) { monitors.append(m) }
+        // A click on the see-through part of the panel's window (outside the card) closes it too.
+        if let m = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown], handler: { e in
+            let c = PanelController.shared
+            if let p = c.panel, e.window === p, let card = c.frame {
+                let pt = p.convertPoint(toScreen: e.locationInWindow)
+                if !card.contains(pt) { c.close(); return nil }
+            }
+            return e
+        }) { monitors.append(m) }
         if let m = NSEvent.addLocalMonitorForEvents(matching: [.keyDown], handler: { e in
             if e.keyCode == 53, PanelController.shared.panel?.isKeyWindow == true { PanelController.shared.close(); return nil }
             return e
@@ -123,17 +130,23 @@ final class PanelController: NSObject {
     }
 }
 
-/// Tells the controller when the SwiftUI content changes size.
-final class PanelHost: NSHostingView<AnyView> {
-    var onResize: (() -> Void)?
-    private var pending = false
-    override func invalidateIntrinsicContentSize() {
-        super.invalidateIntrinsicContentSize()
-        guard !pending else { return }
-        pending = true
-        DispatchQueue.main.async { [weak self] in
-            MainActor.assumeIsolated { self?.pending = false; self?.onResize?() }
+final class PanelHost: NSHostingView<AnyView> {}
+
+/// The panel as you see it: the frosted card with a shadow, at the top of a see-through window.
+/// Clicks on the see-through part fall through to whatever is behind it.
+struct PanelCard: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            MenuView().environmentObject(AppState.shared)
+                .background(VisualEffect())
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.22), radius: 14, y: 6)
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { PanelController.shared.cardSize = $0 }
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, PanelController.pad)
+        .padding(.bottom, PanelController.pad)
     }
 }
 

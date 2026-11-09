@@ -25,6 +25,8 @@ struct PressScale: ButtonStyle {
 
 extension Animation {
     static let viggo = Animation.spring(response: 0.35, dampingFraction: 0.82)
+    /// Calmer spring for things that fold out (a note, a dish), so the panel grows smoothly.
+    static let unfold = Animation.spring(response: 0.42, dampingFraction: 0.94)
 }
 
 /// The refresh arrow spins while syncing.
@@ -85,6 +87,8 @@ struct Sz {
     static func f(_ base: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: base * k, weight: w) }
     static func mono(_ base: CGFloat) -> Font { .system(size: base * k, weight: .regular, design: .monospaced) }
 }
+
+extension Notification.Name { static let viggoToggleNote = Notification.Name("viggoToggleNote") }
 
 struct TimelineRow: View {
     let e: ViggoEvent
@@ -196,7 +200,7 @@ struct TimelineRow: View {
             .opacity(past ? 0.35 : 1)
             .contentShape(Rectangle())
             .onTapGesture {
-                if hasNote { withAnimation(.viggo) { expanded.toggle() } }
+                if hasNote { withAnimation(.unfold) { expanded.toggle() } }
                 else if e.kind != .custom { AppState.shared.openLesson(e) }
             }
             if isFood {
@@ -210,8 +214,16 @@ struct TimelineRow: View {
                 .padding(.leading, 52 * Sz.k)
                 .opacity(past ? 0.35 : 1)
                 .contentShape(Rectangle())
-                .onTapGesture { withAnimation(.viggo) { expanded.toggle() } }
-            } else if expanded && hasNote { noteBox.transition(.opacity.combined(with: .move(edge: .top))) }
+                .onTapGesture { withAnimation(.unfold) { expanded.toggle() } }
+            } else if expanded && hasNote {
+                // The room opens first, then the text fades in, so it never slides over the rows below.
+                noteBox.transition(.asymmetric(insertion: .opacity.animation(.easeOut(duration: 0.22).delay(0.1)),
+                                               removal: .opacity.animation(.easeIn(duration: 0.1))))
+            }
+        }
+        // Test hook for --unfold-test: fold this row's note out or in.
+        .onReceive(NotificationCenter.default.publisher(for: .viggoToggleNote)) { n in
+            if (n.object as? Int) == e.id, hasNote { withAnimation(.unfold) { expanded.toggle() } }
         }
         .help(e.kind == .custom ? "Dit eget punkt" : isFood ? "Dagens mad fra madplanen" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
     }
@@ -330,6 +342,7 @@ struct PersonChip: View {
 // MARK: - Menubar panel
 
 struct MenuView: View {
+    static var width: CGFloat { 320 * (Prefs.shared.panelLarge ? 1.12 : 1) }
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
     @ObservedObject var updater = Updater.shared
@@ -441,7 +454,7 @@ struct MenuView: View {
         .animation(.viggo, value: updater.available?.version)
         .animation(.viggo, value: state.lastSync)
         .padding(.horizontal, 14).padding(.vertical, 12)
-        .frame(width: 320 * (p.panelLarge ? 1.12 : 1))
+        .frame(width: MenuView.width)
     }
 }
 
