@@ -9,11 +9,16 @@ extension AppState {
 
     /// For checking from Terminal: VIGGO_LIVE_AT="2026-11-10 10:30" pretends it is that time,
     /// so the Live Activity can be seen in a lesson outside school hours.
-    private var liveNow: Date {
-        guard let s = ProcessInfo.processInfo.environment["VIGGO_LIVE_AT"] else { return Date() }
+    private var liveNow: Date { Self.testNow(Date()) }
+
+    /// The real time, or the VIGGO_LIVE_AT time moved along by how long the app has run.
+    static func testNow(_ real: Date) -> Date {
+        guard let s = ProcessInfo.processInfo.environment["VIGGO_LIVE_AT"] else { return real }
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"
-        return f.date(from: s) ?? Date()
+        guard let fake = f.date(from: s) else { return real }
+        return fake.addingTimeInterval(real.timeIntervalSince(launched))
     }
+    private static let launched = Date()
 
     /// Starts the Live Activity when school begins, keeps it current and ends it after the last lesson.
     /// iOS only lets the app start one while it is open; after that it is updated from every sync.
