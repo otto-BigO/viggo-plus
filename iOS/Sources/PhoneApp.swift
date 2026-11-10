@@ -71,7 +71,7 @@ struct RootView: View {
     /// Keep the launch screen up until the first sync is done (at least long enough for the
     /// icon animation, at most 15 s), then zoom through it into the app.
     private func leaveSplash() async {
-        if LaunchScreen.frozen != nil { return }
+        if LaunchScreen.hold { return }
         let start = Date()
         while state.lastSync == nil, !state.needsLogin, state.syncAttempts == 0,
               Date().timeIntervalSince(start) < 15 {

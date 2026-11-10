@@ -1,0 +1,35 @@
+import SwiftUI
+
+/// Ugle, the Viggo+ owl, on its own: the launch screen sprite, blinking and nodding.
+struct OwlView: View {
+    var size: CGFloat = 96
+    var accent: Color = IconStyle.current.top
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20, paused: reduceMotion)) { tl in
+            let t = reduceMotion ? 0 : tl.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, sz in
+                let k = sz.width / 16
+                let blink = t.truncatingRemainder(dividingBy: 3.4) > 3.25
+                let nod = sin(t * 84 / 60 * .pi * 2) > 0.6 ? k : 0
+                let colors: [Character: Color] = [
+                    "B": IconStyle.hex(0x8B6A4F), "L": IconStyle.hex(0xE9D6B5), "E": .white,
+                    "P": IconStyle.hex(0x1B1B26), "K": IconStyle.hex(0xF2A33A), "F": IconStyle.hex(0xF2A33A),
+                    "H": accent, "D": IconStyle.hex(0x2A2A38), "X": accent,
+                ]
+                for (r, line) in (blink ? PixelScene.owlBlink : PixelScene.owlOpen).enumerated() {
+                    for (c, ch) in line.enumerated() {
+                        guard let col = colors[ch] else { continue }
+                        let dy = r < 8 ? nod : 0
+                        ctx.fill(Path(CGRect(x: CGFloat(c) * k, y: CGFloat(r) * k + dy, width: k, height: k)), with: .color(col))
+                    }
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A short introduction, shown once after the first login and again from Indstillinger.

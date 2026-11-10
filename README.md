@@ -149,10 +149,10 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 - **Kontrolcenter**: en knap der viser hvad du har nu og åbner appen.
 - **Notifikationer**: påmindelse før timer, morgen- og aften-brief og fødselsdage, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
 - **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island. Kan startes uden at åbne appen med handlingen **Vis skoledagen** i Genveje (fx som automatisering kl. 7.45 på hverdage) eller fra Kontrolcenter.
-- **Ugle**, Viggo+'s ugle: når appen starter, sidder den med høretelefoner på et hegn i et pixel-landskab, mens skemaet hentes. Himlen følger tiden på dagen (morgen, dag, aften og nat med stjerner og tændte vinduer på skolen).
+- **Opstart i ASCII**: mens skemaet hentes, vises et landskab tegnet med tegn, i stil med en lo-fi radiostream. Om dagen sorte tegn på creme med skyer der driver og græs i vinden, om aftenen og natten grå tegn på sort med en stor ring, bjerge, skov og stjerner. Øverst står hvad der hentes.
 - **Introduktion** første gang du er logget ind: widgets, Vis skoledagen som automatisering og knappen i Kontrolcenter. Den kan åbnes igen under Indstillinger.
 
-<p align="center"><img src="docs/screens/iphone-opstart.png" alt="Opstarten kl. 8, 12, 18 og 22" width="760"></p>
+<p align="center"><img src="docs/screens/iphone-opstart.png" alt="Opstarten om dagen og om natten" width="520"></p>
 <p align="center"><img src="docs/screens/iphone-guide.png" alt="Introduktionen" width="420"></p>
 
 Den er ikke i App Store, men Viggo+ på Mac'en kan lægge den på din iPhone. Åbn **Indstillinger > iPhone-app** i Mac-appen. Der står hvad du skal bruge og hvor lang tid det tager, og en guide der krydser trinene af efterhånden:

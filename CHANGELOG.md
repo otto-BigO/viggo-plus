@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.11.0 og iPhone-app 1.1.0 (2026-11-10)
+
+- **Ny opstart i ASCII**: landskabet er nu tegnet med tegn i stil med en lo-fi radiostream, uden maskot. Fra kl. 7 til 19 sorte tegn på creme: skyer der driver, en mørk stribe bakker og højt græs der bøjer i vinden. Om aftenen og natten grå tegn på sort: en stor ring med skravering der glider rundt, bjerge, skov og stjerner der blinker. Scenen dekodes ind fra tilfældige tegn, og øverst står hvad der hentes.
+- Ugle er taget ud af appen og introduktionen. Den gamle opstart og maskotten er gemt i `docs/arkiv/ugle-opstart/`.
+- Opstarten tegnes som ét billede pr. billedramme, så den kører let.
+
 ## 1.10.0 og iPhone-app 1.0.0 (2026-11-10)
 
 - **Ny opstart med Ugle**: Viggo+ har fået sin egen maskot, en ugle med høretelefoner. Mens skemaet hentes, lander den på en pæl i et lo-fi pixel-landskab og nikker i takt, mens noder flyver op. Himlen følger tiden på dagen: solopgang, dag, solnedgang og nat med stjerner, månen, ildfluer og lys i skolens vinduer. Nederst står hvad der hentes, som på en radiostream.
