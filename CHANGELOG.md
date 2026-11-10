@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.12.0 og iPhone-app 1.2.0 (2026-11-10)
+
+- **Vælg din opstart**: under Indstillinger > Opstart kan du slå de opstarts-animationer til, du vil have. Er flere slået til, får du en tilfældig af dem hver gang Viggo+ starter. Hver har en afspil-knap, så du kan se den med det samme, og der er en knap til at afspille en tilfældig.
+- **Fire nye opstarter**: Terminal (Viggo+ starter op som en gammel computer med grøn tekst og store blokbogstaver), Skema (ugens timer falder på plads, og en rød streg viser hvor du er nu), Nordlys (bløde farver i app-ikonets farver under en stjernehimmel) og Stjernestøv (tusind prikker flyver sammen til Viggo+).
+- **De gamle er tilbage**: Ugle med pixel-landskabet fra 1.0, ASCII-ikonet fra 0.7 og ikonet der tegner sig selv fra 0.6 kan vælges igen. Radio fra 1.1 er stadig den du får fra start.
+
 ## 1.11.0 og iPhone-app 1.1.0 (2026-11-10)
 
 - **Ny opstart i ASCII**: landskabet er nu tegnet med tegn i stil med en lo-fi radiostream, uden maskot. Fra kl. 7 til 19 sorte tegn på creme: skyer der driver, en mørk stribe bakker og højt græs der bøjer i vinden. Om aftenen og natten grå tegn på sort: en stor ring med skravering der glider rundt, bjerge, skov og stjerner der blinker. Scenen dekodes ind fra tilfældige tegn, og øverst står hvad der hentes.

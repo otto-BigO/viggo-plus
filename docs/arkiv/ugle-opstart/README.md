@@ -1,6 +1,6 @@
 # Ugle og pixel-opstarten (iPhone-app 1.0.0)
 
-Viggo+'s maskot Ugle og opstarten fra iPhone-app 1.0.0 (Mac 1.10.0, 2026-11-10). Den blev taget ud af appen igen i næste version, men er gemt her, så den kan bruges senere. Hele koden ligger også i git under tagget `v1.10.0`.
+Viggo+'s maskot Ugle og opstarten fra iPhone-app 1.0.0 (Mac 1.10.0, 2026-11-10). Den blev taget ud af appen i 1.1.0, men kan vælges igen under Indstillinger > Opstart fra 1.2.0 (iOS/Sources/Intros/OwlIntro.swift). Hele koden ligger også i git under tagget `v1.10.0`.
 
 <p align="center"><img src="iphone-opstart.png" alt="Opstarten kl. 8, 12, 18 og 22" width="760"></p>
 <p align="center"><img src="iphone-guide.png" alt="Introduktionen med Ugle" width="420"></p>

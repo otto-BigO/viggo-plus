@@ -38,6 +38,7 @@ struct RootView: View {
     @State private var tab = 0
     @State private var splash = true
     @State private var guide = false
+    @State private var intro = Intro.pick()
 
     var body: some View {
         ZStack {
@@ -45,7 +46,7 @@ struct RootView: View {
                 .scaleEffect(splash ? 0.94 : 1)
                 .opacity(splash ? 0 : 1)
             if splash {
-                LaunchScreen()
+                LaunchScreen(intro: intro)
                     .transition(.asymmetric(insertion: .identity,
                                             removal: .scale(scale: 1.12).combined(with: .opacity)))
                     .zIndex(1)

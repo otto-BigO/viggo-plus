@@ -1,29 +1,20 @@
 import SwiftUI
 import UIKit
 
-/// Shown at launch until the first sync is done. A monochrome ASCII landscape in the style of
-/// a lo-fi radio stream: by day black characters on cream (clouds, a dark band of hills, tall
-/// grass in the wind), at night grey on black (a huge hatched ring, mountains, a forest).
-/// Every character is computed from position and time, and the scene decodes in at the start.
-struct LaunchScreen: View {
+/// The ASCII landscape in the style of a lo-fi radio stream (1.1.0): by day black characters
+/// on cream (clouds, a dark band of hills, tall grass in the wind), at night grey on black (a
+/// huge hatched ring, mountains, a forest). Every character is computed from position and
+/// time, and the scene decodes in at the start.
+struct RadioIntro: View {
     let style = IconStyle.current
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var start = Date()
     @State private var showText = false
     @State private var step = 0
+    private static var frozen: Double? { LaunchScreen.frozen }
+    private static var night: Bool { LaunchScreen.night }
 
-    /// Test hooks: `VIGGO_SPLASH_T=2.5` freezes the animation at that second and keeps it on
-    /// screen, `VIGGO_SPLASH_HOUR=22` picks the time of day.
-    static let frozen = ProcessInfo.processInfo.environment["VIGGO_SPLASH_T"].flatMap(Double.init)
-    /// `VIGGO_SPLASH_HOLD=1` keeps it on screen while it animates normally.
-    static let hold = frozen != nil || ProcessInfo.processInfo.environment["VIGGO_SPLASH_HOLD"] != nil
-    static let hour: Double = ProcessInfo.processInfo.environment["VIGGO_SPLASH_HOUR"].flatMap(Double.init) ?? {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
-        return Double(c.hour ?? 12) + Double(c.minute ?? 0) / 60
-    }()
-    static var night: Bool { hour < 7 || hour >= 19 }
-
-    private let steps = ["Henter skema", "Henter lektier", "Henter beskeder", "Næsten klar"]
+    private let steps = LaunchScreen.steps
 
     var body: some View {
         GeometryReader { geo in
