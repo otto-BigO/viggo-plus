@@ -37,6 +37,7 @@ struct RootView: View {
     @EnvironmentObject var state: AppState
     @State private var tab = 0
     @State private var splash = true
+    @State private var guide = false
 
     var body: some View {
         ZStack {
@@ -53,6 +54,8 @@ struct RootView: View {
         .modifier(LoginCardOverlay())
         .animation(.viggo, value: state.needsLogin)
         .task { await leaveSplash() }
+        .sheet(isPresented: $guide, onDismiss: { UserDefaults.standard.set(true, forKey: GuideSheet.seenKey) }) { GuideSheet() }
+        .onChange(of: state.needsLogin) { if !splash { offerGuide() } }
         .sheet(item: $state.shownLesson) { e in
             NavigationStack {
                 LessonDetailView(e: e)
@@ -78,6 +81,14 @@ struct RootView: View {
         if left > 0 { try? await Task.sleep(for: .seconds(left)) }
         Haptic.soft()
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) { splash = false }
+        try? await Task.sleep(for: .milliseconds(700))
+        offerGuide()
+    }
+
+    /// The introduction, once, after the first login.
+    private func offerGuide() {
+        guard !state.needsLogin, GuideSheet.forced || !UserDefaults.standard.bool(forKey: GuideSheet.seenKey) else { return }
+        guide = true
     }
 
     @ViewBuilder private var main: some View {

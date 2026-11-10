@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.10.0 og iPhone-app 1.0.0 (2026-11-10)
+
+- **Ny opstart med Ugle**: Viggo+ har fået sin egen maskot, en ugle med høretelefoner. Mens skemaet hentes, lander den på en pæl i et lo-fi pixel-landskab og nikker i takt, mens noder flyver op. Himlen følger tiden på dagen: solopgang, dag, solnedgang og nat med stjerner, månen, ildfluer og lys i skolens vinduer. Nederst står hvad der hentes, som på en radiostream.
+- **Introduktion**: første gang du er logget ind, viser Ugle hvordan du får widgets, skoledagen på låseskærmen hver morgen og knappen i Kontrolcenter. Den ligger også under Indstillinger > Introduktion.
+- Mac-appen har iPhone-app 1.0.0 med og lægger den på din iPhone ved næste fornyelse.
+
 ## 1.9.0 og iPhone-app 0.9.0 (2026-11-10)
 
 - **Fornyelse over wifi uden kabel**: Viggo+ fornyer iPhone-appen når der er under 3 dage tilbage, så snart iPhonen er på samme wifi som Mac'en (eller sat til med kabel). Den kigger hvert 20. minut og lige efter Mac'en vågner, og iPhonen må gerne være låst. Indstillinger > iPhone-app viser om iPhonen er forbundet over wifi eller kabel, hvornår den sidst blev fornyet, og hvornår næste fornyelse sker.

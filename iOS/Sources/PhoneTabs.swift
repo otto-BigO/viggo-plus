@@ -194,6 +194,7 @@ struct FriendDayScreen: View {
 struct SettingsScreen: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
+    @State private var showGuide = false
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
@@ -249,6 +250,8 @@ struct SettingsScreen: View {
                     Text("Timen der er i gang og nedtællingen står på låseskærmen og i Dynamic Island, fra en halv time før første time til sidste time slutter. Den starter når du åbner Viggo+. Vil du have den uden at åbne appen, så lav en automatisering i Genveje (fx kl. 7.45 på hverdage) med \"Vis skoledagen\" fra Viggo+, eller læg knappen \"Vis skoledagen\" i Kontrolcenter.")
                 }
                 Section {
+                    Button { showGuide = true } label: { row("Introduktion", "questionmark.circle.fill", .gray) }
+                        .foregroundStyle(.primary)
                     Button { state.openViggo() } label: { row("Åbn Viggo", "safari.fill", .indigo) }
                         .foregroundStyle(.primary)
                 } footer: {
@@ -256,6 +259,7 @@ struct SettingsScreen: View {
                 }
             }
             .navigationTitle("Indstillinger")
+            .sheet(isPresented: $showGuide) { GuideSheet() }
         }
     }
 }
