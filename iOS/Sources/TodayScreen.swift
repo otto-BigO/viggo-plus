@@ -211,6 +211,7 @@ struct TodayScreen: View {
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { SearchButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button { state.openViggo() } label: { Label("Åbn Viggo", systemImage: "safari") }

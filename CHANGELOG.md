@@ -1,5 +1,13 @@
 # Ændringer
 
+## 1.13.0 og iPhone-app 1.3.0 (2026-11-13)
+
+- **Søg i alt**: tryk på forstørrelsesglasset under I dag eller Beskeder. Du kan søge efter navne, klasser (10.4), værelser (D17), huse, linjer, valgfag, initialer og elevnumre. Beskeder søges i hele teksten, også dem der ikke er hentet endnu, uden at de bliver markeret som læst. Skema, lektier og opslag kommer også med. Skriv "fødselsdag" for at se de næste fødselsdage.
+- **Personsider med mere end Viggo viser**: klasse, linje, hus og værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og hvor mange dage der er til den næste, mobil, email og adresse med kort. Under det står hvad I har til fælles, de næste timer med en lærer, alle grupper og beskeder med personen. Herfra kan du skrive, ringe eller sende SMS.
+- **Gruppesider**: alle i en klasse, linje, hold eller kontaktgruppe, delt i elever, ansatte og forældre, med søgning og en knap til at skrive til hele gruppen.
+- Tryk på navnet øverst i en besked-tråd for at åbne personens side.
+- Forhåndsvisningen af beskeder viser ikke længere "&nbsp;".
+
 ## 1.12.0 og iPhone-app 1.2.0 (2026-11-10)
 
 - **Vælg din opstart**: under Indstillinger > Opstart kan du slå de opstarts-animationer til, du vil have. Er flere slået til, får du en tilfældig af dem hver gang Viggo+ starter. Hver har en afspil-knap, så du kan se den med det samme, og der er en knap til at afspille en tilfældig.

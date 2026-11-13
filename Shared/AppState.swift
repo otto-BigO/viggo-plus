@@ -38,6 +38,8 @@ final class AppState: ObservableObject {
     @Published var meals: [Date: MealDay] = [:]
     #if os(iOS)
     @Published var shownLesson: ViggoEvent?
+    /// The Søg screen on the iPhone, opened from the magnifier on I dag and Beskeder.
+    @Published var showSearch = ProcessInfo.processInfo.environment["VIGGO_SEARCH"] != nil
     #endif
     #if os(macOS)
     private var weekWindow: NSWindow?
@@ -131,6 +133,26 @@ final class AppState: ObservableObject {
                         for m in d.messages { print("[besked] \(m.authorID) \(m.author) | \(m.date) | links=\(m.links.count)\n\(m.text)\n---") }
                     }
                     if let dir = try? await c.fetchDirectory() { print("[folk] \(dir.people.count) personer, \(dir.groups.count) grupper; fx \(dir.people.first.map { "\($0.name) [\($0.info)]" } ?? "-")") }
+                }
+                // --people "d17" searches the address book like the Søg screen, VIGGO_FIND="text" also searches the inbox.
+                if let i = CommandLine.arguments.firstIndex(of: "--people"), i + 1 < CommandLine.arguments.count {
+                    let dir = Directory.shared
+                    await dir.load(force: true)
+                    let q = CommandLine.arguments[i + 1]
+                    print("[folk] \(dir.members.count) personer, \(dir.groups.count) grupper, \(dir.relations.count) relationer")
+                    for m in dir.search(q).prefix(10) { print("[person] \(m.id) \(m.name) | \(dir.summary(m)) | \(m.age.map { "\($0) år" } ?? "-")") }
+                    for g in dir.searchGroups(q).prefix(6) { print("[gruppe] \(g.kind.title): \(g.display) (\(g.members.count))") }
+                    if let m = dir.search(q).first {
+                        print("[grupper] " + dir.groups(of: m.id).map { "\($0.kind.title): \($0.display)" }.joined(separator: " | "))
+                        print("[bor med] " + dir.roommates(of: m).map(\.name).joined(separator: ", "))
+                        print("[familie] " + dir.family(of: m.id).map { "\($0.0): \($0.1.name)" }.joined(separator: ", "))
+                        print("[kontaktlærer] " + dir.contactTeachers(of: m.id).map(\.name).joined(separator: ", "))
+                        print("[kontaktelever] \(dir.contactStudents(of: m.id).count), børn: " + dir.children(of: m.id).map(\.name).joined(separator: ", "))
+                        if let d = await dir.details(m.id) { print("[profil] \(d.address.joined(separator: ", ")) | " + d.fields.map { "\($0.0)=\($0.1)" }.joined(separator: " | ")) }
+                    }
+                    if let f = ProcessInfo.processInfo.environment["VIGGO_FIND"], let ts = try? await client.searchThreads(f) {
+                        for t in ts.prefix(10) { print("[fundet] \(t.id) \(t.sender) | \(t.when) | \(t.subject)") }
+                    }
                 }
                 if CommandLine.arguments.contains("--meals") {
                     for (d, m) in meals.sorted(by: { $0.key < $1.key }) { print("[mad] \(DateUtil.day(d)): \(m.lunch) | aften: \(m.dinner ?? "-")") }

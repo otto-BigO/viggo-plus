@@ -96,7 +96,7 @@ extension Parser {
             let who = c.firstMatch("<div><div>(.*?)</div><small>(.*?)</small></div>")
             let subject = c.firstMatch("<div class=\"h\"[^>]*>(.*?)</div>")?[1].strippedHTML ?? ""
             // Viggo glues the paragraphs together in the preview ("15.15Sunday"), so put a space back.
-            let preview = (c.firstMatch("<div class=\"h\"[^>]*>.*?</div>\\s*<div>(.*?)</div>")?[1].strippedHTML ?? "")
+            let preview = (c.firstMatch("<div class=\"h\"[^>]*>.*?</div>\\s*<div>(.*?)</div>")?[1].strippedHTML.htmlDecoded ?? "")
                 .replacingOccurrences(of: "([0-9.!?:)]|[a-zæøå]{2})([A-ZÆØÅ])", with: "$1 $2", options: .regularExpression)
             let img = c.firstMatch("<div class=\"imgs[^\"]*\">\\s*<div><img src=\"([^\"]+)\"")?[1].htmlDecoded
             let others = c.firstMatch("<label>\\+(\\d+)</label>").flatMap { Int($0[1]) } ?? 0

@@ -35,7 +35,7 @@ struct ViggoPlusPhoneApp: App {
 
 struct RootView: View {
     @EnvironmentObject var state: AppState
-    @State private var tab = 0
+    @State private var tab = ProcessInfo.processInfo.environment["VIGGO_TAB"].flatMap(Int.init) ?? 0
     @State private var splash = true
     @State private var guide = false
     @State private var intro = Intro.pick()
@@ -57,6 +57,7 @@ struct RootView: View {
         .task { await leaveSplash() }
         .sheet(isPresented: $guide, onDismiss: { UserDefaults.standard.set(true, forKey: GuideSheet.seenKey) }) { GuideSheet() }
         .onChange(of: state.needsLogin) { if !splash { offerGuide() } }
+        .sheet(isPresented: Binding(get: { state.showSearch && !splash }, set: { state.showSearch = $0 })) { SearchScreen() }
         .sheet(item: $state.shownLesson) { e in
             NavigationStack {
                 LessonDetailView(e: e)

@@ -141,6 +141,7 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 - **I dag**: et stort Nu-kort med nedtælling, tal for dagen, dagens skema, mad, i morgen, lektier, beskeder og hvornår du har fri sammen med dine venner. Træk ned for at synke.
 - **Uge**: én dag ad gangen, med ugens dage øverst. Swipe sideværts for at skifte dag.
 - **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper.
+- **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo.
 - **Venner**: hvad dine venner har lige nu, og deres dag.
 - **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
 - **Widget** til hjemmeskærmen (lille, mellem og stor med hele dagen og lektier) og låseskærmen, med det du har nu og hvad der kommer bagefter.

@@ -211,7 +211,7 @@ enum Parser {
             guard let idS = c.firstMatch("^(\\d+)")?[1], let id = Int(idS) else { return nil }
             let who = c.firstMatch("<div><div>(.*?)</div><small>(.*?)</small></div>")
             let subject = c.firstMatch("<div class=\"h\"[^>]*>(.*?)</div>")?[1].strippedHTML ?? ""
-            let preview = c.firstMatch("<div class=\"h\"[^>]*>.*?</div>\\s*<div>(.*?)</div>")?[1].strippedHTML ?? ""
+            let preview = c.firstMatch("<div class=\"h\"[^>]*>.*?</div>\\s*<div>(.*?)</div>")?[1].strippedHTML.htmlDecoded ?? ""
             return ViggoMessage(id: id, sender: who?[1].strippedHTML ?? "", when: who?[2].strippedHTML ?? "",
                                 subject: subject, preview: preview)
         }

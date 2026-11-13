@@ -48,9 +48,11 @@ struct MessagesScreen: View {
             }
             .navigationTitle("Beskeder")
             .navigationDestination(for: Int.self) { ThreadScreen(id: $0) }
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
             .searchable(text: $search, prompt: "Søg")
             .refreshable { await inbox.load(); Haptic.soft() }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) { SearchButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { Haptic.tap(); composing = true } label: { Image(systemName: "square.and.pencil") }
                         .accessibilityLabel("Ny besked")
@@ -244,11 +246,16 @@ struct ThreadScreen: View {
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
-                    Avatar(url: other?.image, size: 28, name: other?.author)
-                    Text(group ? "\(firstSender) +\((detail?.to.count ?? 1) - 1)" : (other?.author ?? ""))
-                        .font(.caption2.weight(.semibold)).lineLimit(1)
+                // Tap the sender to see who they are.
+                NavigationLink(value: Found.person(other?.authorID ?? 0)) {
+                    VStack(spacing: 2) {
+                        Avatar(url: other?.image, size: 28, name: other?.author)
+                        Text(group ? "\(firstSender) +\((detail?.to.count ?? 1) - 1)" : (other?.author ?? ""))
+                            .font(.caption2.weight(.semibold)).lineLimit(1)
+                    }
                 }
+                .buttonStyle(.plain)
+                .disabled(other == nil)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { Haptic.firm(); withAnimation(.viggo) { inbox.togglePin(id) } } label: {
@@ -401,13 +408,15 @@ private struct Bubble: View {
 struct ComposeScreen: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var inbox = Inbox.shared
-    @State private var to: [Person] = []
+    @State private var to: [Person]
     @State private var query = ""
     @State private var subject = ""
     @State private var text = ""
     @State private var sending = false
     @State private var sendError: String?
     @FocusState private var searching: Bool
+
+    init(to: [Person] = []) { _to = State(initialValue: to) }
 
     private var matches: [Person] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
