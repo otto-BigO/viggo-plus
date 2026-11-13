@@ -55,10 +55,10 @@ struct RootView: View {
             }
         }
         .modifier(LoginCardOverlay())
-        .overlay(alignment: .bottomTrailing) {
-            // Logins the app runs by itself show here, small and in the corner above the tabs,
+        .overlay(alignment: .bottom) {
+            // Logins the app runs by itself show here, small and centred just above the tabs,
             // instead of the sign-in card.
-            QuietLoginBadges().padding(.trailing, 14).padding(.bottom, 66)
+            QuietLoginBadges(centered: true).padding(.horizontal, 16).padding(.bottom, 58)
         }
         .animation(.viggo, value: state.needsLogin)
         .task { await leaveSplash() }

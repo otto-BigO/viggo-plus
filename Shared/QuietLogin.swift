@@ -81,17 +81,20 @@ struct QuietLoginAvatar: View {
 struct QuietLoginBadges: View {
     @EnvironmentObject var state: AppState
     var compact = false
+    /// The iPhone shows them in the middle above the tabs, the Mac in a corner.
+    var centered = false
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 6) {
+        VStack(alignment: centered ? .center : .trailing, spacing: 6) {
             ForEach(state.quietLogins) { q in
                 pill(q)
                     .contentShape(Capsule())
                     .onTapGesture { if q.failed { state.openQuietLogin(q) } }
-                    .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity).combined(with: .scale(scale: 0.8)),
+                    .transition(.asymmetric(insertion: .move(edge: centered ? .bottom : .top).combined(with: .opacity).combined(with: .scale(scale: 0.8)),
                                             removal: .opacity.combined(with: .scale(scale: 0.9))))
             }
         }
+        .frame(maxWidth: centered ? .infinity : nil)
         .animation(.spring(response: 0.45, dampingFraction: 0.8), value: state.quietLogins)
     }
 

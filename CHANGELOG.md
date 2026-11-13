@@ -1,5 +1,9 @@
 # Ændringer
 
+## 1.21.1 og iPhone-app 1.10.1 (2026-11-13)
+
+- På iPhonen står login i baggrunden nu i midten nederst, lige over Beskeder, i stedet for i hjørnet hvor det blev skåret af ved kanten af skærmen.
+
 ## 1.21.0 og iPhone-app 1.10.0 (2026-11-13)
 
 - **Virker uden internet**: skema, lektier, deadlines, opslag, madplan, vennernes skema og Beskeder bliver gemt, så du kan se det hele uden net. Tråde du har åbnet (og dem appen har hentet på forhånd) kan læses i fuld længde offline.
