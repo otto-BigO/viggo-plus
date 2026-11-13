@@ -35,6 +35,9 @@ enum DocRenderer {
                      sourceTitle: "OSO", from: "Heidi Lærer", snippet: "Deadline for jobopslaget er på tirsdag", found: Date()),
         ])
         snap(MenuView().environmentObject(state), name: "panel-deadlines", dir: dir, panel: true)
+        state.offline = true
+        snap(MenuView().environmentObject(state), name: "panel-offline", dir: dir, panel: true)
+        state.offline = false
         Deadlines.shared.showDemo([])
         if let fysik = state.events.first(where: { $0.id == 4 }) {
             snap(LessonDetailView(e: fysik), name: "lesson", dir: dir)

@@ -8,7 +8,7 @@ import UIKit
 
 // MARK: - Bulletin board (opslagstavle)
 
-struct Bulletin: Identifiable, Hashable {
+struct Bulletin: Identifiable, Hashable, Codable {
     let board: String
     let author: String
     let when: String
@@ -21,8 +21,9 @@ struct Bulletin: Identifiable, Hashable {
     var images: [URL] = []
     /// Links in the text, shown as buttons.
     var links: [URL] = []
-    /// The post's colour on Viggo.
-    var color: Color? = nil
+    /// The post's colour on Viggo, "#ff8800".
+    var colorHex: String? = nil
+    var color: Color? { colorHex.flatMap { Color(hex: $0) } }
     /// Viggo gives posts no id, so author + title + start of the text identifies one.
     var id: String { "\(board)|\(author)|\(title)|\(text.prefix(120))" }
 }
@@ -51,7 +52,7 @@ extension Parser {
         }
         b.images = images
         b.links = content.matches("href=\"(https?://[^\"]+)\"").compactMap { URL(string: $0[1].htmlDecoded) }
-        if let hex = c.firstMatch("background-color: (#[0-9a-fA-F]{6})")?[1] { b.color = Color(hex: hex) }
+        if let hex = c.firstMatch("background-color: (#[0-9a-fA-F]{6})")?[1] { b.colorHex = hex }
         return b
     }
 }

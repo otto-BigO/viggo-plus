@@ -20,6 +20,9 @@ struct MessagesScreen: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
+                if state.offline {
+                    OfflineBanner().listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                }
                 if let e = inbox.error {
                     Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }

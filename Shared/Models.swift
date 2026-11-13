@@ -109,10 +109,11 @@ struct ViggoMessage: Codable, Hashable, Identifiable {
 }
 
 enum ViggoError: LocalizedError {
-    case notLoggedIn, unexpected(String)
+    case notLoggedIn, offline, unexpected(String)
     var errorDescription: String? {
         switch self {
         case .notLoggedIn: return "Ikke logget ind på Viggo"
+        case .offline: return "Du er offline. Prøv igen når du har internet."
         case .unexpected(let s): return "Fejl: \(s)"
         }
     }

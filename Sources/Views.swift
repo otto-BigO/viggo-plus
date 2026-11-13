@@ -71,6 +71,7 @@ struct MenuView: View {
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
+            OfflineBanner(compact: true)
             if !state.status.isEmpty {
                 Text(state.status).font(Sz.f(11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
@@ -108,8 +109,8 @@ struct MenuView: View {
             }
 
             HStack(spacing: 14) {
-                if let s = state.lastSync {
-                    Text("Synket \(DateUtil.hm(s))").font(.system(size: 10)).foregroundStyle(.tertiary)
+                if let s = state.syncedText {
+                    Text(s).font(.system(size: 10)).foregroundStyle(.tertiary)
                         .contentTransition(.numericText())
                 }
                 Spacer()

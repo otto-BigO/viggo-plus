@@ -13,6 +13,8 @@ final class ViggoClient {
         c.httpCookieAcceptPolicy = .always
         c.timeoutIntervalForRequest = 30
         c.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 ViggoPlus/0.1"]
+        // For checking offline mode: VIGGO_OFFLINE=1 fails every request as if there were no internet.
+        if ProcessInfo.processInfo.environment["VIGGO_OFFLINE"] != nil { c.protocolClasses = [NoNetwork.self] }
         session = URLSession(configuration: c)
     }
 
@@ -124,4 +126,12 @@ final class ViggoClient {
         let data = try await get("/Basic/Message/Folder/13?ajax=1")
         return Parser.messages(String(decoding: data, as: UTF8.self))
     }
+}
+
+/// Fails every request with "not connected", for testing offline mode.
+final class NoNetwork: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet)) }
+    override func stopLoading() {}
 }

@@ -52,6 +52,7 @@ struct TodayScreen: View {
                         .padding(.top, -8)
 
                     if state.needsLogin { loggedOut }
+                    OfflineBanner()
                     UpdateCard()
                     if !state.status.isEmpty {
                         Label(state.status, systemImage: "exclamationmark.triangle.fill")
@@ -229,8 +230,8 @@ struct TodayScreen: View {
                         }
                     }
 
-                    if let s = state.lastSync {
-                        Text("Synket kl. \(DateUtil.hm(s))").font(.footnote).foregroundStyle(.tertiary)
+                    if let s = state.syncedText {
+                        Text(s).font(.footnote).foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity)
                     }
                 }

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import Network
 import EventKit
 import WebKit
 #if os(macOS)
@@ -28,6 +29,10 @@ final class AppState: ObservableObject {
     @Published var homework: [Homework] = []
     @Published var messages: [ViggoMessage] = []
     @Published var lastSync: Date?
+    /// No internet (or Viggo can't be reached). Everything shown is from the last sync, and the
+    /// app syncs again by itself as soon as the network is back.
+    @Published var offline = false
+    private let pathMonitor = NWPathMonitor()
     @Published var syncing = false
     /// Finished sync attempts (success or not), so the iPhone launch screen knows when to step aside.
     @Published private(set) var syncAttempts = 0
@@ -404,9 +409,14 @@ final class AppState: ObservableObject {
     // MARK: lifecycle
 
     /// The last schedule, homework and messages, so the app shows them at once and syncs meanwhile.
+    /// Everything needed to use the app without internet. The newer fields are optional so an
+    /// older cache still loads.
     private struct Cache: Codable {
         var events: [ViggoEvent]; var homework: [Homework]; var messages: [ViggoMessage]
         var profile: Profile?; var friendEvents: [UUID: [ViggoEvent]]
+        var friendHomework: [UUID: [Homework]]?
+        var bulletins: [Bulletin]?; var meals: [Date: MealDay]?
+        var lastSync: Date?; var unread: Int?; var questionnaires: Int?
     }
     private var cacheURL: URL { CookieJar.dir.appendingPathComponent("cache.json") }
 
@@ -417,10 +427,18 @@ final class AppState: ObservableObject {
         messages = c.messages
         if profile == nil { profile = c.profile }
         for (k, v) in c.friendEvents where friendEvents[k] == nil { friendEvents[k] = v }
+        for (k, v) in c.friendHomework ?? [:] where friendHomework[k] == nil { friendHomework[k] = v }
+        bulletins = c.bulletins ?? []
+        meals = c.meals ?? [:]
+        lastSync = c.lastSync
+        unreadCount = c.unread ?? 0
+        questionnaireCount = c.questionnaires ?? 0
     }
 
     private func saveCache() {
-        let c = Cache(events: events, homework: homework, messages: messages, profile: profile, friendEvents: friendEvents)
+        let c = Cache(events: events, homework: homework, messages: messages, profile: profile, friendEvents: friendEvents,
+                      friendHomework: friendHomework, bulletins: bulletins, meals: meals,
+                      lastSync: lastSync, unread: unreadCount, questionnaires: questionnaireCount)
         try? JSONEncoder().encode(c).write(to: cacheURL, options: .atomic)
     }
 
@@ -430,6 +448,7 @@ final class AppState: ObservableObject {
         CookieJar.restore()
         loadFriends()
         loadCache()
+        watchNetwork()
         #if os(iOS)
         importTransfer()          // a login sent from the Mac app, if there is one
         #endif
@@ -727,13 +746,46 @@ final class AppState: ObservableObject {
             scheduleRefresh()
             #endif
             CookieJar.save()
+            offline = false
             if !status.hasPrefix("Kalender") { status = "" }
         } catch ViggoError.notLoggedIn {
             // Try the saved SkoleIT login first. Otherwise the log-in banner in the panel says so.
             if await tryAutoLogin() { syncing = false; await sync() } else { sessionExpired() }
+        } catch where Self.isOffline(error) {
+            // Keep showing the last sync; the offline banner says so instead of a raw error.
+            offline = true
+            if !status.hasPrefix("Kalender") { status = "" }
         } catch {
             status = error.localizedDescription
         }
+    }
+
+    // MARK: offline
+
+    /// Errors that mean "no connection", not "Viggo said no".
+    nonisolated static func isOffline(_ error: Error) -> Bool {
+        guard let u = error as? URLError else { return false }
+        return [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost,
+                .dataNotAllowed, .internationalRoamingOff, .dnsLookupFailed, .secureConnectionFailed].contains(u.code)
+    }
+
+    /// Syncs the moment the network comes back, and marks offline at once when it goes.
+    private func watchNetwork() {
+        pathMonitor.pathUpdateHandler = { path in
+            Task { @MainActor in
+                let up = path.status == .satisfied
+                if !up { self.offline = true }
+                else if self.offline { await self.sync() }
+            }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "viggo.network"))
+    }
+
+    /// "Synket kl. 14.02", "Synket i går kl. 14.02", "Synket 12. nov kl. 14.02".
+    var syncedText: String? {
+        guard let s = lastSync else { return nil }
+        let day = DateUtil.cal.isDateInToday(s) ? "" : DateUtil.cal.isDateInYesterday(s) ? "i går " : "\(DateUtil.day(s)) "
+        return "Synket \(day)kl. \(DateUtil.hm(s))"
     }
 
     // MARK: the rest of the school year

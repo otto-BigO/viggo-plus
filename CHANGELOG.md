@@ -1,5 +1,14 @@
 # Ændringer
 
+## 1.21.0 og iPhone-app 1.10.0 (2026-11-13)
+
+- **Virker uden internet**: skema, lektier, deadlines, opslag, madplan, vennernes skema og Beskeder bliver gemt, så du kan se det hele uden net. Tråde du har åbnet (og dem appen har hentet på forhånd) kan læses i fuld længde offline.
+- Når du er offline, står der "Offline: viser det gemte. Synket i går kl. 14.02" øverst på I dag, i Uge, i Beskeder og i panelet på Mac'en, med en Prøv igen-knap. Før stod der en fejl på engelsk.
+- Så snart nettet er tilbage, opdaterer appen af sig selv, og meldingen forsvinder.
+- Sender du en besked uden net, får du at vide at du er offline, i stedet for en engelsk fejl.
+- iPhone-appen starter hurtigere, fordi den viser det gemte med det samme i stedet for at vente på Viggo.
+- "Synket" siger nu også dagen, hvis det ikke var i dag (fx "Synket i går kl. 22.10").
+
 ## 1.20.1 og iPhone-app 1.9.1 (2026-11-13)
 
 - **Billeder i beskeder vises**: et billede du sendte (eller fik) stod som "• Billede 1.jpg" i tråden, selvom det var kommet frem på Viggo. Nu vises selve billedet i tråden med runde hjørner, og du kan trykke på det for at se det i fuld skærm. Andre filer (fx PDF) står som en knap, der åbner filen. Også på Mac'en.

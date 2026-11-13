@@ -17,7 +17,7 @@ extension String {
     }
 }
 
-struct MessageThread: Identifiable, Hashable {
+struct MessageThread: Identifiable, Hashable, Codable {
     let id: Int
     let sender: String
     let when: String
@@ -30,7 +30,7 @@ struct MessageThread: Identifiable, Hashable {
 }
 
 /// One message in a thread.
-struct ThreadMessage: Identifiable, Hashable {
+struct ThreadMessage: Identifiable, Hashable, Codable {
     let id: Int
     let authorID: Int
     let author: String
@@ -49,7 +49,7 @@ struct ThreadMessage: Identifiable, Hashable {
 }
 
 /// A picture or file attached to a message on Viggo. Both need your Viggo session to download.
-struct MessageFile: Identifiable, Hashable {
+struct MessageFile: Identifiable, Hashable, Codable {
     let id: Int
     let name: String
     let mime: String
@@ -70,13 +70,13 @@ struct Attachment: Identifiable, Hashable {
     var isImage: Bool { mime.hasPrefix("image/") }
 }
 
-struct Reader: Hashable {
+struct Reader: Hashable, Codable {
     let name: String
     let date: String
     let image: URL?
 }
 
-struct ThreadDetail: Hashable {
+struct ThreadDetail: Hashable, Codable {
     let id: Int
     let subject: String
     let from: [String]
@@ -381,17 +381,46 @@ final class Inbox: ObservableObject {
     /// Threads opened or fetched ahead, so they open at once and the list can show "Set".
     @Published private(set) var details: [Int: ThreadDetail] = [:]
 
+    // The inbox and the threads you have opened are kept on disk, so Beskeder works offline.
+    private struct Stored: Codable { var threads: [MessageThread]; var details: [Int: ThreadDetail] }
+    private var storeURL: URL { CookieJar.dir.appendingPathComponent("inbox.json") }
+
+    init() {
+        if let data = try? Data(contentsOf: storeURL), let s = try? JSONDecoder().decode(Stored.self, from: data) {
+            threads = s.threads; details = s.details
+        }
+    }
+
+    private var saveTask: Task<Void, Never>?
+    /// Written a moment later, so fetching twelve threads ahead writes the file once.
+    private func save() {
+        saveTask?.cancel()
+        saveTask = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            // The newest 60 threads are plenty offline.
+            let keep = Set(threads.prefix(60).map(\.id))
+            let s = Stored(threads: threads, details: details.filter { keep.contains($0.key) })
+            if let data = try? JSONEncoder().encode(s) { try? data.write(to: storeURL, options: .atomic) }
+        }
+    }
+
     func load() async {
         loading = true
         defer { loading = false }
         do {
             threads = try await client.fetchThreads()
+            save()
             error = nil
             AppState.shared.unreadCount = threads.filter(\.unread).count
             Deadlines.shared.scanAll()
             Task { await prefetch() }
         } catch ViggoError.notLoggedIn {
             error = "Du er logget ud af Viggo."
+        } catch where AppState.isOffline(error) {
+            // The saved inbox stays; the offline banner explains why it is not new.
+            AppState.shared.offline = true
+            self.error = threads.isEmpty ? "Du er offline, og der er ingen gemte beskeder endnu." : nil
         } catch {
             self.error = "Kunne ikke hente beskeder."
         }
@@ -411,6 +440,7 @@ final class Inbox: ObservableObject {
         details[d.id] = d
         Receipts.track(d, notify: false)
         Deadlines.shared.scan(d)
+        save()
     }
 
     /// Fetches the newest threads ahead of time. Only ones you have read already: opening an
@@ -443,12 +473,14 @@ final class Inbox: ObservableObject {
     }
 
     func reply(_ id: Int, kind: ReplyKind, text: String, files: [Attachment] = []) async throws {
-        try await client.reply(to: id, kind: kind, text: text, files: files)
+        do { try await client.reply(to: id, kind: kind, text: text, files: files) }
+        catch where AppState.isOffline(error) { throw ViggoError.offline }
         await load()
     }
 
     func send(to: [Int], subject: String, text: String, files: [Attachment] = []) async throws {
-        try await client.newMessage(to: to, subject: subject, text: text, files: files)
+        do { try await client.newMessage(to: to, subject: subject, text: text, files: files) }
+        catch where AppState.isOffline(error) { throw ViggoError.offline }
         await load()
     }
 

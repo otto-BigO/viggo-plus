@@ -45,6 +45,7 @@ struct WeekBrowser<Header: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            OfflineBanner().padding(.horizontal, 12).padding(.bottom, 6)
             strip.padding(.horizontal, 12).padding(.bottom, 6)
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {

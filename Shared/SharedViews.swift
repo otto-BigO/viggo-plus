@@ -698,3 +698,36 @@ struct NotificationsTab: View {
         #endif
     }
 }
+
+
+/// "Offline: viser data fra i går kl. 14.02". Shown while there is no connection; it goes away by
+/// itself when the next sync works.
+struct OfflineBanner: View {
+    @EnvironmentObject var state: AppState
+    var compact = false
+
+    var body: some View {
+        if state.offline {
+            HStack(spacing: compact ? 7 : 10) {
+                Image(systemName: "wifi.slash")
+                    .font(compact ? .system(size: 12, weight: .semibold) : .subheadline.weight(.semibold))
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Offline").font(compact ? .system(size: 12, weight: .semibold) : .subheadline.weight(.semibold))
+                    Text(state.syncedText.map { "Viser det gemte. \($0)." } ?? "Intet gemt endnu.")
+                        .font(compact ? .system(size: 10) : .caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                if state.syncing { ProgressView().controlSize(.small) }
+                else {
+                    Button("Prøv igen") { Task { await state.sync() } }
+                        .font(compact ? .system(size: 11, weight: .medium) : .caption.weight(.semibold))
+                        .buttonStyle(.bordered).controlSize(.small)
+                }
+            }
+            .padding(.horizontal, compact ? 9 : 12).padding(.vertical, compact ? 6 : 9)
+            .background(RoundedRectangle(cornerRadius: compact ? 10 : 14, style: .continuous).fill(Color.orange.opacity(0.1)))
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+}
