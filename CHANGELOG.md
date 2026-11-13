@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.14.0 og iPhone-app 1.4.0 (2026-11-13)
+
+- **iPhone-appen opdaterer sig selv**: når Viggo+ på Mac'en har en nyere iPhone-app, lægger den den på iPhonen med det samme, så snart iPhonen er på samme wifi eller sat til med kabel. Den venter ikke længere på den næste fornyelse, og den kigger hvert 5. minut så længe en ny version venter. Du får en besked når den er lagt på.
+- **Mac'en opdaterer sig selv**: nye versioner installeres af sig selv, når Mac'en ikke har været brugt i 5 minutter, og Viggo+ starter igen bagefter med en besked om hvad der er nyt. Kan slås fra under Indstillinger > Generelt.
+- **Ny version på vej**: iPhone-appen kigger selv efter nye versioner og viser et kort på I dag med hvad der er nyt, og at den kommer på næste gang iPhonen er i nærheden af Mac'en. Efter opdateringen viser kortet hvad der er nyt. Indstillinger > Opdateringer viser din version og den nyeste.
+
 ## 1.13.0 og iPhone-app 1.3.0 (2026-11-13)
 
 - **Søg i alt**: tryk på forstørrelsesglasset under I dag eller Beskeder. Du kan søge efter navne, klasser (10.4), værelser (D17), huse, linjer, valgfag, initialer og elevnumre. Beskeder søges i hele teksten, også dem der ikke er hentet endnu, uden at de bliver markeret som læst. Skema, lektier og opslag kommer også med. Skriv "fødselsdag" for at se de næste fødselsdage.

@@ -251,6 +251,7 @@ struct SettingsScreen: View {
                     Text("Timen der er i gang og nedtællingen står på låseskærmen og i Dynamic Island, fra en halv time før første time til sidste time slutter. Den starter når du åbner Viggo+. Vil du have den uden at åbne appen, så lav en automatisering i Genveje (fx kl. 7.45 på hverdage) med \"Vis skoledagen\" fra Viggo+, eller læg knappen \"Vis skoledagen\" i Kontrolcenter.")
                 }
                 Section {
+                    NavigationLink { UpdateTab().navigationTitle("Opdateringer") } label: { row("Opdateringer", "arrow.down.circle.fill", .blue) }
                     Button { showGuide = true } label: { row("Introduktion", "questionmark.circle.fill", .gray) }
                         .foregroundStyle(.primary)
                     Button { state.openViggo() } label: { row("Åbn Viggo", "safari.fill", .indigo) }

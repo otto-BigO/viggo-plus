@@ -14,6 +14,7 @@ struct ViggoPlusPhoneApp: App {
                     if p == .active, state.importTransfer() {
                         Task { await state.sync(); await state.syncFriends() }
                     } else if p == .active, !state.needsLogin, !state.syncing { Task { await state.sync() } }
+                    if p == .active { Task { await PhoneUpdate.shared.check() } }
                     if p == .background { state.scheduleRefresh() }
                 }
                 .onOpenURL { state.handle($0) }
@@ -21,6 +22,7 @@ struct ViggoPlusPhoneApp: App {
                     // Test hooks: render the widgets and print Siri's answers from the cached schedule.
                     let env = ProcessInfo.processInfo.environment
                     if let dir = env["VIGGO_RENDER_ICONS"] { IconRenderer.run(to: dir) }
+                    await PhoneUpdate.shared.check(force: env["VIGGO_PRETEND_VERSION"] != nil)
                     if env["VIGGO_WIDGET_SHOTS"] != nil || env["VIGGO_SAY"] != nil {
                         try? await Task.sleep(for: .seconds(2))
                         state.pushWidget()

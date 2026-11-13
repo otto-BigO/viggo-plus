@@ -23,7 +23,12 @@ final class Updater: ObservableObject {
     private var lastCheck = Date.distantPast
     private var window: NSWindow?
 
-    var current: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0" }
+    /// VIGGO_PRETEND_VERSION makes this copy think it is older, to test updating from Terminal.
+    var current: String {
+        ProcessInfo.processInfo.environment["VIGGO_PRETEND_VERSION"]
+            ?? Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    }
+    private var idleTask: Task<Void, Never>?
 
     static func isNewer(_ a: String, than b: String) -> Bool {
         let x = a.split(separator: ".").map { Int($0) ?? 0 }, y = b.split(separator: ".").map { Int($0) ?? 0 }
@@ -50,6 +55,7 @@ final class Updater: ObservableObject {
 
     /// Automatic checks run at most every 6 hours and skip a version you said "Senere" to.
     func checkIfDue() {
+        announceIfUpdated()
         guard Prefs.shared.autoUpdate, Date().timeIntervalSince(lastCheck) > 6 * 3600 else { return }
         Task { await check(manual: false) }
     }
@@ -79,10 +85,47 @@ final class Updater: ObservableObject {
             let r = Release(version: version, highlights: Updater.highlights(o["body"] as? String ?? ""), page: page, zip: zipURL)
             available = r
             lastResult = "Version \(version) er klar"
-            if manual || Prefs.shared.dismissedVersion != version { show() }
+            if manual { show() }
+            else if Prefs.shared.autoInstall { installWhenIdle() }
+            else if Prefs.shared.dismissedVersion != version { show() }
         } catch {
             if manual { lastResult = "Kunne ikke tjekke: \(error.localizedDescription)" }
         }
+    }
+
+    /// Seconds since the last key press, click or mouse move. VIGGO_IDLE=1 pretends the Mac is idle.
+    static var idleSeconds: Double {
+        if ProcessInfo.processInfo.environment["VIGGO_IDLE"] == "1" { return 3600 }
+        return CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+    }
+
+    /// Waits until nobody has used the Mac for 5 minutes and no iPhone install is running, then
+    /// installs without asking. Viggo+ restarts on its own afterwards.
+    func installWhenIdle() {
+        guard idleTask == nil else { return }
+        lastResult = "Version \(available?.version ?? "") installeres når Mac'en ikke bruges"
+        idleTask = Task {
+            while !Task.isCancelled {
+                if available != nil, phase == .idle, Updater.idleSeconds >= 300, PhoneInstaller.shared.job == nil {
+                    install()
+                    return
+                }
+                try? await Task.sleep(for: .seconds(30))
+            }
+        }
+    }
+
+    /// After an update: one notification saying what is new.
+    private var announced = false
+    func announceIfUpdated() {
+        guard !announced else { return }
+        announced = true
+        let d = UserDefaults.standard
+        guard let v = d.string(forKey: "updatedTo"), v == current else { return }
+        let notes = d.stringArray(forKey: "updatedNotes") ?? []
+        d.removeObject(forKey: "updatedTo")
+        d.removeObject(forKey: "updatedNotes")
+        Notifier.shared.post("Viggo+ er opdateret til \(v)", notes.isEmpty ? "Se hvad der er nyt under Indstillinger." : notes.joined(separator: ", "))
     }
 
     func show() {
@@ -129,6 +172,8 @@ final class Updater: ObservableObject {
                 try Updater.run("/usr/bin/codesign", ["--verify", "--deep", app.path])
                 try? Updater.run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", app.path])
 
+                UserDefaults.standard.set(r.version, forKey: "updatedTo")
+                UserDefaults.standard.set(r.highlights, forKey: "updatedNotes")
                 // Swap the app once this process has quit, then open the new one.
                 let dest = Bundle.main.bundleURL.path
                 let script = work.appendingPathComponent("swap.sh")

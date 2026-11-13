@@ -76,6 +76,7 @@ extension AppState {
         print("[baggrund] synker")
         CookieJar.restore()
         await sync()
+        await PhoneUpdate.shared.check()
         print("[baggrund] færdig, \(events.count) punkter, synket \(lastSync.map(DateUtil.hm) ?? "-")")
         scheduleRefresh()
     }

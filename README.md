@@ -144,6 +144,7 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 - **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo.
 - **Venner**: hvad dine venner har lige nu, og deres dag.
 - **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
+- **Opdateringer**: Viggo+ på Mac'en opdaterer sig selv og lægger nye versioner af iPhone-appen på telefonen, så snart den er på samme wifi. Appen viser hvad der er nyt.
 - **Widget** til hjemmeskærmen (lille, mellem og stor med hele dagen og lektier) og låseskærmen, med det du har nu og hvad der kommer bagefter.
 - **Lektie-widget**: dine lektier på hjemmeskærmen. Tryk på cirklen for at markere en som færdig, uden at åbne appen.
 - **Siri og Genveje**: "Hvad har jeg nu i Viggo+", "Hvornår har jeg fri i Viggo+", lektier og i morgen. Virker uden at åbne appen.

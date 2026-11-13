@@ -38,6 +38,7 @@ struct TodayScreen: View {
                         .padding(.top, -8)
 
                     if state.needsLogin { loggedOut }
+                    UpdateCard()
                     if !state.status.isEmpty {
                         Label(state.status, systemImage: "exclamationmark.triangle.fill")
                             .font(.subheadline).foregroundStyle(.orange)

@@ -299,6 +299,10 @@ struct GeneralTab: View {
             }
             Section("Opdateringer") {
                 Toggle("Tjek automatisk for nye versioner", isOn: $p.autoUpdate)
+                Toggle("Installer dem selv når Mac'en ikke bruges", isOn: $p.autoInstall)
+                    .disabled(!p.autoUpdate)
+                Text("Viggo+ opdaterer sig selv efter 5 minutter uden brug og lægger derefter den nye iPhone-app på din iPhone, så snart den er på samme wifi eller sat til med kabel.")
+                    .font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Text("Version \(Updater.shared.current)").foregroundStyle(.secondary)
                     Spacer()

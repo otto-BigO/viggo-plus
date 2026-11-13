@@ -75,6 +75,9 @@ import Foundation
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? "?"
     }
 
+    /// The Mac has a newer iPhone app than the one on this phone.
+    func outdated(_ r: Record) -> Bool { bundledVersion != "?" && Updater.isNewer(bundledVersion, than: r.version) }
+
     private func save() {
         if let d = try? JSONEncoder().encode(records) { UserDefaults.standard.set(d, forKey: "phoneInstalls") }
     }
@@ -185,7 +188,8 @@ import Foundation
         guard let developerDir else { error = "Xcode mangler (trin 1)."; return false }
         let pre = prefix(for: team)
         let bundleID = pre + ".viggoplus.ios"
-        job = Job(title: quiet ? "Fornyer Viggo+ på \(d.name)" : "Installerer Viggo+ på \(d.name)",
+        let updating = records[d.id].map(outdated) ?? false
+        job = Job(title: !quiet ? "Installerer Viggo+ på \(d.name)" : updating ? "Opdaterer Viggo+ på \(d.name)" : "Fornyer Viggo+ på \(d.name)",
                   detail: "Gør koden klar", progress: 0.02)
 
         // 1. A private copy of the source, refreshed when Viggo+ itself is updated.
@@ -260,7 +264,7 @@ import Foundation
         }
         job = nil
         startRenewal()
-        Notifier.shared.post(quiet ? "Viggo+ er fornyet på \(d.name)" : "Viggo+ er installeret på \(d.name)",
+        Notifier.shared.post(!quiet ? "Viggo+ er installeret på \(d.name)" : updating ? "Viggo+ \(rec.version) er lagt på \(d.name)" : "Viggo+ er fornyet på \(d.name)",
                              "Virker til \(Self.when(rec.expires))\(d.wired ? "" : ". Klaret over wifi").")
         return true
     }
@@ -394,7 +398,9 @@ import Foundation
             try? await Task.sleep(for: .seconds(90))
             while !Task.isCancelled {
                 await renewIfNeeded()
-                try? await Task.sleep(for: .seconds(20 * 60))
+                // Look more often while a new version is waiting for the phone.
+                let waiting = records.values.contains(where: outdated)
+                try? await Task.sleep(for: .seconds(waiting ? 5 * 60 : 20 * 60))
             }
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -413,13 +419,14 @@ import Foundation
 
     func renewIfNeeded() async {
         guard autoRenew, job == nil else { return }
-        let due = records.filter { forceDue || $0.value.renewFrom < Date() }
+        let due = records.filter { forceDue || $0.value.renewFrom < Date() || outdated($0.value) }
         guard !due.isEmpty else { return }
         await refresh()
         for (udid, rec) in due {
             if let d = devices.first(where: { $0.id == udid && $0.reachable }), await install(d, quiet: true) { continue }
             error = nil
             // Couldn't reach it: one reminder a day once there is less than a day left.
+            if outdated(rec) { print("[phone] \(rec.name) har \(rec.version), venter med \(bundledVersion) til iPhonen kan nås") }
             let left = rec.expires.timeIntervalSinceNow
             if left < 86400, (rec.warned.map { -$0.timeIntervalSinceNow > 20 * 3600 } ?? true) {
                 records[udid]?.warned = Date()
