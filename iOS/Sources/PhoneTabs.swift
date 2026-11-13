@@ -121,7 +121,7 @@ struct FriendsScreen: View {
                     ContentUnavailableView {
                         Label("Ingen venner endnu", systemImage: "person.2")
                     } description: {
-                        Text("Tilføj en ven for at se deres skema, og hvornår I har fri samtidig.")
+                        Text("Tilføj en ven for at se deres skema, og hvornår I har fri samtidig. Vælg dem fra Viggo, så skal de ikke logge ind.")
                     } actions: {
                         NavigationLink("Tilføj ven") { FriendsTab().navigationTitle("Venner") }
                             .buttonStyle(.borderedProminent)

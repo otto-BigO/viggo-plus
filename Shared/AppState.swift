@@ -38,6 +38,8 @@ final class AppState: ObservableObject {
     @Published var meals: [Date: MealDay] = [:]
     #if os(iOS)
     @Published var shownLesson: ViggoEvent?
+    /// A thread to open in Beskeder, e.g. from a notification.
+    @Published var openThread: Int?
     /// The Søg screen on the iPhone, opened from the magnifier on I dag and Beskeder.
     @Published var showSearch = ProcessInfo.processInfo.environment["VIGGO_SEARCH"] != nil
     #endif
@@ -148,11 +150,33 @@ final class AppState: ObservableObject {
                         print("[familie] " + dir.family(of: m.id).map { "\($0.0): \($0.1.name)" }.joined(separator: ", "))
                         print("[kontaktlærer] " + dir.contactTeachers(of: m.id).map(\.name).joined(separator: ", "))
                         print("[kontaktelever] \(dir.contactStudents(of: m.id).count), børn: " + dir.children(of: m.id).map(\.name).joined(separator: ", "))
+                        await Premises.shared.load(force: true)
+                        let at = CommandLine.arguments.firstIndex(of: "--when").flatMap { i in
+                            i + 1 < CommandLine.arguments.count ? ISO8601DateFormatter().date(from: CommandLine.arguments[i + 1]) : nil } ?? Date()
+                        let w = Premises.shared.whereNow(m.id, at: at)
+                        print("[lokaler] \(Premises.shared.bookings.count) bookinger, \(Premises.shared.schedule(for: m.id).count) til \(m.firstName)")
+                        print("[lige nu] \(w.now.map { "\($0.title) i \($0.room) til \(DateUtil.hm($0.end))" } ?? "fri") | næste: \(w.next.map { "\($0.title) \(DateUtil.hm($0.start)) \($0.room)" } ?? "-")")
+                        let bd = dir.circle(of: m.id).compactMap { p in p.nextBirthday.map { (p, $0) } }.sorted { $0.1.days < $1.1.days }.prefix(4)
+                        print("[fødselsdage] " + bd.map { "\($0.0.firstName) om \($0.1.days) d" }.joined(separator: ", "))
                         if let d = await dir.details(m.id) { print("[profil] \(d.address.joined(separator: ", ")) | " + d.fields.map { "\($0.0)=\($0.1)" }.joined(separator: " | ")) }
                     }
                     if let f = ProcessInfo.processInfo.environment["VIGGO_FIND"], let ts = try? await client.searchThreads(f) {
                         for t in ts.prefix(10) { print("[fundet] \(t.id) \(t.sender) | \(t.when) | \(t.subject)") }
                     }
+                }
+                // --receipts: who has seen your last message in the newest read threads. With --forget it
+                // forgets the readers first, so the next check says "X har set din besked" (a local notification).
+                if CommandLine.arguments.contains("--receipts") {
+                    let inbox = Inbox.shared
+                    await inbox.load()
+                    await inbox.prefetch()
+                    for t in inbox.threads.prefix(12) {
+                        if let r = inbox.receipt(t.id) { print("[set] \(t.id) \(t.subject) | \(r.readers.map(\.name)) af \(r.total)") }
+                    }
+                    if CommandLine.arguments.contains("--forget") { Receipts.forgetReaders() }
+                    print("[set] holder øje med \(Receipts.watched())")
+                    await inbox.checkReceipts()
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                 }
                 if CommandLine.arguments.contains("--meals") {
                     for (d, m) in meals.sorted(by: { $0.key < $1.key }) { print("[mad] \(DateUtil.day(d)): \(m.lunch) | aften: \(m.dinner ?? "-")") }
@@ -164,6 +188,11 @@ final class AppState: ObservableObject {
                     for e in events.filter({ $0.kind == .routine }).sorted(by: { $0.start < $1.start }) {
                         print("[rå] \(DateUtil.day(e.start)) \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.rawName)")
                     }
+                }
+                for h in homework where !h.done { print("[lektie] \(DateUtil.day(h.day)) \(h.group) \(h.title)") }
+                for n in 0..<14 {
+                    let d = DateUtil.add(.day, n, Date())
+                    if let r = homeworkReminder(for: d) { print("[påmindelse] \(DateUtil.day(d)) kl. \(prefs.homeworkReminderAt / 60): \(r.0) | \(r.1.replacingOccurrences(of: "\n", with: " / "))") }
                 }
                 print("[menubar] \(menuTitle)")
                 // --at 09:40 prints the menubar text at that time today.
@@ -269,11 +298,33 @@ final class AppState: ObservableObject {
 
     // MARK: lifecycle
 
+    /// The last schedule, homework and messages, so the app shows them at once and syncs meanwhile.
+    private struct Cache: Codable {
+        var events: [ViggoEvent]; var homework: [Homework]; var messages: [ViggoMessage]
+        var profile: Profile?; var friendEvents: [UUID: [ViggoEvent]]
+    }
+    private var cacheURL: URL { CookieJar.dir.appendingPathComponent("cache.json") }
+
+    private func loadCache() {
+        guard events.isEmpty, let c = try? JSONDecoder().decode(Cache.self, from: Data(contentsOf: cacheURL)) else { return }
+        events = c.events
+        homework = c.homework
+        messages = c.messages
+        if profile == nil { profile = c.profile }
+        for (k, v) in c.friendEvents where friendEvents[k] == nil { friendEvents[k] = v }
+    }
+
+    private func saveCache() {
+        let c = Cache(events: events, homework: homework, messages: messages, profile: profile, friendEvents: friendEvents)
+        try? JSONEncoder().encode(c).write(to: cacheURL, options: .atomic)
+    }
+
     func start() async {
         Notifier.shared.setup()
         try? FileManager.default.removeItem(at: CookieJar.dir.appendingPathComponent("login.log"))
         CookieJar.restore()
         loadFriends()
+        loadCache()
         #if os(iOS)
         importTransfer()          // a login sent from the Mac app, if there is one
         #endif
@@ -324,7 +375,7 @@ final class AppState: ObservableObject {
         do { try await client.ping() } catch ViggoError.notLoggedIn {
             if await tryAutoLogin() { await sync() } else { sessionExpired() }
         } catch {}
-        for f in friends where !friendExpired.contains(f.id) {
+        for f in friends where f.needsLogin && !friendExpired.contains(f.id) {
             let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
             do {
                 try await c.ping()
@@ -360,6 +411,13 @@ final class AppState: ObservableObject {
     func handle(_ url: URL) {
         guard url.scheme == "viggoplus" else { Platform.open(url); return }
         if url.host == "login" { loginWithBrowser() }
+        if url.host == "thread", let id = Int(url.lastPathComponent) {
+            #if os(iOS)
+            openThread = id
+            #else
+            openMessages(thread: id)
+            #endif
+        }
         if url.host == "friend", let id = UUID(uuidString: url.lastPathComponent),
            let f = friends.first(where: { $0.id == id }) { addFriend(relogin: f) }
     }
@@ -449,6 +507,7 @@ final class AppState: ObservableObject {
         HTTPCookieStorage.shared.cookies?.forEach { HTTPCookieStorage.shared.deleteCookie($0) }
         events = []; homework = []; messages = []; unreadCount = 0; questionnaireCount = 0
         CookieJar.clear()
+        try? FileManager.default.removeItem(at: cacheURL)
         webLogin.clearCookies()
         profile = nil
         lastSync = nil
@@ -478,6 +537,12 @@ final class AppState: ObservableObject {
             }
             events = ev
             homework = hw
+            // For testing reminders: VIGGO_FAKE_HOMEWORK=1 adds two made-up homework items for tomorrow.
+            if ProcessInfo.processInfo.environment["VIGGO_FAKE_HOMEWORK"] != nil {
+                let t = DateUtil.add(.day, 1, DateUtil.startOfDay(Date()))
+                homework += [Homework(id: -1, title: "Læs kapitel 3", group: "Engelsk", day: t, start: nil, end: nil, notes: "", author: "", done: false),
+                             Homework(id: -2, title: "Opgave 4.1", group: "Matematik", day: t, start: nil, end: nil, notes: "", author: "", done: false)]
+            }
             messages = msg
             if let p = c.profile { profile = p }
             if let n = try? await c.fetchCounts() { unreadCount = n.unread; questionnaireCount = n.questionnaires }
@@ -485,8 +550,16 @@ final class AppState: ObservableObject {
             if let m = try? await c.fetchMealPosts() { meals = MealPlan.parse(m) }
             needsLogin = false
             if prefs.imported { applyCalendar() }
-            Task { await syncFriends() }
+            // The address book and the room overview load behind the scenes after the schedule is shown.
+            Task {
+                await Inbox.shared.checkReceipts()
+                await Directory.shared.load()
+                await Premises.shared.load()
+                await syncFriends()
+                saveCache()
+            }
             detectChanges()
+            saveCache()
             lastSync = Date()
             #if os(iOS)
             pushWidget()
@@ -597,6 +670,22 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Adds someone from the address book. Needs no login: their lessons come from Viggo's room overview.
+    func addFriend(member m: Member) async {
+        guard m.id != profile?.id else { friendMessage = "Det er dig selv 🙂"; return }
+        if friends.contains(where: { $0.viggoID == m.id }) { friendMessage = "\(m.firstName) er allerede din ven"; return }
+        let f = Friend(id: UUID(), viggoID: m.id, name: m.name, image: m.image, noLogin: true)
+        friends.append(f)
+        saveFriends()
+        await Premises.shared.load()
+        friendEvents[f.id] = Premises.shared.schedule(for: m.id)
+        friendHomework[f.id] = []
+        friendMessage = "\(m.firstName) er tilføjet ✓"
+        saveCache()
+    }
+
+    func isFriend(_ viggoID: Int) -> Bool { friends.contains { $0.viggoID == viggoID } }
+
     func removeFriendAutoLogin(_ f: Friend) {
         FriendLogin.remove(f.id)
         friendMessage = "Automatisk login for \(f.firstName) er slået fra"
@@ -614,7 +703,12 @@ final class AppState: ObservableObject {
     }
 
     func syncFriends() async {
-        for f in friends where !friendExpired.contains(f.id) {
+        if friends.contains(where: { !$0.needsLogin }) { await Premises.shared.load() }
+        for f in friends where !f.needsLogin {
+            let list = Premises.shared.schedule(for: f.viggoID)
+            if !list.isEmpty || friendEvents[f.id] == nil { friendEvents[f.id] = list }
+        }
+        for f in friends where f.needsLogin && !friendExpired.contains(f.id) {
             let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
             do {
                 friendEvents[f.id] = try await c.fetchEvents(weeksBack: 0, weeksAhead: 1)
@@ -822,6 +916,9 @@ final class AppState: ObservableObject {
         let newValue = !homework[i].done
         if newValue { Haptic.success() } else { Haptic.tap() }
         homework[i].done = newValue
+        #if os(iOS)
+        scheduleAhead()
+        #endif
         Task {
             do {
                 try await client.setHomework(h.id, done: newValue)
@@ -837,6 +934,29 @@ final class AppState: ObservableObject {
 
     /// Gaps today where neither you nor the friend has a lesson or event (from now until 18:00).
     func freeTogether(with friendEvents: [ViggoEvent], now: Date) -> [(Date, Date)] {
+        freeTogether(withAll: [friendEvents], now: now)
+    }
+
+    /// The friends picked for "Fri sammen", all of them until you choose. Logged-out friends are left out.
+    var freeGroup: [Friend] {
+        let ids = Set(prefs.freeGroup)
+        return friends.filter { (ids.isEmpty || ids.contains($0.id.uuidString)) && !friendExpired.contains($0.id) }
+    }
+
+    func toggleFreeGroup(_ f: Friend) {
+        var ids = prefs.freeGroup.isEmpty ? friends.map(\.id.uuidString) : prefs.freeGroup
+        if let i = ids.firstIndex(of: f.id.uuidString) { ids.remove(at: i) } else { ids.append(f.id.uuidString) }
+        // Keep at least one; an empty list would mean "all".
+        if !ids.isEmpty { prefs.freeGroup = ids }
+    }
+
+    /// When you and the picked friends are all free today.
+    func groupFree(now: Date) -> [(Date, Date)] {
+        freeTogether(withAll: freeGroup.map { friendEvents[$0.id] ?? [] }, now: now)
+    }
+
+    /// Gaps today where you and every one of the friends are free at once.
+    func freeTogether(withAll lists: [[ViggoEvent]], now: Date) -> [(Date, Date)] {
         let dayStart = DateUtil.cal.date(bySettingHour: 8, minute: 0, second: 0, of: now)!
         let dayEnd = DateUtil.cal.date(bySettingHour: 18, minute: 0, second: 0, of: now)!
         let from = max(now, dayStart)
@@ -846,7 +966,7 @@ final class AppState: ObservableObject {
                 && DateUtil.cal.isDate($0.start, inSameDayAs: now) && $0.end > from && $0.start < dayEnd }
                 .map { (max($0.start, from), min($0.end, dayEnd)) }
         }
-        let all = (busy(events, mine: true) + busy(friendEvents, mine: false)).sorted { $0.0 < $1.0 }
+        let all = (busy(events, mine: true) + lists.flatMap { busy($0, mine: false) }).sorted { $0.0 < $1.0 }
         var gaps: [(Date, Date)] = []
         var cursor = from
         for (s, e) in all {
@@ -1071,6 +1191,12 @@ final class AppState: ObservableObject {
                 Notifier.shared.post("🎂 Fødselsdag i dag", b.joined(separator: ", "))
             }
         }
+        let minute = hour * 60 + DateUtil.cal.component(.minute, from: now)
+        if prefs.homeworkReminder, minute >= prefs.homeworkReminderAt, snapshot.lastHomeworkReminder != today, lastSync != nil {
+            snapshot.lastHomeworkReminder = today
+            snapshot.save()
+            if let r = homeworkReminder(for: now) { Notifier.shared.post(r.0, r.1) }
+        }
         guard prefs.briefs, !events.isEmpty else { return }
         if hour >= prefs.morningHour, hour < 12, snapshot.lastMorningBrief != today {
             snapshot.lastMorningBrief = today
@@ -1082,6 +1208,17 @@ final class AppState: ObservableObject {
             snapshot.save()
             Notifier.shared.post("I morgen 🌙", brief(for: DateUtil.add(.day, 1, now), prefix: "I morgen"))
         }
+    }
+
+    /// "Du har 2 lektier til i morgen" the evening before, or nil when there are none.
+    func homeworkReminder(for evening: Date) -> (String, String)? {
+        let tomorrow = DateUtil.add(.day, 1, evening)
+        let open = homework.filter { !$0.done && DateUtil.cal.isDate($0.day, inSameDayAs: tomorrow) }
+        guard !open.isEmpty else { return nil }
+        let title = open.count == 1 ? "Du har 1 lektie til i morgen" : "Du har \(open.count) lektier til i morgen"
+        let body = open.prefix(4).map { $0.group.isEmpty ? $0.title : "\($0.group): \($0.title)" }.joined(separator: "\n")
+            + (open.count > 4 ? "\n+ \(open.count - 4) mere" : "")
+        return ("📚 " + title, body)
     }
 
     func brief(for day: Date, prefix: String) -> String {

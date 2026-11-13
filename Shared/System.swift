@@ -148,6 +148,7 @@ struct Snapshot: Codable {
     var initialized = false
     var bulletinIDs: Set<String>? = nil
     var lastBirthdayDay: String? = nil
+    var lastHomeworkReminder: String? = nil
 
     static var url: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -198,6 +199,9 @@ struct Friend: Codable, Identifiable, Equatable {
     var viggoID: Int
     var name: String
     var image: URL?
+    /// Added from the address book: no login, the schedule comes from Viggo's room overview.
+    var noLogin: Bool? = nil
+    var needsLogin: Bool { noLogin != true }
     var keychainAccount: String { "friend-\(id.uuidString)" }
     var firstName: String { name.components(separatedBy: " ").first ?? name }
 }

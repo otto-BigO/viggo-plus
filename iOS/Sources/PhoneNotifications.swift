@@ -32,6 +32,10 @@ extension AppState {
                     list.append((at, "evening-\(key)", "I morgen 🌙", brief(for: DateUtil.add(.day, 1, day), prefix: "I morgen")))
                 }
             }
+            if prefs.homeworkReminder, let r = homeworkReminder(for: day),
+               let at = DateUtil.cal.date(bySettingHour: prefs.homeworkReminderAt / 60, minute: prefs.homeworkReminderAt % 60, second: 0, of: day) {
+                list.append((at, "homework-\(key)", r.0, r.1))
+            }
             if prefs.notifyBirthdays {
                 let names = events.filter { $0.kind == .birthday && DateUtil.cal.isDate($0.start, inSameDayAs: day) }.map(\.birthdayName)
                 if !names.isEmpty, let at = DateUtil.cal.date(bySettingHour: prefs.morningHour, minute: 1, second: 0, of: day) {
@@ -76,6 +80,7 @@ extension AppState {
         print("[baggrund] synker")
         CookieJar.restore()
         await sync()
+        await Inbox.shared.checkReceipts()
         await PhoneUpdate.shared.check()
         print("[baggrund] færdig, \(events.count) punkter, synket \(lastSync.map(DateUtil.hm) ?? "-")")
         scheduleRefresh()

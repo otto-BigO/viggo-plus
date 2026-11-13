@@ -140,19 +140,22 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 
 - **I dag**: et stort Nu-kort med nedtælling, tal for dagen, dagens skema, mad, i morgen, lektier, beskeder og hvornår du har fri sammen med dine venner. Træk ned for at synke.
 - **Uge**: én dag ad gangen, med ugens dage øverst. Swipe sideværts for at skifte dag.
-- **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper. Under din nyeste besked står om den er set, og af hvem.
-- **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo. Tryk på en ven under Venner nu eller på dit eget billede for at åbne en personside.
-- **Venner**: hvad dine venner har lige nu, og deres dag.
+- **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper. Under din nyeste besked står om den er set, og af hvem, og listen viser Set ved trådene. Du får en besked, når nogen har set din besked.
+- **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser hvor personen er lige nu (time og lokale), klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo. Tryk på en ven under Venner nu eller på dit eget billede for at åbne en personside.
+- **Venner**: hvad dine venner har lige nu, og deres dag. Vælg en ven fra Viggo, så skal vennen ikke logge ind: Viggo+ finder timerne i Viggos lokaleoversigt. Fri sammen på I dag viser hvornår du og flere venner alle har fri.
 - **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
 - **Opdateringer**: Viggo+ på Mac'en opdaterer sig selv og lægger nye versioner af iPhone-appen på telefonen, så snart den er på samme wifi. Appen viser hvad der er nyt.
 - **Widget** til hjemmeskærmen (lille, mellem og stor med hele dagen og lektier) og låseskærmen, med det du har nu og hvad der kommer bagefter.
 - **Lektie-widget**: dine lektier på hjemmeskærmen. Tryk på cirklen for at markere en som færdig, uden at åbne appen.
+- **Fødselsdags-widget**: de næste fødselsdage i din klasse og på din linje.
 - **Siri og Genveje**: "Hvad har jeg nu i Viggo+", "Hvornår har jeg fri i Viggo+", lektier og i morgen. Virker uden at åbne appen.
 - **Kontrolcenter**: en knap der viser hvad du har nu og åbner appen.
-- **Notifikationer**: påmindelse før timer, morgen- og aften-brief og fødselsdage, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
+- **Notifikationer**: påmindelse før timer, morgen- og aften-brief, fødselsdage og "Du har 2 lektier til i morgen" om aftenen på det tidspunkt du vælger, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
 - **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island. Kan startes uden at åbne appen med handlingen **Vis skoledagen** i Genveje (fx som automatisering kl. 7.45 på hverdage) eller fra Kontrolcenter.
 - **Opstart**: mens skemaet hentes, tegner app-ikonet sig selv. Cirka hver tiende gang kommer en af de sjældne i stedet: Nordlys, Skema, Terminal eller ASCII-ikon.
 - **Introduktion** første gang du er logget ind: widgets, Vis skoledagen som automatisering og knappen i Kontrolcenter. Den kan åbnes igen under Indstillinger.
+
+<p align="center"><img src="docs/screens/widget-fodselsdage.png" alt="Fødselsdags-widget med eksempler" width="364"></p>
 
 <p align="center"><img src="docs/screens/iphone-guide.png" alt="Introduktionen" width="420"></p>
 

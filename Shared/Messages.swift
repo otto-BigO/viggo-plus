@@ -270,6 +270,9 @@ final class Inbox: ObservableObject {
     var pinnedThreads: [MessageThread] { pinned.compactMap { id in threads.first { $0.id == id } } }
     var otherThreads: [MessageThread] { threads.filter { !pinned.contains($0.id) } }
 
+    /// Threads opened or fetched ahead, so they open at once and the list can show "Set".
+    @Published private(set) var details: [Int: ThreadDetail] = [:]
+
     func load() async {
         loading = true
         defer { loading = false }
@@ -277,6 +280,7 @@ final class Inbox: ObservableObject {
             threads = try await client.fetchThreads()
             error = nil
             AppState.shared.unreadCount = threads.filter(\.unread).count
+            Task { await prefetch() }
         } catch ViggoError.notLoggedIn {
             error = "Du er logget ud af Viggo."
         } catch {
@@ -290,7 +294,42 @@ final class Inbox: ObservableObject {
             threads[i].unread = false
             AppState.shared.unreadCount = max(0, AppState.shared.unreadCount - 1)
         }
+        keep(d)
         return d
+    }
+
+    private func keep(_ d: ThreadDetail) {
+        details[d.id] = d
+        Receipts.track(d, notify: false)
+    }
+
+    /// Fetches the newest threads ahead of time. Only ones you have read already: opening an
+    /// unread thread on Viggo marks it read, and that must only happen when you open it yourself.
+    private var prefetching = false
+    func prefetch() async {
+        guard !prefetching else { return }
+        prefetching = true
+        defer { prefetching = false }
+        for t in threads.prefix(12) where !t.unread && details[t.id] == nil {
+            guard let d = try? await client.fetchThread(t.id) else { return }
+            keep(d)
+        }
+    }
+
+    struct Receipt: Equatable { let readers: [Reader]; let total: Int }
+
+    /// Who has seen the newest message in a thread, when that message is yours.
+    func receipt(_ id: Int) -> Receipt? { details[id].flatMap(Receipts.receipt) }
+
+    /// Fetches the threads where your last message is not seen by everyone yet, and says who
+    /// has seen it since last time ("Emilie har set din besked"). Run with every sync.
+    func checkReceipts() async {
+        for id in Receipts.watched() {
+            if let t = threads.first(where: { $0.id == id }), t.unread { Receipts.stop(id); continue }
+            guard let d = try? await client.fetchThread(id) else { continue }
+            details[d.id] = d
+            Receipts.track(d, notify: true)
+        }
     }
 
     func reply(_ id: Int, kind: ReplyKind, text: String) async throws {
@@ -310,3 +349,59 @@ final class Inbox: ObservableObject {
     }
 }
 
+
+/// Remembers who has seen your last message in a thread, so a new reader gives one notification.
+@MainActor
+enum Receipts {
+    private struct Watch: Codable { var message: Int; var seen: [String]; var total: Int; var since: Date }
+    private static let key = "readReceipts"
+    private static var all: [String: Watch] {
+        get { UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode([String: Watch].self, from: $0) } ?? [:] }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: key) }
+    }
+
+    static func receipt(_ d: ThreadDetail) -> Inbox.Receipt? {
+        guard let me = AppState.shared.profile, let last = d.messages.last, last.authorID == me.id else { return nil }
+        return Inbox.Receipt(readers: last.readBy.filter { $0.name != me.name },
+                             total: Set(d.to + d.from).subtracting([me.name]).count)
+    }
+
+    /// Threads still worth checking: your last message, not seen by everyone, less than a week old.
+    static func watched() -> [Int] {
+        all.filter { $0.value.total > 0 && $0.value.seen.count < $0.value.total && -$0.value.since.timeIntervalSinceNow < 7 * 86400 }
+            .sorted { $0.value.since > $1.value.since }.prefix(8).compactMap { Int($0.key) }
+    }
+
+    static func stop(_ id: Int) { all[String(id)] = nil }
+
+    /// For testing: forget who has seen each message, so the next check tells about them again.
+    static func forgetReaders() {
+        var list = all
+        for k in list.keys { list[k]?.seen = []; list[k]?.since = Date() }
+        all = list
+    }
+
+    static func track(_ d: ThreadDetail, notify: Bool) {
+        let k = String(d.id)
+        guard let r = receipt(d), let last = d.messages.last else { all[k] = nil; return }
+        let names = r.readers.map(\.name)
+        var list = all
+        if let w = list[k], w.message == last.id {
+            let new = names.filter { !w.seen.contains($0) }
+            if notify, !new.isEmpty, AppState.shared.prefs.notifySeen {
+                let first = new.map { $0.components(separatedBy: " ").first ?? $0 }
+                let who = first.count == 1 ? first[0] : first.dropLast().joined(separator: ", ") + " og " + first.last!
+                print("[set] \(who) har set din besked: \(d.subject)")
+                Notifier.shared.post("\(who) har set din besked", d.subject,
+                                     url: URL(string: "viggoplus://thread/\(d.id)"))
+            }
+            list[k]?.seen = Array(Set(w.seen + names))
+            list[k]?.total = r.total
+        } else {
+            list[k] = Watch(message: last.id, seen: names, total: r.total, since: Date())
+        }
+        // Keep the list short.
+        if list.count > 40 { for (key, _) in list.sorted(by: { $0.value.since < $1.value.since }).prefix(list.count - 40) { list[key] = nil } }
+        all = list
+    }
+}

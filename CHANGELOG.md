@@ -1,5 +1,17 @@
 # Ændringer
 
+## 1.17.0 og iPhone-app 1.6.0 (2026-11-13)
+
+- **Venner uden login**: vælg en ven fra Viggo under Venner, eller tryk Tilføj som ven på deres side. Viggo+ finder vennens timer og lokaler i Viggos lokaleoversigt ud fra de hold vennen går på, så vennen skal ikke logge ind. Lektier kræver stadig at vennen logger ind.
+- **Hvor er de nu**: på alle elevers og læreres sider står hvad de har lige nu, i hvilket lokale og til hvornår, og hvad de har bagefter.
+- **Fri sammen med flere**: kortet Fri sammen på I dag viser hvornår du og flere venner alle har fri. Tryk på en ven for at tage dem med eller ud. På Mac'en står det under Venner nu.
+- **Set i listen**: i Beskeder står der Set ved tråde, hvor din besked er den nyeste og nogen har set den.
+- **Besked når nogen har set din besked**, fx "Emilie har set din besked". Tryk på den for at åbne tråden. Kan slås fra under Notifikationer.
+- **Widget med fødselsdage**: de næste fødselsdage i din klasse og på din linje, og hvor gamle de bliver.
+- **Lektier til i morgen**: om aftenen får du en besked som "Du har 2 lektier til i morgen", på det tidspunkt du vælger under Notifikationer. Den kommer kun, når der er lektier.
+- Appen starter hurtigere: dit skema vises med det samme fra sidst, mens det nye hentes. Billeder af personer bliver gemt på telefonen, og de nyeste tråde du allerede har læst hentes på forhånd, så de åbner med det samme.
+- Kortet "Nyt i" på iPhonen viser nu hvad der er nyt i iPhone-appen og ikke noter der kun handler om Mac'en.
+
 ## 1.16.0 og iPhone-app 1.5.0 (2026-11-13)
 
 - **Set i beskeder**: under din nyeste besked står "Set kl. 14.37", eller "Set af 3 af 12" i grupper, ligesom Viggos "Læst af". Tryk for at se hvem der har set den og hvornår.

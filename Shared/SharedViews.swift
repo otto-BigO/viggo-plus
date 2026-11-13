@@ -440,20 +440,20 @@ struct FriendsTab: View {
                             Avatar(url: f.image, size: 32, name: f.name).opacity(expired ? 0.5 : 1)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(f.name)
-                                Text(expired ? "Skal logge ind igen" : "Logget ind")
-                                    .font(.caption).foregroundStyle(expired ? .orange : .green)
+                                Text(!f.needsLogin ? "Uden login, skema fra lokaleoversigten" : expired ? "Skal logge ind igen" : "Logget ind")
+                                    .font(.caption).foregroundStyle(!f.needsLogin ? Color.secondary : expired ? Color.orange : Color.green)
                             }
                             Spacer()
-                            if state.friendAutoLoginRunning.contains(f.id) {
+                            if f.needsLogin, state.friendAutoLoginRunning.contains(f.id) {
                                 ProgressView().controlSize(.small)
-                            } else if expired {
+                            } else if f.needsLogin, expired {
                                 Button("Log ind") {
                                     if FriendLogin.has(f.id) {
                                         Task { if await !state.tryFriendAutoLogin(f, force: true) { state.addFriend(relogin: f) } }
                                     } else { state.addFriend(relogin: f) }
                                 }.buttonStyle(.borderedProminent)
                             }
-                            FriendAutoLoginButton(friend: f)
+                            if f.needsLogin { FriendAutoLoginButton(friend: f) }
                             Button(role: .destructive) { state.removeFriend(f) } label: { Image(systemName: "trash") }
                                 .buttonStyle(.borderless)
                         }
@@ -462,13 +462,21 @@ struct FriendsTab: View {
                 }
             }
             Section {
+                FriendPicker()
+            } header: {
+                Text("Tilføj ven fra Viggo")
+            } footer: {
+                Text("Uden login. Viggo+ finder vennens timer og lokaler i Viggos lokaleoversigt, ud fra holdene vennen går på. Lektier kræver at vennen logger ind.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
                 SkoleITFields(button: "Tilføj") { u, p in
                     Task { await state.addFriendWithSkoleIT(username: u, password: p) }
                 }
                 Button("Log ind på Viggos side i stedet…") { state.addFriend() }.linkStyle()
                 if !state.friendMessage.isEmpty { Text(state.friendMessage).font(.caption).foregroundStyle(.secondary) }
             } header: {
-                Text("Tilføj ven")
+                Text("Tilføj ven med login")
             } footer: {
                 Text("Med vennens SkoleIT-login logger Viggo+ selv vennen ind igen. Koden gemmes kun på \(Platform.deviceName).")
                     .font(.caption).foregroundStyle(.secondary)
@@ -482,6 +490,38 @@ struct FriendsTab: View {
     }
 }
 
+
+/// Search the address book and add someone as a friend without their login.
+struct FriendPicker: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var dir = Directory.shared
+    @State private var q = ""
+
+    var body: some View {
+        TextField("Søg efter navn", text: $q)
+            .textFieldStyle(.roundedBorder)
+            .autocorrectionDisabled()
+            .task { await dir.load() }
+        let hits = q.count < 2 ? [] : Array(dir.search(q).filter { $0.kind == .student && $0.id != state.profile?.id }.prefix(6))
+        ForEach(hits) { m in
+            HStack(spacing: 10) {
+                Avatar(url: m.image, size: 28, name: m.name)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(m.name)
+                    Text(dir.summary(m)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                if state.isFriend(m.id) {
+                    Image(systemName: "checkmark").foregroundStyle(.green)
+                } else {
+                    Button("Tilføj") { Task { await state.addFriend(member: m); q = "" } }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        if dir.members.isEmpty, dir.loading { ProgressView().controlSize(.small) }
+    }
+}
 
 /// Your own everyday items: lunch, dinner, breaks. They show up in the panel and the menubar.
 struct CustomItemsTab: View {
@@ -607,6 +647,17 @@ struct NotificationsTab: View {
                 Toggle("Nye beskeder", isOn: $p.notifyMessages)
                 Toggle("Nye opslag på opslagstavlen", isOn: $p.notifyBulletin)
                 Toggle("Fødselsdage om morgenen", isOn: $p.notifyBirthdays)
+                Toggle("Når nogen har set din besked", isOn: $p.notifySeen)
+            }
+            Section {
+                Toggle("Lektier til i morgen", isOn: $p.homeworkReminder)
+                DatePicker("Kl.", selection: Binding(
+                    get: { DateUtil.cal.date(bySettingHour: p.homeworkReminderAt / 60, minute: p.homeworkReminderAt % 60, second: 0, of: Date()) ?? Date() },
+                    set: { let c = DateUtil.cal.dateComponents([.hour, .minute], from: $0); p.homeworkReminderAt = (c.hour ?? 19) * 60 + (c.minute ?? 0) }),
+                    displayedComponents: .hourAndMinute)
+                    .disabled(!p.homeworkReminder)
+            } header: { Text("Påmindelse om aftenen") } footer: {
+                Text("Fx \"Du har 2 lektier til i morgen\". Kommer kun når der er lektier.").font(.caption).foregroundStyle(.secondary)
             }
             #if os(iOS)
             Section("Påmindelse før timer") {
@@ -630,7 +681,7 @@ struct NotificationsTab: View {
         .formStyle(.grouped)
         #if os(iOS)
         // New settings take effect right away: the waiting reminders are made again.
-        .onChange(of: "\(p.lessonAlarmMinutes)\(p.briefs)\(p.morningHour)\(p.eveningHour)\(p.notifyBirthdays)") { state.scheduleAhead() }
+        .onChange(of: "\(p.lessonAlarmMinutes)\(p.briefs)\(p.morningHour)\(p.eveningHour)\(p.notifyBirthdays)\(p.homeworkReminder)\(p.homeworkReminderAt)") { state.scheduleAhead() }
         #endif
     }
 }

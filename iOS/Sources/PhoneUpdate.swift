@@ -72,19 +72,32 @@ import UserNotifications
     }
 
     /// The newest release on GitHub and the iPhone app version inside it (read from iOS/project.yml at that tag).
+    /// A Mac-only release keeps the iPhone version, so the notes come from the release that brought that
+    /// iPhone version: the oldest in the run of newest releases with the same iPhone version.
     static func latest() async -> Info? {
-        var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!)
+        var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/releases?per_page=8")!)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.timeoutInterval = 20
         guard let (data, _) = try? await URLSession.shared.data(for: req),
-              let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tag = o["tag_name"] as? String,
-              let yml = URL(string: "https://raw.githubusercontent.com/\(repo)/\(tag)/iOS/project.yml"),
+              let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return nil }
+        let releases = list.filter { $0["draft"] as? Bool != true && $0["prerelease"] as? Bool != true }
+        guard let first = releases.first, let tag = first["tag_name"] as? String,
+              let version = await phoneVersion(at: tag) else { return nil }
+        var intro = first
+        for r in releases.dropFirst().prefix(5) {
+            guard let t = r["tag_name"] as? String, let v = await phoneVersion(at: t), v == version else { break }
+            intro = r
+        }
+        return Info(version: version, mac: tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV")),
+                    notes: notes(intro["body"] as? String ?? ""))
+    }
+
+    private static func phoneVersion(at tag: String) async -> String? {
+        guard let yml = URL(string: "https://raw.githubusercontent.com/\(repo)/\(tag)/iOS/project.yml"),
               let (y, _) = try? await URLSession.shared.data(from: yml),
               let text = String(data: y, encoding: .utf8),
               let m = text.firstMatch("MARKETING_VERSION:\\s*\"?([0-9.]+)") else { return nil }
-        return Info(version: m[1], mac: tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV")),
-                    notes: notes(o["body"] as? String ?? ""))
+        return m[1]
     }
 
     /// The bold start of each "- " line in the release notes, e.g. "Søg i alt".

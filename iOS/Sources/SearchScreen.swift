@@ -361,6 +361,7 @@ struct PersonScreen: View {
     @EnvironmentObject var state: AppState
     @StateObject private var dir = Directory.shared
     @StateObject private var inbox = Inbox.shared
+    @ObservedObject private var premises = Premises.shared
     @Environment(\.openURL) private var openURL
     let id: Int
     @State private var details: MemberDetails?
@@ -377,7 +378,7 @@ struct PersonScreen: View {
             else { ContentUnavailableView("Ikke fundet", systemImage: "person.slash", description: Text("Personen er ikke i Viggos adressebog.")) }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .task { await dir.load() }
+        .task { await dir.load(); await premises.load() }
         .task(id: id) {
             details = await dir.details(id)
             if let m = dir.member(id) {
@@ -398,12 +399,7 @@ struct PersonScreen: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
 
-            if let f = state.friends.first(where: { $0.viggoID == m.id }) {
-                let (text, busy) = state.friendStatus(f, now: Date())
-                Section("Lige nu") {
-                    Label(text, systemImage: busy ? "clock.fill" : "cup.and.saucer.fill").foregroundStyle(busy ? .orange : .green)
-                }
-            }
+            whereNow(m)
 
             Section("Info") {
                 if !m.className.isEmpty { info("Klasse", m.className, "person.3.fill") }
@@ -465,6 +461,45 @@ struct PersonScreen: View {
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    /// Which room someone is in right now, from Viggo's room overview. Works for anyone, friend or not.
+    @ViewBuilder private func whereNow(_ m: Member) -> some View {
+        let now = state.tick
+        let w = premises.whereNow(m.id, at: now)
+        let canAdd = m.kind == .student && m.id != me && !state.isFriend(m.id)
+        if m.kind == .student || m.kind == .staff, !premises.bookings.isEmpty || canAdd {
+            Section {
+                if !premises.bookings.isEmpty {
+                    if let c = w.now {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(c.title).font(.body.weight(.semibold))
+                                Text([c.room.isEmpty ? nil : c.room, "til \(DateUtil.hm(c.end))"].compactMap { $0 }.joined(separator: " · "))
+                                    .font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        } icon: { Image(systemName: "mappin.circle.fill").foregroundStyle(.orange) }
+                    } else {
+                        Label(w.next.map { "Fri til \(DateUtil.hm($0.start))" } ?? "Ingen flere timer i dag",
+                              systemImage: "cup.and.saucer.fill").foregroundStyle(.green)
+                    }
+                    if let n = w.next {
+                        Label {
+                            Text("Næste: \(n.title) kl. \(DateUtil.hm(n.start))\(n.room.isEmpty ? "" : " i \(n.room)")")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        } icon: { Image(systemName: "arrow.forward.circle").foregroundStyle(.secondary) }
+                    }
+                }
+                if canAdd {
+                    Button {
+                        Haptic.success()
+                        Task { await state.addFriend(member: m) }
+                    } label: { Label("Tilføj som ven", systemImage: "person.badge.plus") }
+                }
+            } header: { Text("Lige nu") } footer: {
+                if canAdd { Text("Uden login: Viggo+ finder \(m.firstName)s timer i Viggos lokaleoversigt.") }
+            }
+        }
     }
 
     private func header(_ m: Member) -> some View {

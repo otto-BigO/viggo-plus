@@ -1,4 +1,5 @@
 import SwiftUI
+import CryptoKit
 #if os(iOS)
 import UIKit
 #endif
@@ -69,29 +70,44 @@ struct Avatar: View {
     }
 }
 
-/// Pictures of people, kept in memory once loaded and shrunk to a small size. AsyncImage
-/// fetched every picture again each time a row came back, which made search lag.
+/// Pictures of people, kept in memory once loaded and shrunk to a small size, and on disk for a
+/// week so the next launch shows them at once. AsyncImage fetched every picture again each time
+/// a row came back, which made search lag.
 @MainActor
 enum AvatarCache {
     private static var images: [URL: Image] = [:]
     private static var running: [URL: Task<Image?, Never>] = [:]
+
+    static let dir: URL = {
+        let d = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ViggoPlus/avatars", isDirectory: true)
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }()
+
+    private static func file(_ url: URL) -> URL {
+        let name = SHA256.hash(data: Data(url.absoluteString.utf8)).prefix(12).map { String(format: "%02x", $0) }.joined()
+        return dir.appendingPathComponent(name + ".img")
+    }
 
     static func image(_ url: URL) -> Image? { images[url] }
 
     static func load(_ url: URL) async -> Image? {
         if let i = images[url] { return i }
         if let t = running[url] { return await t.value }
+        let path = file(url)
         let t = Task<Image?, Never> {
-            guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
-            return await Task.detached(priority: .utility) { () -> Image? in
-                #if os(macOS)
-                guard let img = NSImage(data: data) else { return nil }
-                return Image(nsImage: img)
-                #else
-                guard let img = UIImage(data: data) else { return nil }
-                let small = img.preparingThumbnail(of: CGSize(width: 180, height: 180 * img.size.height / max(img.size.width, 1))) ?? img
-                return Image(uiImage: small)
-                #endif
+            await Task.detached(priority: .utility) { () -> Image? in
+                let fm = FileManager.default
+                let age = (try? fm.attributesOfItem(atPath: path.path)[.modificationDate] as? Date).map { -$0.timeIntervalSinceNow } ?? .infinity
+                if age < 7 * 86400, let d = try? Data(contentsOf: path), let i = decode(d, shrink: false) { return i.0 }
+                guard let (data, _) = try? await URLSession.shared.data(from: url), let (img, small) = decode(data, shrink: true) else {
+                    // Offline: an old picture is better than none.
+                    if let d = try? Data(contentsOf: path) { return decode(d, shrink: false)?.0 }
+                    return nil
+                }
+                try? small.write(to: path, options: .atomic)
+                return img
             }.value
         }
         running[url] = t
@@ -102,6 +118,19 @@ enum AvatarCache {
             images[url] = i
         }
         return i
+    }
+
+    /// The picture, plus the bytes to keep on disk (shrunk on the iPhone).
+    nonisolated private static func decode(_ data: Data, shrink: Bool) -> (Image, Data)? {
+        #if os(macOS)
+        guard let img = NSImage(data: data) else { return nil }
+        return (Image(nsImage: img), data)
+        #else
+        guard let img = UIImage(data: data) else { return nil }
+        guard shrink else { return (Image(uiImage: img), data) }
+        let small = img.preparingThumbnail(of: CGSize(width: 180, height: 180 * img.size.height / max(img.size.width, 1))) ?? img
+        return (Image(uiImage: small), small.jpegData(compressionQuality: 0.85) ?? data)
+        #endif
     }
 }
 
@@ -655,6 +684,29 @@ struct FriendsNow: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { withAnimation(.viggo) { state.selectedFriend = f.id } }
+            }
+            if state.friends.count >= 2, Prefs.shared.friendsFreeTogether {
+                let group = state.freeGroup
+                let gaps = state.groupFree(now: now)
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "person.3.fill").foregroundStyle(.green).font(Sz.f(11))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Alle fri: \(group.map(\.firstName).joined(separator: ", "))").font(Sz.f(11, .semibold)).lineLimit(1)
+                        Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen"
+                             : gaps.map { "\(DateUtil.hm($0.0))–\(DateUtil.hm($0.1))" }.joined(separator: " · "))
+                            .font(Sz.mono(10)).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Menu {
+                        ForEach(state.friends) { f in
+                            Toggle(f.name, isOn: Binding(get: { group.contains { $0.id == f.id } },
+                                                         set: { _ in state.toggleFreeGroup(f) }))
+                        }
+                    } label: { Image(systemName: "slider.horizontal.3") }
+                        .menuStyle(.borderlessButton).fixedSize()
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.green.opacity(0.08)))
             }
         }
     }

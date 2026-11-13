@@ -21,6 +21,19 @@ struct WidgetHomework: Codable, Hashable, Identifiable {
     var done: Bool
 }
 
+struct WidgetBirthday: Codable, Hashable, Identifiable {
+    let id: Int
+    let name: String
+    /// The next birthday (midnight) and the age then.
+    let date: Date
+    let turns: Int
+    /// "Klasse" or the line, e.g. "Musiklinjen".
+    let from: String
+
+    var firstName: String { name.components(separatedBy: " ").first ?? name }
+    var initials: String { name.split(separator: " ").prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased() }
+}
+
 struct WidgetData: Codable {
     var name: String?
     var items: [WidgetItem]
@@ -31,6 +44,8 @@ struct WidgetData: Codable {
     var homeworkList: [String]? = nil
     /// Homework with ids, so the widget can tick it off.
     var homeworkItems: [WidgetHomework]? = nil
+    /// The next birthdays in your class and on your line.
+    var birthdays: [WidgetBirthday]? = nil
 
     static let empty = WidgetData(name: nil, items: [], homework: 0, updated: .distantPast, loggedOut: false)
 

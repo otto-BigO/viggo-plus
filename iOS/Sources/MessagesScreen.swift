@@ -60,7 +60,15 @@ struct MessagesScreen: View {
             }
             .sheet(isPresented: $composing) { ComposeScreen() }
             .task { if inbox.threads.isEmpty { await inbox.load() } }
+            .onAppear(perform: openAsked)
+            .onChange(of: state.openThread) { openAsked() }
         }
+    }
+
+    private func openAsked() {
+        guard let id = state.openThread else { return }
+        state.openThread = nil
+        path = [id]
     }
 
     private func pinButton(_ t: MessageThread) -> some View {
@@ -140,12 +148,44 @@ private struct ThreadRow: View {
                     Spacer(minLength: 4)
                     Text(t.when.shortWhen).font(.subheadline).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 }
-                Text(t.subject).font(.subheadline.weight(t.unread ? .semibold : .regular))
-                    .foregroundStyle(t.unread ? .primary : .secondary).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(t.subject).font(.subheadline.weight(t.unread ? .semibold : .regular))
+                        .foregroundStyle(t.unread ? .primary : .secondary).lineLimit(1)
+                    Spacer(minLength: 0)
+                    if let r = inbox.receipt(t.id), r.total > 0 { SeenMark(r: r) }
+                }
                 Text(t.preview).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .padding(.vertical, 8)
+    }
+}
+
+/// "Set" in the list when your message is the newest in a thread and someone has seen it.
+private struct SeenMark: View {
+    let r: Inbox.Receipt
+    var body: some View {
+        let all = !r.readers.isEmpty && r.readers.count >= r.total
+        Group {
+            if r.readers.isEmpty {
+                Label("Sendt", systemImage: "checkmark")
+            } else if r.total <= 1 || all {
+                Label("Set", systemImage: "eye.fill")
+            } else {
+                Label("Set af \(r.readers.count)", systemImage: "eye.fill")
+            }
+        }
+        .labelStyle(SmallLabel())
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(r.readers.isEmpty ? Color.secondary : Color.accentColor)
+        .fixedSize()
+        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+    }
+
+    private struct SmallLabel: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 3) { configuration.icon.imageScale(.small); configuration.title }
+        }
     }
 }
 
@@ -283,6 +323,7 @@ struct ThreadScreen: View {
     }
 
     private func load() async {
+        if detail == nil, let d = inbox.details[id] { detail = d }
         do { detail = try await inbox.open(id); kind = detail?.canReplyAll == true && (detail?.to.count ?? 0) <= 1 ? .all : .sender }
         catch { failed = true }
     }

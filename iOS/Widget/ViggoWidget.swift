@@ -83,6 +83,7 @@ struct ViggoWidgets: WidgetBundle {
         ViggoControl()
         LiveControl()
         HomeworkWidget()
+        BirthdayWidget()
     }
 }
 

@@ -109,6 +109,7 @@ struct RootView: View {
                     Tab("Indstillinger", systemImage: "gearshape.fill", value: 4) { SettingsScreen() }
                 }
                 .onChange(of: tab) { Haptic.select() }
+                .onChange(of: state.openThread) { if state.openThread != nil { tab = 2 } }
             }
         }
     }

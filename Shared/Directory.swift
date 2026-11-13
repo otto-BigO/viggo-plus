@@ -309,6 +309,8 @@ final class Directory: ObservableObject {
     /// The groups someone is in, most telling first. "Alle ..." groups say nothing, so they are left out.
     func groups(of id: Int) -> [MemberGroup] { sortedGroupsOf[id] ?? [] }
     func group(_ id: Int) -> MemberGroup? { groups.first { $0.id == id } }
+    /// Every group someone is in, "Alle ..." too, for finding their bookings in Premises.
+    func groupIDs(of id: Int) -> Set<Int> { Set((groupsOf[id] ?? []).map(\.id)) }
 
     /// The line someone is on ("Musiklinjen"), from their Linjefag group.
     func line(of id: Int) -> String? { lineOf[id] }
@@ -320,6 +322,15 @@ final class Directory: ObservableObject {
     func classmates(of m: Member) -> [Member] {
         guard !m.grade.isEmpty else { return [] }
         return members.filter { $0.id != m.id && $0.kind == .student && $0.grade == m.grade }
+    }
+
+    /// Your class and your line: the students the birthday widget shows.
+    func circle(of id: Int) -> [Member] {
+        guard let me = byID[id] else { return [] }
+        var ids = Set(classmates(of: me).map(\.id))
+        for g in groupsOf[id] ?? [] where g.kind == .linje { ids.formUnion(g.members) }
+        ids.remove(id)
+        return ids.compactMap { byID[$0] }.filter { $0.kind == .student }
     }
 
     /// Parents and other family: (relation name, person).

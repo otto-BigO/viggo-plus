@@ -14,10 +14,29 @@ extension AppState {
                                     homeworkList: openList.map(\.title),
                                     homeworkItems: homework.filter { $0.due >= today }.prefix(10).map {
                                         WidgetHomework(id: $0.id, title: $0.title, subject: $0.group, due: $0.due, done: $0.done)
-                                    }))
+                                    }, birthdays: widgetBirthdays()))
         WidgetCenter.shared.reloadAllTimelines()
         WidgetShots.run()
         updateLiveActivity()
+    }
+}
+
+extension AppState {
+    /// The next birthdays among your classmates and the students on your line, from the address book.
+    func widgetBirthdays() -> [WidgetBirthday] {
+        guard let me = profile?.id else { return [] }
+        let dir = Directory.shared
+        let mine = dir.member(me)
+        let line = dir.line(of: me)
+        return dir.circle(of: me).compactMap { m -> (Member, (date: Date, days: Int, turns: Int))? in
+            m.nextBirthday.map { (m, $0) }
+        }
+        .sorted { $0.1.days < $1.1.days }
+        .prefix(12)
+        .map { m, n in
+            let from = mine.map { !$0.grade.isEmpty && $0.grade == m.grade } == true ? "Klasse \(m.className)" : (line ?? "Linje")
+            return WidgetBirthday(id: m.id, name: m.name, date: n.date, turns: n.turns, from: from)
+        }
     }
 }
 
@@ -79,6 +98,15 @@ enum WidgetShots {
         for (name, data) in [("lektier", d), ("lektier-eksempel", WidgetData.homeworkSample)] {
             for (fam, size, fname) in sizes.prefix(3) {
                 let v = HomeworkWidgetView(family: fam, entry: HomeworkEntry(date: Date(), data: data))
+                    .padding(16).frame(width: size.width, height: size.height).background(Color(white: 0.94))
+                let r = ImageRenderer(content: v)
+                r.scale = 3
+                if let png = r.uiImage?.pngData() { try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name)-\(fname).png")) }
+            }
+        }
+        for (name, data) in [("fodselsdage", d), ("fodselsdage-eksempel", WidgetData.birthdaySample)] {
+            for (fam, size, fname) in sizes.prefix(3) {
+                let v = BirthdayWidgetView(family: fam, entry: BirthdayEntry(date: Date(), data: data))
                     .padding(16).frame(width: size.width, height: size.height).background(Color(white: 0.94))
                 let r = ImageRenderer(content: v)
                 r.scale = 3

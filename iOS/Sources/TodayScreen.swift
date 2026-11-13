@@ -177,6 +177,10 @@ struct TodayScreen: View {
                         }
                     }
 
+                    if p.panelFriendsNow, p.friendsFreeTogether, state.friends.count >= 2 {
+                        GroupFreeCard(now: now)
+                    }
+
                     if p.panelBulletin, !state.bulletins.isEmpty {
                         Card(title: "Opslag", icon: "megaphone.fill") {
                             VStack(spacing: 0) {
@@ -673,5 +677,57 @@ private struct HomeworkRow: View {
         }
         .padding(.vertical, 8)
         .animation(.viggo, value: h.done)
+    }
+}
+
+/// "Fri sammen" for several friends at once: pick who, see when you are all free today.
+struct GroupFreeCard: View {
+    @EnvironmentObject var state: AppState
+    let now: Date
+
+    var body: some View {
+        let group = state.freeGroup
+        let gaps = state.groupFree(now: now)
+        Card(title: "Fri sammen", icon: "person.3.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(state.friends) { f in
+                            let on = group.contains { $0.id == f.id }
+                            Button {
+                                Haptic.select()
+                                withAnimation(.viggo) { state.toggleFreeGroup(f) }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Avatar(url: f.image, size: 22, name: f.name)
+                                    Text(f.firstName).font(.subheadline.weight(.medium))
+                                }
+                                .padding(.leading, 4).padding(.trailing, 10).padding(.vertical, 4)
+                                .background(Capsule().fill(on ? Color.green.opacity(0.18) : Color(.tertiarySystemFill)))
+                                .overlay(Capsule().stroke(on ? Color.green.opacity(0.6) : .clear, lineWidth: 1))
+                                .opacity(on ? 1 : 0.55)
+                            }
+                            .buttonStyle(PressScale(scale: 0.94))
+                        }
+                    }
+                }
+                if gaps.isEmpty {
+                    Label("Ingen tid hvor I alle har fri resten af skoledagen", systemImage: "moon.zzz.fill")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(gaps.enumerated()), id: \.offset) { _, g in
+                        HStack {
+                            Text("\(DateUtil.hm(g.0))–\(DateUtil.hm(g.1))").font(.body.monospacedDigit().weight(.semibold))
+                            Spacer()
+                            let mins = Int(g.1.timeIntervalSince(g.0) / 60)
+                            Text(mins >= 60 ? "\(mins / 60) t \(mins % 60 > 0 ? "\(mins % 60) min" : "")" : "\(mins) min")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                            if g.0 <= now { Text("Nu").font(.caption.weight(.bold)).foregroundStyle(.white)
+                                .padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(.green)) }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

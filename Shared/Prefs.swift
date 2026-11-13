@@ -61,6 +61,12 @@ final class Prefs: ObservableObject {
     @Published var notifyChanges: Bool { didSet { d.set(notifyChanges, forKey: "notifyChanges") } }
     @Published var notifyHomework: Bool { didSet { d.set(notifyHomework, forKey: "notifyHomework") } }
     @Published var notifyMessages: Bool { didSet { d.set(notifyMessages, forKey: "notifyMessages") } }
+    /// Friends picked for "Fri sammen" (UUIDs). Empty = all of them.
+    @Published var freeGroup: [String] { didSet { d.set(freeGroup, forKey: "freeGroup") } }
+    @Published var notifySeen: Bool { didSet { d.set(notifySeen, forKey: "notifySeen") } }
+    @Published var homeworkReminder: Bool { didSet { d.set(homeworkReminder, forKey: "homeworkReminder") } }
+    /// Minutes after midnight, e.g. 19:00 = 1140.
+    @Published var homeworkReminderAt: Int { didSet { d.set(homeworkReminderAt, forKey: "homeworkReminderAt") } }
     @Published var briefs: Bool { didSet { d.set(briefs, forKey: "briefs") } }
     @Published var morningHour: Int { didSet { d.set(morningHour, forKey: "morningHour") } }
     @Published var eveningHour: Int { didSet { d.set(eveningHour, forKey: "eveningHour") } }
@@ -70,7 +76,8 @@ final class Prefs: ObservableObject {
             "panelBirthdays": true, "panelLunch": true, "panelBreaks": true, "panelMeals": true, "menubarBreaks": false, "liveActivity": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "autoUpdate": true, "autoInstall": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
-            "notifyHomework": true, "notifyMessages": true, "briefs": true,
+            "notifyHomework": true, "notifyMessages": true, "notifySeen": true, "briefs": true,
+            "homeworkReminder": true, "homeworkReminderAt": 19 * 60,
             "morningHour": 7, "eveningHour": 20,
         ])
         username = d.string(forKey: "username") ?? ""
@@ -120,6 +127,10 @@ final class Prefs: ObservableObject {
         notifyChanges = d.bool(forKey: "notifyChanges")
         notifyHomework = d.bool(forKey: "notifyHomework")
         notifyMessages = d.bool(forKey: "notifyMessages")
+        notifySeen = d.bool(forKey: "notifySeen")
+        freeGroup = d.stringArray(forKey: "freeGroup") ?? []
+        homeworkReminder = d.bool(forKey: "homeworkReminder")
+        homeworkReminderAt = d.integer(forKey: "homeworkReminderAt")
         briefs = d.bool(forKey: "briefs")
         morningHour = d.integer(forKey: "morningHour")
         eveningHour = d.integer(forKey: "eveningHour")
