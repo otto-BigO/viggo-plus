@@ -18,6 +18,7 @@ struct BulletinScreen: View {
                 }
                 Text(b.title).font(.title2.bold())
                     .fixedSize(horizontal: false, vertical: true)
+                DeadlineSuggestion(source: "opslag:\(b.id)")
                 if !b.body.isEmpty {
                     Text(b.body).font(.body).textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)

@@ -351,6 +351,7 @@ final class Inbox: ObservableObject {
             threads = try await client.fetchThreads()
             error = nil
             AppState.shared.unreadCount = threads.filter(\.unread).count
+            Deadlines.shared.scanAll()
             Task { await prefetch() }
         } catch ViggoError.notLoggedIn {
             error = "Du er logget ud af Viggo."
@@ -372,6 +373,7 @@ final class Inbox: ObservableObject {
     private func keep(_ d: ThreadDetail) {
         details[d.id] = d
         Receipts.track(d, notify: false)
+        Deadlines.shared.scan(d)
     }
 
     /// Fetches the newest threads ahead of time. Only ones you have read already: opening an

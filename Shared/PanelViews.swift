@@ -442,6 +442,7 @@ struct PersonChip: View {
 struct DayPanel: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
+    @ObservedObject private var deadlines = Deadlines.shared
     let name: String?
     let events: [ViggoEvent]
     let homework: [Homework]
@@ -536,6 +537,19 @@ struct DayPanel: View {
                             Text(DateUtil.day(h.due)).font(Sz.f(11)).foregroundStyle(.tertiary)
                         }
                         .animation(.viggo, value: h.done)
+                    }
+                }
+            }
+
+            if isMe, p.deadlineRadar, !deadlines.upcoming(now: now).isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeader(title: "Deadlines")
+                    ForEach(deadlines.upcoming(now: now).prefix(4)) { d in
+                        DeadlineRow(d: d, compact: true)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if let t = d.threadID { state.openMessages(thread: t) } else { state.openViggo() }
+                            }
                     }
                 }
             }

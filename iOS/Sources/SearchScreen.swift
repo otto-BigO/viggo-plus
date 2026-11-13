@@ -406,7 +406,12 @@ struct PersonScreen: View {
             whereNow(m)
 
             Section("Info") {
-                if !m.className.isEmpty { info("Klasse", m.className, "person.3.fill") }
+                if !m.className.isEmpty {
+                    // The class itself (10.5, BE10), like Linje and Værelse.
+                    if let g = dir.groups(of: m.id).filter({ $0.kind == .klasse }).min(by: { $0.members.count < $1.members.count }) {
+                        NavigationLink(value: Found.group(g.id)) { info("Klasse", m.className, "person.3.fill") }
+                    } else { info("Klasse", m.className, "person.3.fill") }
+                }
                 if let l = dir.line(of: m.id) ?? details?.field("Skolelinje") {
                     if let g = dir.groups(of: m.id).first(where: { $0.kind == .linje }) {
                         NavigationLink(value: Found.group(g.id)) { info("Linje", l, "star.fill") }

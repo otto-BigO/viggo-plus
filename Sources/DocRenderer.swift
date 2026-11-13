@@ -27,6 +27,15 @@ enum DocRenderer {
                              QuietLogin(id: UUID(), name: "Noah", image: nil, stage: .failure("Forkert kodeord"))]
         snap(MenuView().environmentObject(state), name: "panel-login", dir: dir, panel: true)
         state.quietLogins = []
+        let tomorrow = DateUtil.add(.day, 1, DateUtil.startOfDay(Date()))
+        Deadlines.shared.showDemo([
+            Deadline(id: "a", title: "Tilmelding til weekenden", due: tomorrow.addingTimeInterval(13 * 3600), hasTime: true, source: "tråd:1",
+                     sourceTitle: "Weekendtilmelding", from: "Jan Lærer", snippet: "Husk deadline i morgen kl. 13.00", found: Date()),
+            Deadline(id: "b", title: "Jobopslag til OSO", due: DateUtil.add(.day, 4, tomorrow), hasTime: false, source: "tråd:2",
+                     sourceTitle: "OSO", from: "Heidi Lærer", snippet: "Deadline for jobopslaget er på tirsdag", found: Date()),
+        ])
+        snap(MenuView().environmentObject(state), name: "panel-deadlines", dir: dir, panel: true)
+        Deadlines.shared.showDemo([])
         if let fysik = state.events.first(where: { $0.id == 4 }) {
             snap(LessonDetailView(e: fysik), name: "lesson", dir: dir)
         }

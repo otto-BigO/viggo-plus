@@ -23,6 +23,18 @@ struct TodayScreen: View {
     }()
 
     @State private var showMe = false
+    @ObservedObject private var deadlines = Deadlines.shared
+
+    /// A deadline opens the message or post it was found in.
+    @ViewBuilder private func deadlineLink(_ d: Deadline) -> some View {
+        if let t = d.threadID {
+            NavigationLink(value: t) { DeadlineRow(d: d).padding(.vertical, 9).contentShape(Rectangle()) }.buttonStyle(.plain)
+        } else if let b = state.bulletins.first(where: { "opslag:\($0.id)" == d.source }) {
+            NavigationLink(value: b) { DeadlineRow(d: d).padding(.vertical, 9).contentShape(Rectangle()) }.buttonStyle(.plain)
+        } else {
+            DeadlineRow(d: d).padding(.vertical, 9)
+        }
+    }
 
     var body: some View {
         let all = state.timeline(now)
@@ -103,6 +115,17 @@ struct TodayScreen: View {
                     if p.panelDuty, !state.dutyTonight.isEmpty {
                         Banner(icon: "person.badge.shield.checkmark.fill", tint: .indigo,
                                text: "Aftenvagt: \(state.dutyTonight.joined(separator: ", "))")
+                    }
+
+                    if p.deadlineRadar, !deadlines.upcoming(now: now).isEmpty {
+                        Card(title: "Deadlines", icon: "pin.fill") {
+                            VStack(spacing: 0) {
+                                ForEach(Array(deadlines.upcoming(now: now).prefix(5).enumerated()), id: \.element.id) { i, d in
+                                    if i > 0 { Divider().padding(.leading, 32) }
+                                    deadlineLink(d)
+                                }
+                            }
+                        }
                     }
 
                     if p.panelHomework, !hw.isEmpty {

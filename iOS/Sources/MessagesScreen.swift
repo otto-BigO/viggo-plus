@@ -283,6 +283,10 @@ struct ThreadScreen: View {
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) { if detail != nil { replyBar } }
+            // A deadline found in the thread stays in view at the top however long it is.
+            .safeAreaInset(edge: .top) {
+                if detail != nil { DeadlineSuggestion(source: "tråd:\(id)").padding(.horizontal, 12).padding(.top, 14) }
+            }
             .onChange(of: detail?.messages.count) { _, _ in
                 if let last = detail?.messages.last { withAnimation(.viggo) { proxy.scrollTo(last.id, anchor: .bottom) } }
             }

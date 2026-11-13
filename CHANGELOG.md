@@ -1,5 +1,13 @@
 # Ændringer
 
+## 1.20.0 og iPhone-app 1.9.0 (2026-11-13)
+
+- **Deadline-radar**: lærerne skriver deadlines ind i almindelige beskeder og opslag ("Husk deadline for tilmelding er i dag kl. 13.00"), og Viggo gemmer dem ikke noget sted. Nu læser Viggo+ teksten i baggrunden, finder dato og klokkeslæt (i dag, i morgen, fredag, 20/11, 3. december, kl. 9.55 osv.) og samler dem i en liste under I dag på iPhonen og i panelet på Mac'en. Sæt flueben når du er færdig.
+- **Påmindelser**: aftenen før (samme tid som lektie-påmindelsen) og 2 timer før, eller om morgenen hvis der ikke står et klokkeslæt. Du får også besked, når der bliver fundet en ny deadline.
+- **Forslag i beskeden**: åbner du en besked eller et opslag med en deadline, står den øverst, også i lange tråde. Tryk Fjern hvis den ikke skal på listen, eller Påmind mig for at få den tilbage.
+- Ulæste beskeder bliver aldrig åbnet af radaren, så afsenderen ser ikke at du har læst dem. Her bruges kun emne og start af beskeden, indtil du selv åbner den. Dine egne beskeder tæller ikke med. Radaren kan slås fra under Notifikationer.
+- **Klasse på personsider**: tryk på klassen (fx 10.5 eller BE10) for at se alle i klassen, ligesom linje og værelse.
+
 ## 1.19.0 og iPhone-app 1.8.0 (2026-11-13)
 
 - **Fokus i timerne virker**: før skulle du selv lave to genveje med de rigtige navne, ellers skete der ingenting. Nu vælger du et fokus (fx Forstyr ikke eller Arbejde) under Indstillinger > Generelt, trykker Opret genveje og så Tilføj genvej i Genveje. Fokus slår til præcis når timen starter og fra når den slutter, også hvis du åbner Mac'en midt i en time. Test-knappen tjekker at fokus faktisk kom til.

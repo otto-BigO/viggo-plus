@@ -132,7 +132,7 @@ struct MemberGroup: Identifiable, Hashable, Decodable {
 
     var kind: Kind {
         let n = name.lowercased()
-        if n.range(of: "^(\\d{1,2}|\\d{3})$", options: .regularExpression) != nil { return .klasse }
+        if n.range(of: "^(\\d{1,2}|\\d{3}|be\\d{2}(\\s+\\d{3})?)$", options: .regularExpression) != nil { return .klasse }
         if n.hasSuffix("-lærere") { return .underviser }
         if n.hasPrefix("linjefag:") { return n.contains("-") ? .hold : .linje }
         if n.hasPrefix("valgfag") { return .valgfag }
@@ -146,7 +146,7 @@ struct MemberGroup: Identifiable, Hashable, Decodable {
     /// "Linjefag: Musiklinjen-hold1" → "Musiklinjen, hold 1", "103" → "10.3", "Valgfag 1: Guitar" → "Guitar (valgfag 1)".
     var display: String {
         switch kind {
-        case .klasse: return Member.className(name)
+        case .klasse: return Member.className(name).replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
         case .underviser: return name.replacingOccurrences(of: "-lærere", with: "")
         case .linje, .hold:
             let n = name.replacingOccurrences(of: "Linjefag:", with: "").trimmingCharacters(in: .whitespaces)

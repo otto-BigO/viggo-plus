@@ -69,6 +69,8 @@ final class Prefs: ObservableObject {
     /// Minutes after midnight, e.g. 19:00 = 1140.
     @Published var homeworkReminderAt: Int { didSet { d.set(homeworkReminderAt, forKey: "homeworkReminderAt") } }
     @Published var briefs: Bool { didSet { d.set(briefs, forKey: "briefs") } }
+    /// Deadline-radar: find deadlines in messages and posts, and remind about them.
+    @Published var deadlineRadar: Bool { didSet { d.set(deadlineRadar, forKey: "deadlineRadar") } }
     @Published var morningHour: Int { didSet { d.set(morningHour, forKey: "morningHour") } }
     @Published var eveningHour: Int { didSet { d.set(eveningHour, forKey: "eveningHour") } }
 
@@ -78,7 +80,7 @@ final class Prefs: ObservableObject {
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "notifySeen": true, "briefs": true,
-            "homeworkReminder": true, "homeworkReminderAt": 19 * 60,
+            "homeworkReminder": true, "deadlineRadar": true, "homeworkReminderAt": 19 * 60,
             "morningHour": 7, "eveningHour": 20,
         ])
         username = d.string(forKey: "username") ?? ""
@@ -134,6 +136,7 @@ final class Prefs: ObservableObject {
         homeworkReminder = d.bool(forKey: "homeworkReminder")
         homeworkReminderAt = d.integer(forKey: "homeworkReminderAt")
         briefs = d.bool(forKey: "briefs")
+        deadlineRadar = d.bool(forKey: "deadlineRadar")
         morningHour = d.integer(forKey: "morningHour")
         eveningHour = d.integer(forKey: "eveningHour")
     }

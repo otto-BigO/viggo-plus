@@ -94,6 +94,10 @@ private struct MacThreadView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let d = detail {
+                DeadlineSuggestion(source: "tråd:\(d.id)")
+                    .frame(maxWidth: 720).padding(.horizontal, 20).padding(.top, 10)
+            }
             ScrollViewReader { proxy in
                 ScrollView {
                     if let d = detail {

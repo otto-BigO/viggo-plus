@@ -188,6 +188,26 @@ final class AppState: ObservableObject {
                     await inbox.checkReceipts()
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                 }
+                // --deadlines prints what the Deadline-radar finds in posts, previews and read threads.
+                if CommandLine.arguments.contains("--deadlines") {
+                    await Inbox.shared.load()
+                    for t in Inbox.shared.threads.prefix(12) where !t.unread && Inbox.shared.details[t.id] == nil {
+                        if let d = try? await client.fetchThread(t.id) { Deadlines.shared.scan(d) }
+                    }
+                    let now = Date()
+                    var found: [Deadline] = []
+                    for b in bulletins { found += Deadlines.find(in: b.body, subject: b.title, posted: Deadlines.postedDate(b.when) ?? now, source: "opslag", from: b.author, now: .distantPast) }
+                    for t in Inbox.shared.threads {
+                        if let d = Inbox.shared.details[t.id] { found += Deadlines.find(in: d, now: .distantPast) }
+                        else { found += Deadlines.find(in: t.preview, subject: t.subject, posted: Deadlines.postedDate(t.when) ?? now, source: "tråd:\(t.id)•", from: t.sender, now: .distantPast) }
+                    }
+                    for d in found.sorted(by: { $0.due > $1.due }) {
+                        print("[deadline] \(d.end > now ? "kommer" : "forbi ") \(d.whenText(now: now)) | \(d.title) | \(d.from) | \(d.source) | \(d.snippet)")
+                    }
+                    Deadlines.shared.scanAll()
+                    for d in Deadlines.shared.upcoming() { print("[liste] \(d.whenText()) | \(d.title)") }
+                    for r in Deadlines.shared.reminders() { print("[påmind] \(r.at.formatted(date: .abbreviated, time: .shortened)) | \(r.title) | \(r.body)") }
+                }
                 if CommandLine.arguments.contains("--meals") {
                     for (d, m) in meals.sorted(by: { $0.key < $1.key }) { print("[mad] \(DateUtil.day(d)): \(m.lunch) | aften: \(m.dinner ?? "-")") }
                 }
@@ -285,6 +305,27 @@ final class AppState: ObservableObject {
                 print("[vindue] efter detaljer, panel åbent: \(PanelController.shared.isShown), detaljer: \(lessonWindow?.frame ?? .zero)")
                 exit(0)
             }
+        } else if CommandLine.arguments.contains("--deadline-parse-test") {
+            // Made-up sentences through the Danish deadline reader, written on Tue 10 Nov 2026 12:00.
+            let posted = DateUtil.cal.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 12))!
+            let cases = [
+                "Husk deadline her kl. 13.00. Hilsen Jan",
+                "Afleveringen skal afleveres senest fredag kl. 23.59",
+                "Tilmelding til turen senest d. 20/11",
+                "Frist for betaling er 3. december",
+                "Husk at aflevere jeres rapport i morgen inden kl 8",
+                "Deadline 15/1 for projektet",
+                "Vi ses til timen kl. 10.15 i lokale 4",
+                "Blå nætter 15.15 Sunday morning 15.30",
+                "Sidste frist for framelding er næste tirsdag",
+                "Husk deadline for tilmelding/framelding til weekenden er i dag kl. 13.00",
+                "Opgaven skal uploades til Lectio den 24.11 kl. 12:00",
+            ]
+            for c in cases {
+                let f = Deadlines.find(in: c, subject: "Svar", posted: posted, source: "test", from: "", now: posted, readSubject: false)
+                print("[parse] \(c)\n   → \(f.map { "\($0.whenText(now: posted)) | \($0.title)" }.joined(separator: " ; ").ifEmpty("ingen"))")
+            }
+            exit(0)
         } else if CommandLine.arguments.contains("--quiet-login-test") {
             // Runs the automatic login the app does when a session runs out (a friend's if one has a saved
             // login, else your own) and prints what the corner badge shows at each step.
@@ -409,6 +450,7 @@ final class AppState: ObservableObject {
         }
         checkBriefs()
         #if os(macOS)
+        Deadlines.shared.tick()
         Updater.shared.checkIfDue()
         #else
         updateLiveActivity()
@@ -652,11 +694,13 @@ final class AppState: ObservableObject {
                 async let people: Void = Directory.shared.load()
                 async let rooms: Void = Premises.shared.load()
                 async let far: Void = loadFarWeeks()
-                _ = await (receipts, people, rooms, far)
+                async let inbox: Void = Inbox.shared.load() // previews for the Deadline-radar
+                _ = await (receipts, people, rooms, far, inbox)
                 await syncFriends()
                 saveCache()
             }
             detectChanges()
+            Deadlines.shared.scanAll()
             saveCache()
             lastSync = Date()
             #if os(iOS)

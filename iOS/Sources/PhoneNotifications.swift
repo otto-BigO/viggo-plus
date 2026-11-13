@@ -43,6 +43,7 @@ extension AppState {
                 }
             }
         }
+        for r in Deadlines.shared.reminders(now: now) { list.append((r.at, "deadline-\(r.id)", r.title, r.body)) }
         // For checking from Terminal: VIGGO_TEST_SOON=1 adds one that goes off in about a minute.
         if ProcessInfo.processInfo.environment["VIGGO_TEST_SOON"] != nil {
             list.append((now.addingTimeInterval(65), "test", "Viggo+ planlagt test", "Denne blev planlagt på forhånd"))
@@ -80,6 +81,8 @@ extension AppState {
         print("[baggrund] synker")
         CookieJar.restore()
         await sync()
+        // The inbox previews and the threads you have read, for the Deadline-radar.
+        await Inbox.shared.load()
         await Inbox.shared.checkReceipts()
         await PhoneUpdate.shared.check()
         print("[baggrund] færdig, \(events.count) punkter, synket \(lastSync.map(DateUtil.hm) ?? "-")")

@@ -666,6 +666,12 @@ struct NotificationsTab: View {
             } header: { Text("Påmindelse om aftenen") } footer: {
                 Text("Fx \"Du har 2 lektier til i morgen\". Kommer kun når der er lektier.").font(.caption).foregroundStyle(.secondary)
             }
+            Section {
+                Toggle("Find deadlines i beskeder og opslag", isOn: $p.deadlineRadar)
+            } header: { Text("Deadline-radar") } footer: {
+                Text("Viggo+ læser opslag og de beskeder du har læst, finder fx \"deadline i dag kl. 13.00\" og minder dig om det aftenen før og 2 timer før. Ulæste beskeder åbnes aldrig, så kun emne og start bruges.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             #if os(iOS)
             Section("Påmindelse før timer") {
                 Picker("Før hver time", selection: $p.lessonAlarmMinutes) {
