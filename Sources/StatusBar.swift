@@ -194,9 +194,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 let p = PhoneInstaller.shared
                 await p.refresh()
+                if let i = CommandLine.arguments.firstIndex(of: "--device"), i + 1 < CommandLine.arguments.count {
+                    p.pick(CommandLine.arguments[i + 1])
+                }
                 print("[phone] xcode=\(p.xcodeApp?.path ?? "-") firstLaunch=\(p.firstLaunchDone) ios=\(p.iosPlatform)")
                 print("[phone] team=\(p.team.map { "\($0.id) \($0.name) free=\($0.free)" } ?? "-") signer=\(p.signer ?? "-")")
                 for d in p.devices { print("[phone] device \(d.name) \(d.model) iOS \(d.os) wired=\(d.wired) reachable=\(d.reachable) paired=\(d.paired) devmode=\(d.developerMode.map(String.init) ?? "-")") }
+                print("[phone] selected \(p.device.map { "\($0.id) \($0.name)" } ?? "-")")
                 for (k, r) in p.records { print("[phone] record \(k) \(r.name) \(r.version) expires=\(r.expires) trusted=\(r.trusted.map(String.init) ?? "-")") }
                 if CommandLine.arguments.contains("--phone-renew") {
                     // The same path the timer takes. VIGGO_RENEW_DUE=1 makes it renew now.

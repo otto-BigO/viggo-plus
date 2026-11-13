@@ -41,6 +41,11 @@ enum DocRenderer {
             snap(PhoneTab().frame(width: 470, height: 1250).background(Color(nsColor: .windowBackgroundColor)),
                  name: "iphone-guide-tall", dir: dir, size: NSSize(width: 470, height: 1250))
         }
+        if ProcessInfo.processInfo.environment["VIGGO_PHONE_TALL"] != nil {
+            PhoneInstaller.shared.loadDemo(done: true, second: true)
+            snap(PhoneTab().frame(width: 470, height: 1250).background(Color(nsColor: .windowBackgroundColor)),
+                 name: "iphone-two", dir: dir, size: NSSize(width: 470, height: 1250))
+        }
         PhoneInstaller.shared.loadDemo(done: true)
         for page in SettingsPage.allCases {
             snap(SettingsView(initial: page).environmentObject(state), name: "settings-\(page.slug)", dir: dir,

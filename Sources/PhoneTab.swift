@@ -60,7 +60,9 @@ struct PhoneTab: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 if let job = inst.job { JobCard(job: job) }
-                if let rec = inst.record, inst.job == nil { StatusCard(rec: rec) }
+                if inst.job == nil {
+                    ForEach(installed, id: \.0) { udid, rec in StatusCard(udid: udid, rec: rec) }
+                }
                 if let e = inst.error {
                     Label(e, systemImage: "exclamationmark.triangle.fill")
                         .font(.callout).foregroundStyle(.orange)
@@ -87,6 +89,13 @@ struct PhoneTab: View {
         }
     }
 
+    /// Every iPhone Viggo+ is on, the one the guide is about first.
+    private var installed: [(String, PhoneInstaller.Record)] {
+        inst.records.sorted { a, b in
+            (a.key == inst.selected ? 0 : 1, a.value.name) < (b.key == inst.selected ? 0 : 1, b.value.name)
+        }.map { ($0.key, $0.value) }
+    }
+
     // MARK: before you start
 
     private var prep: some View {
@@ -102,7 +111,7 @@ struct PhoneTab: View {
                 Divider()
                 Text("Godt at vide").font(.subheadline.weight(.semibold))
                 bullet("Med et gratis Apple-ID virker appen 7 dage ad gangen. Viggo+ fornyer den automatisk, når iPhonen er sat til eller er på samme wifi som Mac'en.")
-                bullet("Et gratis Apple-ID kan have appen på højst 3 iPhones.")
+                bullet("Du kan have appen på flere iPhones. Et gratis Apple-ID kan have den på højst 3.")
                 bullet("Mac'en skal være tændt og Viggo+ køre, for at fornyelsen kan ske. Ellers giver Viggo+ besked, før den løber ud.")
             }
             .font(.callout)
@@ -141,6 +150,16 @@ struct PhoneTab: View {
                 Text("\(all.filter(\.done).count) af \(all.count)").font(.caption).foregroundStyle(.secondary)
             }
             .padding(.bottom, 8)
+            if inst.devices.count > 1 {
+                Picker("iPhone", selection: $inst.selected) {
+                    ForEach(inst.devices) { d in
+                        Text(inst.records[d.id] != nil ? "\(d.name) (har Viggo+)" : d.name).tag(Optional(d.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+                .padding(.bottom, 6)
+            }
             ForEach(all) { s in
                 StepRow(n: s.id, title: s.title, time: s.time, done: s.done, current: s.id == current,
                         detail: s.detail, doneNote: s.doneNote, actions: s.actions,
@@ -148,8 +167,11 @@ struct PhoneTab: View {
                 if s.id != all.last?.id { Divider().padding(.leading, 34) }
             }
             if current == nil {
-                Label("Viggo+ er klar på iPhonen", systemImage: "checkmark.seal.fill")
+                Label(inst.records.count > 1 ? "Viggo+ er klar på \(inst.device?.name ?? "iPhonen")" : "Viggo+ er klar på iPhonen",
+                      systemImage: "checkmark.seal.fill")
                     .foregroundStyle(.green).font(.callout.weight(.semibold)).padding(.top, 10)
+                Text("Vil du have Viggo+ på en iPhone mere? Sæt den til med kabel og lås den op, så starter guiden forfra for den. Trin 1 til 3 er klaret, og alle dine iPhones bliver fornyet automatisk.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.top, 2)
             }
         }
         .padding(14)
@@ -176,15 +198,15 @@ struct PhoneTab: View {
             HStack {
                 Label("Login", systemImage: "key.fill").font(.headline)
                 Spacer()
-                if let d = inst.device, inst.record != nil {
+                if let d = inst.device, inst.records[d.id] != nil {
                     Button("Overfør login nu") { Task { await inst.sendLogin(to: d) } }
                         .disabled(inst.job != nil || !d.reachable || t.isEmpty)
                 }
             }
-            Toggle("Overfør mit login fra Mac'en, når appen installeres", isOn: $inst.sendLoginOnInstall)
+            Toggle("Overfør mit login fra Mac'en, når appen installeres på min første iPhone", isOn: $inst.sendLoginOnInstall)
             Group {
                 if let who {
-                    Text("Sender \(who)\(t.friends.isEmpty ? "" : (t.friends.count == 1 ? " og din ven" : " og dine \(t.friends.count) venner")), så iPhone-appen er logget ind med det samme. Det går direkte over kablet eller wifi til Viggo+ på iPhonen, som sletter filen så snart den er læst.")
+                    Text("Sender \(who)\(t.friends.isEmpty ? "" : (t.friends.count == 1 ? " og din ven" : " og dine \(t.friends.count) venner")), så iPhone-appen er logget ind med det samme. Det går direkte over kablet eller wifi til Viggo+ på iPhonen, som sletter filen så snart den er læst. Til en iPhone mere sendes det kun, når du trykker Overfør login nu.")
                 } else {
                     Text("Log ind i Viggo+ på Mac'en først, så kan dit login sendes med over.")
                 }
@@ -286,7 +308,11 @@ private struct JobCard: View {
 
 private struct StatusCard: View {
     @ObservedObject var inst = PhoneInstaller.shared
+    let udid: String
     let rec: PhoneInstaller.Record
+    @State private var confirmForget = false
+
+    private var device: PhoneInstaller.Device? { inst.devices.first { $0.id == udid } }
 
     var body: some View {
         let left = rec.expires.timeIntervalSinceNow
@@ -306,18 +332,29 @@ private struct StatusCard: View {
                 connection
             }
             Spacer()
-            if let d = inst.device {
-                Button("Forny nu") { Task { await inst.install(d) } }
-                    .disabled(inst.job != nil || !d.reachable)
+            VStack(alignment: .trailing, spacing: 6) {
+                if let d = device {
+                    Button("Forny nu") { Task { await inst.install(d) } }
+                        .disabled(inst.job != nil || !d.reachable)
+                }
+                if inst.records.count > 1 || device == nil {
+                    Button("Glem") { confirmForget = true }
+                        .buttonStyle(.link).font(.caption)
+                }
             }
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 12).fill(color.opacity(0.08)))
+        .confirmationDialog("Glem \(rec.name)?", isPresented: $confirmForget) {
+            Button("Glem", role: .destructive) { inst.forget(udid) }
+        } message: {
+            Text("Viggo+ holder op med at forny appen på den. Appen bliver på iPhonen, til den udløber \(PhoneInstaller.when(rec.expires)).")
+        }
     }
 
     /// How the Mac can reach the phone right now, and when it was last renewed.
     private var connection: some View {
-        let d = inst.devices.first { $0.name == rec.name } ?? inst.device
+        let d = device
         let (icon, text, tint): (String, String, Color) = {
             guard let d, d.reachable else { return ("wifi.slash", "Ikke i nærheden lige nu", .secondary) }
             return d.wired ? ("cable.connector", "Forbundet med kabel", .green) : ("wifi", "Forbundet over wifi", .green)

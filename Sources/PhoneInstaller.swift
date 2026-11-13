@@ -50,7 +50,10 @@ import Foundation
     @Published private(set) var signer: String?
     @Published private(set) var devices: [Device] = []
     @Published private(set) var checked = false
-    @Published var selected: String?
+    /// The iPhone the guide and buttons are about. Picked automatically until you pick one yourself.
+    @Published var selected: String? { didSet { if !choosing { userPicked = true } } }
+    private var userPicked = false
+    private var choosing = false
 
     @Published private(set) var job: Job?
     @Published private(set) var error: String?
@@ -69,6 +72,21 @@ import Foundation
     }
 
     var device: Device? { devices.first { $0.id == selected } ?? devices.first }
+
+    /// A phone you just plugged in that doesn't have Viggo+ yet comes first, so adding a second
+    /// iPhone needs no clicking. Then any phone the Mac can reach.
+    private func bestDevice() -> String? {
+        (devices.first { $0.reachable && records[$0.id] == nil } ?? devices.first { $0.reachable } ?? devices.first)?.id
+    }
+
+    private func choose(_ id: String?) {
+        choosing = true
+        selected = id
+        choosing = false
+    }
+
+    /// For the command line: install on this one instead of the automatic pick.
+    func pick(_ id: String) { selected = id }
     var record: Record? { device.flatMap { records[$0.id] } ?? records.values.sorted { $0.expires > $1.expires }.first }
     var bundledVersion: String {
         (try? String(contentsOf: Self.bundledSource.appendingPathComponent("VERSION"), encoding: .utf8))?
@@ -109,7 +127,7 @@ import Foundation
         team = Self.readTeam()
         signer = await Self.readSigner()
         devices = await found
-        if selected == nil || !devices.contains(where: { $0.id == selected }) { selected = devices.first?.id }
+        if !userPicked || !devices.contains(where: { $0.id == selected }) { choose(bestDevice()) }
         checked = true
     }
 
@@ -189,6 +207,9 @@ import Foundation
         let pre = prefix(for: team)
         let bundleID = pre + ".viggoplus.ios"
         let updating = records[d.id].map(outdated) ?? false
+        // Your login only goes along to your first iPhone. Another phone is often someone else's,
+        // and they log in with their own account (or you press Overfør login nu).
+        let firstPhone = records.keys.allSatisfy { $0 == d.id }
         job = Job(title: !quiet ? "Installerer Viggo+ på \(d.name)" : updating ? "Opdaterer Viggo+ på \(d.name)" : "Fornyer Viggo+ på \(d.name)",
                   detail: "Gør koden klar", progress: 0.02)
 
@@ -250,7 +271,7 @@ import Foundation
         save()
 
         // 6. Your login, so the iPhone app is ready without typing anything.
-        if !quiet, sendLoginOnInstall, !LoginTransfer.make().isEmpty {
+        if !quiet, sendLoginOnInstall, firstPhone, !LoginTransfer.make().isEmpty {
             job?.detail = "Overfører dit login"
             job?.progress = 0.93
             _ = await copyLogin(to: d, bundleID: bundleID)
@@ -438,7 +459,7 @@ import Foundation
     }
 
     /// Made-up state for the README pictures (no real phone or Apple ID).
-    func loadDemo(done: Bool) {
+    func loadDemo(done: Bool, second: Bool = false) {
         xcodeApp = URL(fileURLWithPath: "/Applications/Xcode.app")
         firstLaunchDone = true
         iosPlatform = true
@@ -446,11 +467,16 @@ import Foundation
         signer = "Apple Development: emma@example.com"
         devices = [Device(id: "demo", name: "Emmas iPhone", model: "iPhone 15", os: "18.2", wired: !done,
                           reachable: true, paired: true, developerMode: done)]
-        selected = "demo"
-        checked = true
         records = done ? ["demo": Record(name: "Emmas iPhone", expires: Date().addingTimeInterval(5 * 86400 + 3 * 3600),
                                          version: bundledVersion, bundleID: "demo", trusted: true,
                                          renewed: Date().addingTimeInterval(-2 * 86400 + 3 * 3600))] : [:]
+        if second {
+            // Only for checking the page with two phones; not part of the README pictures.
+            devices.append(Device(id: "demo2", name: "Mors iPhone", model: "iPhone 13", os: "18.1", wired: true,
+                                  reachable: true, paired: true, developerMode: true))
+        }
+        choose(second ? "demo2" : "demo")
+        checked = true
     }
 
     func forget(_ udid: String) {
