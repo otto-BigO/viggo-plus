@@ -181,6 +181,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             PanelController.shared.setup()
             PhoneInstaller.shared.startRenewal()
         }
+        // --focus-test: makes the Focus shortcuts if they are missing (click Tilføj genvej), then turns the
+        // Focus on and off and checks with macOS that it really changed.
+        if CommandLine.arguments.contains("--focus-test") {
+            Task { @MainActor in
+                let fs = FocusShortcuts.shared
+                let m = fs.mode(Prefs.shared.focusMode)
+                fflush(stdout); print("[fokus] tilstande: \(fs.modes.map(\.name)) valgt: \(m.name) klar: \(fs.ready(m))")
+                if !fs.ready(m) { await fs.install(m); fflush(stdout); print("[fokus] \(fs.message)") }
+                let n = FocusShortcuts.names(for: m)
+                fflush(stdout); print("[fokus] til: \(await fs.run(n.on) ?? "ok")")
+                try? await Task.sleep(for: .seconds(2))
+                fflush(stdout); print("[fokus] aktiv nu: \(fs.activeModes() ?? [])")
+                fflush(stdout); print("[fokus] fra: \(await fs.run(n.off) ?? "ok")")
+                try? await Task.sleep(for: .seconds(2))
+                fflush(stdout); print("[fokus] aktiv bagefter: \(fs.activeModes() ?? [])")
+                exit(0)
+            }
+            return
+        }
         // For testing the login transfer in the simulator: write the transfer file and quit.
         // For looking at Viggo's HTML from Terminal while building a parser: --peek /Basic/... prints the page.
         if let i = CommandLine.arguments.firstIndex(of: "--peek"), i + 1 < CommandLine.arguments.count {

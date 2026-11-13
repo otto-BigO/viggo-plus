@@ -27,6 +27,7 @@ final class Prefs: ObservableObject {
     @Published var focusEnabled: Bool { didSet { d.set(focusEnabled, forKey: "focusEnabled") } }
     @Published var focusOnShortcut: String { didSet { d.set(focusOnShortcut, forKey: "focusOnShortcut") } }
     @Published var focusOffShortcut: String { didSet { d.set(focusOffShortcut, forKey: "focusOffShortcut") } }
+    @Published var focusMode: String { didSet { d.set(focusMode, forKey: "focusMode") } }
     @Published var panelBirthdays: Bool { didSet { d.set(panelBirthdays, forKey: "panelBirthdays") } }
     @Published var notifyBirthdays: Bool { didSet { d.set(notifyBirthdays, forKey: "notifyBirthdays") } }
     @Published var hotkeyEnabled: Bool { didSet { d.set(hotkeyEnabled, forKey: "hotkeyEnabled") } }
@@ -96,6 +97,7 @@ final class Prefs: ObservableObject {
         focusEnabled = d.bool(forKey: "focusEnabled")
         focusOnShortcut = d.string(forKey: "focusOnShortcut") ?? "Viggo Fokus til"
         focusOffShortcut = d.string(forKey: "focusOffShortcut") ?? "Viggo Fokus fra"
+        focusMode = d.string(forKey: "focusMode") ?? "com.apple.donotdisturb.mode.default"
         panelBirthdays = d.bool(forKey: "panelBirthdays")
         notifyBirthdays = d.bool(forKey: "notifyBirthdays")
         hotkeyEnabled = d.bool(forKey: "hotkeyEnabled")

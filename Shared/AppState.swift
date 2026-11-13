@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 import EventKit
 import WebKit
 #if os(macOS)
@@ -50,6 +51,7 @@ final class AppState: ObservableObject {
     private var settingsWindow: NSWindow?
     #endif
     private var focusActive: Bool?
+    private var focusTimer: Timer?
     private var friendLogin: WebLogin?
 
     /// Saved passwords are no longer used (SkoleIT/UNI-Login can't take them). Remove any left over.
@@ -79,6 +81,9 @@ final class AppState: ObservableObject {
     /// The sign-in card: where the login is, and whose login it is (nil = yours).
     @Published var loginStage: LoginStage?
     @Published var loginStageName: String?
+    /// Logins the app starts by itself (a session ran out). They show as a small badge in a corner
+    /// instead of the full sign-in card, so nothing pops up in your face.
+    @Published var quietLogins: [QuietLogin] = []
     private var stageClear: Task<Void, Never>?
     private var lastLoginLog: [String] = []
 
@@ -107,6 +112,11 @@ final class AppState: ObservableObject {
                 CookieJar.restore()
                 await sync()
                 for e in timeline(Date()) { print("[dag] \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.kind.rawValue) \(e.shortTitle)") }
+                if CommandLine.arguments.contains("--far") {
+                    await loadFarWeeks()
+                    let last = events.filter { $0.kind == .lesson }.map(\.start).max()
+                    print("[skoleår] \(Config.weeksAhead) uger frem, \(events.count) punkter, sidste time \(last.map(DateUtil.day) ?? "-")")
+                }
                 if CommandLine.arguments.contains("--bulletin-html") { let c = client
                     for t in [28, 29] {
                         let d = (try? await c.getPublic("/Basic/BulletinBoard/HomeWidget?show=60&userType=\(t)&ajax=1")) ?? Data()
@@ -274,6 +284,30 @@ final class AppState: ObservableObject {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 print("[vindue] efter detaljer, panel åbent: \(PanelController.shared.isShown), detaljer: \(lessonWindow?.frame ?? .zero)")
                 exit(0)
+            }
+        } else if CommandLine.arguments.contains("--quiet-login-test") {
+            // Runs the automatic login the app does when a session runs out (a friend's if one has a saved
+            // login, else your own) and prints what the corner badge shows at each step.
+            Task { @MainActor in
+                CookieJar.restore()
+                var seen: [String] = []
+                let watch = $quietLogins.sink { list in
+                    for q in list { let t = "\(q.title) · \(q.detail)"; if seen.last != t { seen.append(t); print("[badge] \(t)") } }
+                }
+                print("[kort] loginStage før: \(String(describing: loginStage))")
+                let ok: Bool
+                if let f = friends.first(where: { FriendLogin.has($0.id) }) {
+                    print("[ven] \(f.firstName)")
+                    ok = await tryFriendAutoLogin(f)
+                } else {
+                    print("[ven] ingen med gemt login, bruger dit eget")
+                    ok = await tryAutoLogin()
+                }
+                print("[resultat] \(ok ? "logget ind" : "fejlede"), kortet blev vist: \(loginStage != nil)")
+                try? await Task.sleep(for: .seconds(3))
+                print("[badge] tilbage efter 3 s: \(quietLogins.count)")
+                watch.cancel()
+                exit(ok ? 0 : 1)
             }
         } else if CommandLine.arguments.contains("--friend-autologin-test") {
             // For testing the friend path from Terminal with your own saved login: Keychain round trip,
@@ -462,7 +496,8 @@ final class AppState: ObservableObject {
         autoLoginRunning = true
         defer { autoLoginRunning = false }
         loginMessage = "Logger ind automatisk…"
-        switch await runWithCard(user, pass, name: nil, saving: saving) {
+        let quiet = force || saving ? nil : QuietLogin(id: QuietLogin.me, name: profile?.name.components(separatedBy: " ").first ?? "dig", image: profile?.image)
+        switch await runWithCard(user, pass, name: nil, saving: saving, quiet: quiet) {
         case .success(let cookies):
             cookies.forEach { HTTPCookieStorage.shared.setCookie($0) }
             CookieJar.save()
@@ -484,7 +519,8 @@ final class AppState: ObservableObject {
 
     /// Runs a login and drives the sign-in card while it goes.
     private func runWithCard(_ user: String, _ pass: String, name: String?, store: WKWebsiteDataStore? = nil,
-                             saving: Bool = false) async -> AutoLoginResult {
+                             saving: Bool = false, quiet: QuietLogin? = nil) async -> AutoLoginResult {
+        if let quiet { return await runQuietly(user, pass, store: store, badge: quiet) }
         stageClear?.cancel()
         loginStageName = name
         if saving {
@@ -506,6 +542,50 @@ final class AppState: ObservableObject {
     }
 
     func dismissLoginCard() { stageClear?.cancel(); loginStage = nil }
+
+    /// Same login, but only the corner badge follows it.
+    private func runQuietly(_ user: String, _ pass: String, store: WKWebsiteDataStore?, badge: QuietLogin) async -> AutoLoginResult {
+        quietLogins.removeAll { $0.id == badge.id }
+        quietLogins.append(badge)
+        func set(_ st: LoginStage) {
+            if let i = quietLogins.firstIndex(where: { $0.id == badge.id }) { quietLogins[i].stage = st }
+        }
+        let login = AutoLogin()
+        login.onStage = { st in set(st) }
+        let r = await login.run(username: user, password: pass, store: store)
+        lastLoginLog = login.log
+        let ok: Bool
+        switch r {
+        case .success: set(.success); ok = true
+        case .failure(let why): set(.failure(why)); ok = false
+        }
+        // A success fades after a moment. A failure stays a while so you can tap it to log in by hand.
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(ok ? 2.2 : 12))
+            self?.quietLogins.removeAll { $0.id == badge.id && $0.stage == (ok ? .success : $0.stage) }
+        }
+        return r
+    }
+
+    /// VIGGO_QUIET_DEMO=1: plays the corner badge for your friends without logging anyone in, for screenshots.
+    func quietDemo() async {
+        let people = friends.prefix(2).map { QuietLogin(id: $0.id, name: $0.firstName, image: $0.image) }
+        for q in people { quietLogins.append(q) }
+        for st in [LoginStage.unilogin, .skoleit, .verifying] {
+            try? await Task.sleep(for: .seconds(2.5))
+            for i in quietLogins.indices { quietLogins[i].stage = st }
+        }
+        try? await Task.sleep(for: .seconds(2.5))
+        if quietLogins.count > 0 { quietLogins[0].stage = .success }
+        if quietLogins.count > 1 { quietLogins[1].stage = .failure("Forkert kodeord") }
+    }
+
+    /// Tapping a failed badge: open the normal login for that person.
+    func openQuietLogin(_ q: QuietLogin) {
+        quietLogins.removeAll { $0.id == q.id }
+        if q.id == QuietLogin.me { loginWithBrowser() }
+        else if let f = friends.first(where: { $0.id == q.id }) { addFriend(relogin: f) }
+    }
 
     func removeAutoLogin() {
         SkoleITLogin.clear()
@@ -548,7 +628,7 @@ final class AppState: ObservableObject {
                 async let ev = c.fetchEvents(), hw = c.fetchHomework(), msg = c.fetchMessages()
                 return (try await ev, try await hw, try await msg)
             }
-            events = ev
+            events = withFarWeeks(ev)
             homework = hw
             // For testing reminders: VIGGO_FAKE_HOMEWORK=1 adds two made-up homework items for tomorrow.
             if ProcessInfo.processInfo.environment["VIGGO_FAKE_HOMEWORK"] != nil {
@@ -571,7 +651,8 @@ final class AppState: ObservableObject {
                 async let receipts: Void = Inbox.shared.checkReceipts()
                 async let people: Void = Directory.shared.load()
                 async let rooms: Void = Premises.shared.load()
-                _ = await (receipts, people, rooms)
+                async let far: Void = loadFarWeeks()
+                _ = await (receipts, people, rooms, far)
                 await syncFriends()
                 saveCache()
             }
@@ -591,6 +672,31 @@ final class AppState: ObservableObject {
         } catch {
             status = error.localizedDescription
         }
+    }
+
+    // MARK: the rest of the school year
+
+    private var farEvents: [ViggoEvent] = []
+    private var farLoaded: Date?
+    private var nearEnd: Date { DateUtil.add(.weekOfYear, Config.nearWeeks + 1, DateUtil.mondayOf(Date())) }
+
+    /// The near weeks from this refresh plus the later weeks from the last background fetch (or the
+    /// cache, right after launch).
+    private func withFarWeeks(_ near: [ViggoEvent]) -> [ViggoEvent] {
+        let end = nearEnd
+        let far = farEvents.isEmpty ? events.filter { $0.start >= end } : farEvents
+        return near.filter { $0.start < end } + far
+    }
+
+    /// Weeks after the near ones, to the end of the school year. At most once an hour.
+    func loadFarWeeks() async {
+        guard Config.weeksAhead > Config.nearWeeks else { return }
+        if let t = farLoaded, Date().timeIntervalSince(t) < 3600 { return }
+        guard let far = try? await client.fetchEvents(weeks: (Config.nearWeeks + 1)...Config.weeksAhead) else { return }
+        farLoaded = Date()
+        farEvents = far
+        let end = nearEnd
+        events = events.filter { $0.start < end } + far
     }
 
     // MARK: friends
@@ -653,7 +759,8 @@ final class AppState: ObservableObject {
         friendAutoLoginRunning.insert(f.id)
         defer { friendAutoLoginRunning.remove(f.id) }
         friendMessage = "Logger \(f.firstName) ind automatisk…"
-        switch await runWithCard(login.user, login.pass, name: f.firstName, store: .nonPersistent(), saving: saving) {
+        let quiet = force || saving ? nil : QuietLogin(id: f.id, name: f.firstName, image: f.image)
+        switch await runWithCard(login.user, login.pass, name: f.firstName, store: .nonPersistent(), saving: saving, quiet: quiet) {
         case .success(let cookies):
             guard let got = await finishFriend(cookies: cookies), got.id == f.id else {
                 friendMessage = "Automatisk login for \(f.firstName) gav en anden konto"
@@ -985,25 +1092,43 @@ final class AppState: ObservableObject {
         return gaps
     }
 
-    /// Runs your "focus on/off" Shortcuts when a lesson starts and ends.
-    private func updateFocus() {
-        guard prefs.focusEnabled else { focusActive = nil; return }
-        let now = Date()
-        let inLesson = events.contains { $0.kind == .lesson && $0.start <= now && $0.end > now }
-        defer { focusActive = inLesson }
-        guard let was = focusActive, was != inLesson else { return }
-        runShortcut(inLesson ? prefs.focusOnShortcut : prefs.focusOffShortcut)
-    }
-
-    func runShortcut(_ name: String) {
-        guard !name.isEmpty else { return }
+    /// Turns the chosen Focus on when a lesson starts and off when it ends, through two shortcuts
+    /// Viggo+ makes itself (Sources/FocusShortcuts.swift). Also right away if the app opens mid-lesson.
+    func updateFocus() {
         #if os(macOS)
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
-        p.arguments = ["run", name]
-        try? p.run()
+        focusTimer?.invalidate()
+        guard prefs.focusEnabled else {
+            if focusActive == true { setFocus(false) }
+            focusActive = nil
+            return
+        }
+        let now = Date()
+        let lessons = events.filter { $0.kind == .lesson && visible($0) && $0.end > now }
+        let inLesson = lessons.contains { $0.start <= now }
+        if focusActive != inLesson, focusActive != nil || inLesson { setFocus(inLesson) }
+        focusActive = inLesson
+        // Wake exactly at the next start or end instead of up to a minute late on the minute timer.
+        let next = lessons.flatMap { [$0.start, $0.end] }.filter { $0 > now }.min()
+        if let next, next.timeIntervalSince(now) < 3600 {
+            focusTimer = Timer.scheduledTimer(withTimeInterval: next.timeIntervalSince(now) + 0.5, repeats: false) { [weak self] _ in
+                Task { @MainActor in self?.updateFocus() }
+            }
+        }
         #endif
     }
+
+    #if os(macOS)
+    private func setFocus(_ on: Bool) {
+        let fs = FocusShortcuts.shared
+        let n = FocusShortcuts.names(for: fs.mode(prefs.focusMode))
+        Task {
+            if let err = await fs.run(on ? n.on : n.off) {
+                fs.message = err
+                status = "Fokus: \(err)"
+            }
+        }
+    }
+    #endif
 
     #if os(macOS)
     var launchAtLogin: Bool {

@@ -139,6 +139,7 @@ struct MenuView: View {
         .animation(.viggo, value: state.lastSync)
         .padding(.horizontal, 14).padding(.vertical, 12)
         .frame(width: MenuView.width)
+        .overlay(alignment: .bottomTrailing) { QuietLoginBadges(compact: true).padding(.trailing, 12).padding(.bottom, 38) }
     }
 }
 
@@ -282,6 +283,7 @@ struct SettingsView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .modifier(LoginCardOverlay())
+        .overlay(alignment: .bottomTrailing) { QuietLoginBadges().padding(14) }
         .frame(width: 680, height: 500)
     }
 }
@@ -317,19 +319,7 @@ struct GeneralTab: View {
                 }
                 .disabled(!p.hotkeyEnabled)
             }
-            Section("Fokus i timerne") {
-                Toggle("Slå fokus til når en time starter, og fra når den slutter", isOn: $p.focusEnabled)
-                TextField("Genvej når timen starter", text: $p.focusOnShortcut)
-                TextField("Genvej når timen slutter", text: $p.focusOffShortcut)
-                HStack {
-                    Button("Test start") { state.runShortcut(p.focusOnShortcut) }
-                    Button("Test slut") { state.runShortcut(p.focusOffShortcut) }
-                    Spacer()
-                    Button("Åbn Genveje") { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app")) }
-                }
-                Text("macOS lader ikke apps slå fokus til direkte. Lav to genveje i Genveje-appen med handlingen \"Indstil fokus\" (fx Forstyr ikke til og fra), og giv dem navnene ovenfor.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+            FocusSection()
         }
         .formStyle(.grouped)
         .onChange(of: p.hotkeyEnabled) { state.setupHotKey() }
@@ -461,3 +451,64 @@ struct CalRow: View {
 
 // MARK: - Own items
 
+
+/// Settings > Generelt > Fokus i timerne.
+struct FocusSection: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var p = Prefs.shared
+    @ObservedObject var fs = FocusShortcuts.shared
+    @State private var testing = false
+
+    private var mode: FocusShortcuts.Mode { fs.mode(p.focusMode) }
+
+    var body: some View {
+        Section("Fokus i timerne") {
+            Toggle("Slå fokus til når en time starter, og fra når den slutter", isOn: $p.focusEnabled)
+            Picker("Fokus", selection: $p.focusMode) {
+                ForEach(fs.modes.isEmpty ? [mode] : fs.modes) { m in Text(m.name).tag(m.id) }
+            }
+            HStack(spacing: 8) {
+                if fs.ready(mode) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text("Genvejene er klar")
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text("Viggo+ mangler to genveje for at kunne slå fokus til")
+                }
+                Spacer()
+                if fs.ready(mode) {
+                    Button(testing ? "Tester…" : "Test") { test() }.disabled(testing)
+                } else {
+                    Button("Opret genveje") { Task { await fs.install(mode) } }.buttonStyle(.borderedProminent)
+                }
+            }
+            if !fs.message.isEmpty {
+                Text(fs.message).font(.caption).foregroundStyle(.secondary)
+            }
+            Text("macOS lader ikke apps slå fokus til direkte, så Viggo+ laver to genveje i Genveje-appen. Du skal bare trykke Tilføj genvej.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .onAppear { fs.reload() }
+        .onChange(of: p.focusEnabled) { state.updateFocus() }
+        .onChange(of: p.focusMode) { fs.message = ""; state.updateFocus() }
+    }
+
+    /// Turns the Focus on for three seconds and checks with macOS that it really came on.
+    private func test() {
+        testing = true
+        let n = FocusShortcuts.names(for: mode)
+        Task {
+            defer { testing = false }
+            if let err = await fs.run(n.on) { fs.message = err; return }
+            try? await Task.sleep(for: .seconds(1.5))
+            let on = fs.activeModes()?.contains(mode.id)
+            try? await Task.sleep(for: .seconds(1.5))
+            if let err = await fs.run(n.off) { fs.message = err; return }
+            switch on {
+            case true?: fs.message = "\(mode.name) kom til og gik fra igen ✓"
+            case false?: fs.message = "Genvejen kørte, men \(mode.name) blev ikke slået til."
+            case nil: fs.message = "Genvejen kørte ✓"
+            }
+        }
+    }
+}

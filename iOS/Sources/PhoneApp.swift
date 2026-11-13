@@ -55,8 +55,18 @@ struct RootView: View {
             }
         }
         .modifier(LoginCardOverlay())
+        .overlay(alignment: .bottomTrailing) {
+            // Logins the app runs by itself show here, small and in the corner above the tabs,
+            // instead of the sign-in card.
+            QuietLoginBadges().padding(.trailing, 14).padding(.bottom, 66)
+        }
         .animation(.viggo, value: state.needsLogin)
         .task { await leaveSplash() }
+        .task {
+            guard ProcessInfo.processInfo.environment["VIGGO_QUIET_DEMO"] != nil else { return }
+            try? await Task.sleep(for: .seconds(4))
+            await state.quietDemo()
+        }
         .sheet(isPresented: $guide, onDismiss: { UserDefaults.standard.set(true, forKey: GuideSheet.seenKey) }) { GuideSheet() }
         .onChange(of: state.needsLogin) { if !splash { offerGuide() } }
         .sheet(isPresented: Binding(get: { state.showSearch && !splash }, set: { state.showSearch = $0 })) { SearchScreen() }
@@ -100,7 +110,11 @@ struct RootView: View {
             if state.needsLogin && state.events.isEmpty {
                 LoginScreen()
             } else {
-                TabView(selection: $tab) {
+                // Tapping the tab you are already on sends .viggoTabAgain (Uge jumps back to today).
+                TabView(selection: Binding(get: { tab }, set: { new in
+                    if new == tab { NotificationCenter.default.post(name: .viggoTabAgain, object: new) }
+                    tab = new
+                })) {
                     Tab("I dag", systemImage: "sun.max.fill", value: 0) { TodayScreen() }
                     Tab("Uge", systemImage: "calendar", value: 1) { WeekScreen() }
                     Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill", value: 2) { MessagesScreen() }

@@ -5,7 +5,18 @@ enum Config {
     static let bundleID = "com.ottobigo.ViggoPlus"
     static let pollInterval: TimeInterval = 15 * 60
     static let weeksBack = 1
-    static let weeksAhead = 4
+    /// Viggo has the schedule for the whole school year, so look ahead to the end of June.
+    static var weeksAhead: Int {
+        let cal = DateUtil.cal, now = Date()
+        let y = cal.component(.year, from: now) + (cal.component(.month, from: now) >= 7 ? 1 : 0)
+        guard let end = cal.date(from: DateComponents(year: y, month: 6, day: 30)) else { return 4 }
+        let weeks = cal.dateComponents([.weekOfYear], from: DateUtil.mondayOf(now), to: end).weekOfYear ?? 4
+        return min(max(weeks, 4), 45)
+    }
+    /// The Calendar import stays short, so the Calendar app is not filled with half a year.
+    static let calendarWeeks = 4
+    /// Fetched on every refresh; the weeks after that are fetched in the background once an hour.
+    static let nearWeeks = 4
     static let calSchedule = "Viggo Skema"
     static let calHomework = "Viggo Lektier"
     static let calEvents = "Viggo Begivenheder"
@@ -41,7 +52,7 @@ enum DateUtil {
     static func startOfDay(_ d: Date) -> Date { cal.startOfDay(for: d) }
     static func add(_ c: Calendar.Component, _ n: Int, _ d: Date) -> Date { cal.date(byAdding: c, value: n, to: d)! }
     static var fetchStart: Date { add(.weekOfYear, -Config.weeksBack, mondayOf(Date())) }
-    static var fetchEnd: Date { add(.weekOfYear, Config.weeksAhead + 1, mondayOf(Date())) }
+    static var fetchEnd: Date { add(.weekOfYear, Config.calendarWeeks + 1, mondayOf(Date())) }
 }
 
 extension String {

@@ -1,5 +1,12 @@
 # Ændringer
 
+## 1.19.0 og iPhone-app 1.8.0 (2026-11-13)
+
+- **Fokus i timerne virker**: før skulle du selv lave to genveje med de rigtige navne, ellers skete der ingenting. Nu vælger du et fokus (fx Forstyr ikke eller Arbejde) under Indstillinger > Generelt, trykker Opret genveje og så Tilføj genvej i Genveje. Fokus slår til præcis når timen starter og fra når den slutter, også hvis du åbner Mac'en midt i en time. Test-knappen tjekker at fokus faktisk kom til.
+- **Hele skoleåret i skemaet**: Uge kan nu bladres helt frem til sommerferien, ikke kun fire uger. De næste uger hentes ved hver opdatering, resten i baggrunden en gang i timen, så det ikke gør appen langsommere.
+- **Tryk på Uge for at komme til i dag**: står du på en anden dag i Uge på iPhonen, hopper du tilbage til i dag ved at trykke på Uge-ikonet nede i bunden.
+- **Login i baggrunden**: når en vens (eller din egen) session udløber, logger Viggo+ ind igen uden det store login-kort. I stedet står der et lille mærke i hjørnet med personens billede og en ring der fyldes op mens den logger ind, og som bliver grøn når det er klaret. Går det galt, bliver den orange, og du kan trykke på den for at logge ind selv.
+
 ## 1.18.1 og iPhone-app 1.7.1 (2026-11-13)
 
 - **Hurtigere opdatering**: skema, lektier, beskeder, opslag og madplan hentes nu samtidig i stedet for én ad gangen. En opdatering tager omkring 1,5 sekund i stedet for 5.

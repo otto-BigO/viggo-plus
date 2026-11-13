@@ -70,21 +70,34 @@ final class ViggoClient {
         guard (200..<300).contains(code) else { throw ViggoError.unexpected("HTTP \(code)") }
     }
 
-    func fetchEvents(weeksBack: Int = Config.weeksBack, weeksAhead: Int = Config.weeksAhead) async throws -> [ViggoEvent] {
+    func fetchEvents(weeksBack: Int = Config.weeksBack, weeksAhead: Int = Config.nearWeeks) async throws -> [ViggoEvent] {
+        try await fetchEvents(weeks: -weeksBack...weeksAhead)
+    }
+
+    /// Week offsets from this week's Monday.
+    func fetchEvents(weeks: ClosedRange<Int>) async throws -> [ViggoEvent] {
         let monday = DateUtil.mondayOf(Date())
         // All weeks at once: one request per week, so fetching them in a row took most of the startup time.
+        // Six at a time: the whole school year is 30+ weeks and Viggo shouldn't get them all at once.
+        let paths = weeks.map { w -> String in
+            let m = DateUtil.add(.weekOfYear, w, monday)
+            let s = DateUtil.ymd(m), e = DateUtil.ymd(DateUtil.add(.day, 6, m))
+            return "/Shared/Events/GetEventItems?target=YourSchedule&date=\(s)&type=week&startDate=\(s)&endDate=\(e)"
+        }
         let weeks = try await withThrowingTaskGroup(of: [ViggoEvent].self) { group in
-            for w in -weeksBack...weeksAhead {
-                let m = DateUtil.add(.weekOfYear, w, monday)
-                let s = DateUtil.ymd(m), e = DateUtil.ymd(DateUtil.add(.day, 6, m))
+            var next = 0
+            func add() {
+                guard next < paths.count else { return }
+                let path = paths[next]; next += 1
                 group.addTask {
-                    let data = try await self.get("/Shared/Events/GetEventItems?target=YourSchedule&date=\(s)&type=week&startDate=\(s)&endDate=\(e)")
+                    let data = try await self.get(path)
                     guard (try? JSONSerialization.jsonObject(with: data)) is [Any] else { throw ViggoError.notLoggedIn }
                     return try Parser.events(data)
                 }
             }
+            for _ in 0..<6 { add() }
             var all: [[ViggoEvent]] = []
-            for try await list in group { all.append(list) }
+            for try await list in group { all.append(list); add() }
             return all
         }
         var all: [String: ViggoEvent] = [:]

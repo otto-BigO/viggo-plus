@@ -105,7 +105,7 @@ Klik på en side for at se den.
 - Notifikationer når en time bliver flyttet, aflyst eller skifter lokale, når der kommer nye lektier eller en ny besked, og en brief morgen og aften.
 - Import til Apple Kalender som separate kalendere (skema, lektier, begivenheder, hverdag), som holdes opdateret. Én kontakt fjerner dem igen.
 - Venner: en ven logger ind på sin egen konto i et privat vindue. Du ser vennens dag i samme layout, og hvornår I begge har fri. Gemmer du vennens SkoleIT-login, logger Viggo+ også vennen ind igen af sig selv.
-- Fokus i timerne, hvis du vil, via to genveje.
+- Fokus i timerne: vælg et fokus, og Viggo+ laver selv de to genveje, der slår det til og fra præcis når timen starter og slutter.
 - Uge-overblik med hele ugens timer i kolonner, også for dine venner, med aftenen, fødselsdage og vagter.
 - "Venner nu": hvem af dine venner der har fri, og hvem der har time.
 - Fødselsdage i panelet og som notifikation om morgenen.

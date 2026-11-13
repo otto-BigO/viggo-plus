@@ -220,9 +220,16 @@ struct WeekScreen: View {
             .onChange(of: person) {
                 if !range.contains(weekOffset) { day = DateUtil.startOfDay(Date()) }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .viggoTabAgain)) { n in
+                guard n.object as? Int == 1, !DateUtil.cal.isDateInToday(day) else { return }
+                Haptic.select()
+                withAnimation(.viggo) { day = DateUtil.startOfDay(Date()) }
+            }
         }
     }
 }
+
+extension Notification.Name { static let viggoTabAgain = Notification.Name("viggoTabAgain") }
 
 // MARK: - Venner
 

@@ -22,6 +22,11 @@ enum DocRenderer {
         state.selectedFriend = nil
 
         snap(WeekView().environmentObject(state), name: "week", dir: dir, size: NSSize(width: 1040, height: 720))
+        snap(Form { FocusSection() }.formStyle(.grouped).environmentObject(state), name: "settings-fokus", dir: dir, size: NSSize(width: 560, height: 300))
+        state.quietLogins = [QuietLogin(id: UUID(), name: "Ida", image: nil, stage: .skoleit),
+                             QuietLogin(id: UUID(), name: "Noah", image: nil, stage: .failure("Forkert kodeord"))]
+        snap(MenuView().environmentObject(state), name: "panel-login", dir: dir, panel: true)
+        state.quietLogins = []
         if let fysik = state.events.first(where: { $0.id == 4 }) {
             snap(LessonDetailView(e: fysik), name: "lesson", dir: dir)
         }
