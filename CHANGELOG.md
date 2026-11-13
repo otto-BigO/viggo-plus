@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.20.1 og iPhone-app 1.9.1 (2026-11-13)
+
+- **Billeder i beskeder vises**: et billede du sendte (eller fik) stod som "• Billede 1.jpg" i tråden, selvom det var kommet frem på Viggo. Nu vises selve billedet i tråden med runde hjørner, og du kan trykke på det for at se det i fuld skærm. Andre filer (fx PDF) står som en knap, der åbner filen. Også på Mac'en.
+- I beskedlisten står der "📎 Vedhæftet fil" i stedet for et tomt "Dig:", når beskeden kun er et billede.
+- **Uge skifter dag med det samme**: der var omkring et sekunds pause, før dagen skiftede, efter hele skoleåret kom med i skemaet. Skemaet er nu sorteret efter dag, så et dagsskift tager 1 ms i stedet for 100 ms på Mac'en (og mere på iPhonen).
+
 ## 1.20.0 og iPhone-app 1.9.0 (2026-11-13)
 
 - **Deadline-radar**: lærerne skriver deadlines ind i almindelige beskeder og opslag ("Husk deadline for tilmelding er i dag kl. 13.00"), og Viggo gemmer dem ikke noget sted. Nu læser Viggo+ teksten i baggrunden, finder dato og klokkeslæt (i dag, i morgen, fredag, 20/11, 3. december, kl. 9.55 osv.) og samler dem i en liste under I dag på iPhonen og i panelet på Mac'en. Sæt flueben når du er færdig.

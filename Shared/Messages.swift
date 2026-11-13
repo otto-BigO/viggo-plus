@@ -44,6 +44,20 @@ struct ThreadMessage: Identifiable, Hashable {
     var privateWith: String? = nil
     /// The start of the message it answers ("Hej Malou og Otto. Vær sød ...").
     var answers: String? = nil
+    /// Pictures and files attached to it.
+    var files: [MessageFile] = []
+}
+
+/// A picture or file attached to a message on Viggo. Both need your Viggo session to download.
+struct MessageFile: Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let mime: String
+    /// The file itself.
+    let url: URL
+    /// A small version, for pictures.
+    let preview: URL?
+    var isImage: Bool { mime.hasPrefix("image/") || preview != nil && name.range(of: "\\.(jpe?g|png|gif|heic|webp)$", options: [.regularExpression, .caseInsensitive]) != nil }
 }
 
 /// A file picked to go with a message.
@@ -118,8 +132,11 @@ extension Parser {
             let who = c.firstMatch("<div><div>(.*?)</div><small>(.*?)</small></div>")
             let subject = c.firstMatch("<div class=\"h\"[^>]*>(.*?)</div>")?[1].strippedHTML ?? ""
             // Viggo glues the paragraphs together in the preview ("15.15Sunday"), so put a space back.
-            let preview = (c.firstMatch("<div class=\"h\"[^>]*>.*?</div>\\s*<div>(.*?)</div>")?[1].strippedHTML.htmlDecoded ?? "")
+            var preview = (c.firstMatch("<div class=\"h\"[^>]*>.*?</div>\\s*<div>(.*?)</div>")?[1].strippedHTML.htmlDecoded ?? "")
                 .replacingOccurrences(of: "([0-9.!?:)]|[a-zæøå]{2})([A-ZÆØÅ])", with: "$1 $2", options: .regularExpression)
+            // A message with only a picture: "Dig:" with nothing after it.
+            let trimmed = preview.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty || trimmed.hasSuffix(":") { preview = trimmed + (trimmed.isEmpty ? "" : " ") + "📎 Vedhæftet fil" }
             let img = c.firstMatch("<div class=\"imgs[^\"]*\">\\s*<div><img src=\"([^\"]+)\"")?[1].htmlDecoded
             let others = c.firstMatch("<label>\\+(\\d+)</label>").flatMap { Int($0[1]) } ?? 0
             let cls = c.firstMatch("class=\"([^\"]*)\"")?[1] ?? ""
@@ -142,9 +159,29 @@ extension Parser {
             let img = c.firstMatch("^\\d+\">\\s*<img src=\"([^\"]+)\"")?[1].htmlDecoded
             // The body sits in <div class="p">, before "Læst af" or the reply buttons.
             var body = c.components(separatedBy: "<div class=\"p\">").dropFirst().first ?? ""
-            for stop in ["<label onclick", "<ul class=\"button-group", "</li>"] {
+            for stop in ["<label onclick", "<ul class=\"button-group"] {
                 if let r = body.range(of: stop) { body = String(body[..<r.lowerBound]) }
             }
+            // Attachments: <ul class="files-attached"> with a preview link and a thumbnail per file.
+            // Taken out of the text, or they read as "• Billede 1.jpg".
+            var files: [MessageFile] = []
+            if let r = body.range(of: "<ul class=\"files-attached\">") {
+                let block = String(body[r.upperBound...]).components(separatedBy: "</ul>").first ?? ""
+                for li in block.components(separatedBy: "<li").dropFirst() {
+                    guard let m = li.firstMatch("href=\"/Shared/Files/Preview/(\\d+)\\?viggoFunction=(\\w+)&(?:amp;)?rowId=(\\d+)"),
+                          let fid = Int(m[1]) else { continue }
+                    let name = li.firstMatch("<span>(.*?)</span>")?[1].strippedHTML.htmlDecoded
+                        ?? li.firstMatch("alt=\"([^\"]*)\"")?[1].htmlDecoded ?? "Fil"
+                    let mime = li.firstMatch(" type=\"([^\"]+)\"")?[1] ?? ""
+                    let thumb = li.firstMatch("<img src=\"([^\"]*DownloadFile[^\"]*)\"")?[1].htmlDecoded
+                    guard let full = URL(string: "/Shared/Files/DownloadFile?viggoFunction=\(m[2])&id=\(fid)&rowId=\(m[3])&download=False", relativeTo: Config.baseURL)?.absoluteURL
+                    else { continue }
+                    files.append(MessageFile(id: fid, name: name, mime: mime, url: full,
+                                             preview: thumb.flatMap { URL(string: $0, relativeTo: Config.baseURL)?.absoluteURL }))
+                }
+                body = String(body[..<r.lowerBound]).replacingOccurrences(of: "<hr\\s*/?>\\s*$", with: "", options: .regularExpression)
+            }
+            if let r = body.range(of: "</li>") { body = String(body[..<r.lowerBound]) }
             let links = body.matches("<a[^>]+href=\"(https?://[^\"]+)\"").compactMap { URL(string: $0[1].htmlDecoded) }
             let text = body.replacingOccurrences(of: "</div>\\s*$", with: "", options: .regularExpression).messageText
             // "Læst af 3": a hidden list of who read it, "Name (9. nov 2026 19:14)" with a picture.
@@ -162,7 +199,7 @@ extension Parser {
                 .replacingOccurrences(of: "([.!?]|\\p{Ll})(\\p{Lu})", with: "$1 $2", options: .regularExpression)
             return ThreadMessage(id: mid, authorID: author.flatMap { Int($0[1]) } ?? 0, author: author?[2].strippedHTML ?? "",
                                  image: img.flatMap(URL.init(string:)), date: author?[3].strippedHTML ?? "", text: text, links: links,
-                                 readBy: readers, privateWith: personal, answers: answers)
+                                 readBy: readers, privateWith: personal, answers: answers, files: files)
         }
         return ThreadDetail(id: id, subject: subject, from: names(fromBlock), to: names(toBlock), messages: messages,
                             canReplyAll: html.contains("type=AnswerThreadToAll"))

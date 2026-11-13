@@ -206,8 +206,11 @@ private struct MacBubble: View {
                     Label(mine ? "Privat til \(p)" : "Privat besked til dig", systemImage: "lock.fill")
                         .font(.system(size: 11, weight: .semibold)).foregroundStyle(.indigo)
                 }
+                ForEach(m.files.filter(\.isImage)) { f in MacFileImage(f: f) }
+                ForEach(m.files.filter { !$0.isImage }) { f in MacFileChip(f: f) }
+                if !m.text.isEmpty || !m.links.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(m.text).font(.system(size: 13)).textSelection(.enabled)
+                    if !m.text.isEmpty { Text(m.text).font(.system(size: 13)).textSelection(.enabled) }
                     ForEach(m.links, id: \.self) { u in
                         Link(destination: u) {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "arrow.up.right.square")
@@ -227,9 +230,69 @@ private struct MacBubble: View {
                             .strokeBorder(Color.indigo.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
                     }
                 }
+                }
             }
             if !mine { Spacer(minLength: 60) }
         }
+    }
+}
+
+/// Fetches an attachment with your Viggo login and saves it in a temporary folder.
+private func fetchAttachment(_ f: MessageFile) async -> URL? {
+    guard let d = try? await AppState.shared.client.data(f.url) else { return nil }
+    let u = FileManager.default.temporaryDirectory.appendingPathComponent("Viggo+ \(f.id) " + f.name.replacingOccurrences(of: "/", with: "-"))
+    return (try? d.write(to: u, options: .atomic)) != nil ? u : nil
+}
+
+/// A picture sent in a message. Click to open it in Preview.
+private struct MacFileImage: View {
+    let f: MessageFile
+    @State private var image: NSImage?
+    @State private var failed = false
+    private static let cache = NSCache<NSURL, NSImage>()
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image).resizable().scaledToFit()
+                    .frame(maxWidth: 320, maxHeight: 380)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .onTapGesture { Task { if let u = await fetchAttachment(f) { NSWorkspace.shared.open(u) } } }
+                    .help("Åbn \(f.name)")
+            } else if failed {
+                MacFileChip(f: f)
+            } else {
+                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.07))
+                    .frame(width: 200, height: 150).overlay(ProgressView().controlSize(.small))
+            }
+        }
+        .task(id: f.url) {
+            if let hit = Self.cache.object(forKey: f.url as NSURL) { image = hit; return }
+            if let d = try? await AppState.shared.client.data(f.url), let img = NSImage(data: d) {
+                Self.cache.setObject(img, forKey: f.url as NSURL)
+                withAnimation(.viggo) { image = img }
+            } else { failed = true }
+        }
+    }
+}
+
+/// Any other file sent in a message. Click to fetch and open it.
+private struct MacFileChip: View {
+    let f: MessageFile
+    @State private var loading = false
+    var body: some View {
+        Button {
+            loading = true
+            Task { if let u = await fetchAttachment(f) { NSWorkspace.shared.open(u) }; loading = false }
+        } label: {
+            HStack(spacing: 8) {
+                if loading { ProgressView().controlSize(.small) } else { Image(systemName: "doc") }
+                Text(f.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
+            }
+            .padding(.horizontal, 11).padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.07)))
+        }
+        .buttonStyle(.plain)
     }
 }
 

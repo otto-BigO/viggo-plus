@@ -25,16 +25,14 @@ extension AppState {
 
     /// The teachers on duty that day, by start time.
     func duties(on d: Date, person: UUID? = nil) -> [Duty] {
-        let list = person.flatMap { friendEvents[$0] } ?? events
-        return list.filter { $0.kind == .duty && DateUtil.cal.isDate($0.start, inSameDayAs: d) }
+        onDay(d, person.flatMap { friendEvents[$0] }).filter { $0.kind == .duty }
             .map(Self.duty).sorted { ($0.start, $0.who) < ($1.start, $1.who) }
     }
 
     /// Birthdays Viggo shows that day ("Oscar Meldgaard Sørensen (12/11)" → the name), always, whatever the calendar setting.
     func birthdayNames(on d: Date, person: UUID? = nil) -> [String] {
-        let list = person.flatMap { friendEvents[$0] } ?? events
         var seen = Set<String>()
-        return list.filter { $0.kind == .birthday && DateUtil.cal.isDate($0.start, inSameDayAs: d) }
+        return onDay(d, person.flatMap { friendEvents[$0] }).filter { $0.kind == .birthday }
             .map { $0.rawName.replacingOccurrences(of: "\\s*\\([^)]*\\)\\s*$", with: "", options: .regularExpression)
                 .trimmingCharacters(in: .whitespaces) }
             .filter { seen.insert($0).inserted }

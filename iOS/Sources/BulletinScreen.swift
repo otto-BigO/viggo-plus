@@ -66,7 +66,7 @@ struct BulletinScreen: View {
 extension URL: @retroactive Identifiable { public var id: String { absoluteString } }
 
 /// A picture full screen, pinch to zoom, double tap to zoom in and out.
-private struct ZoomImage: View {
+struct ZoomImage: View {
     @Environment(\.dismiss) private var dismiss
     let url: URL
     @State private var scale: CGFloat = 1
@@ -123,7 +123,9 @@ struct ViggoImage<Shown: View>: View {
             }
         }
         .task(id: url) {
+            if let hit = ImageCache.shared.object(forKey: url as NSURL) { image = hit; return }
             if let d = try? await AppState.shared.client.data(url), let img = UIImage(data: d) {
+                ImageCache.shared.setObject(img, forKey: url as NSURL)
                 withAnimation(.viggo) { image = img }
             } else { failed = true }
         }
@@ -132,4 +134,9 @@ struct ViggoImage<Shown: View>: View {
 
 extension ViggoImage where Shown == AnyView {
     init(url: URL) { self.init(url: url) { AnyView($0.resizable().scaledToFit()) } }
+}
+
+/// Pictures stay in memory while the app runs, so reopening a thread or post does not fetch them again.
+enum ImageCache {
+    nonisolated(unsafe) static let shared: NSCache<NSURL, UIImage> = { let c = NSCache<NSURL, UIImage>(); c.countLimit = 60; return c }()
 }

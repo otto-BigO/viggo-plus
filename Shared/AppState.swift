@@ -14,7 +14,17 @@ import UIKit
 final class AppState: ObservableObject {
     static let shared = AppState()
 
-    @Published var events: [ViggoEvent] = []
+    @Published var events: [ViggoEvent] = [] { didSet { byDay = Dictionary(grouping: events) { DateUtil.startOfDay($0.start) } } }
+    /// `events` by the day they start. The whole school year is ~2500 items, and Uge, the panel and
+    /// the menubar ask for one day many times per redraw; filtering all of them each time made
+    /// switching day in Uge lag by a second.
+    private(set) var byDay: [Date: [ViggoEvent]] = [:]
+
+    /// What starts on that day: from the index for your own schedule, filtered for a friend's.
+    func onDay(_ d: Date, _ list: [ViggoEvent]? = nil) -> [ViggoEvent] {
+        if let list { return list.filter { DateUtil.cal.isDate($0.start, inSameDayAs: d) } }
+        return byDay[DateUtil.startOfDay(d)] ?? []
+    }
     @Published var homework: [Homework] = []
     @Published var messages: [ViggoMessage] = []
     @Published var lastSync: Date?
@@ -115,6 +125,14 @@ final class AppState: ObservableObject {
                 if CommandLine.arguments.contains("--far") {
                     await loadFarWeeks()
                     let last = events.filter { $0.kind == .lesson }.map(\.start).max()
+                    // What one day switch in Uge costs: 7 strip days, the day itself, duties and birthdays.
+                    let t0 = Date()
+                    for n in 0..<20 {
+                        let d = DateUtil.add(.day, n, DateUtil.startOfDay(Date()))
+                        for k in 0..<7 { _ = weekItems(DateUtil.add(.day, k, DateUtil.mondayOf(d)), person: nil) }
+                        _ = weekItems(d, person: nil, wholeDay: true); _ = duties(on: d); _ = birthdayNames(on: d)
+                    }
+                    print("[uge] et dagsskift tager \(Int(Date().timeIntervalSince(t0) * 1000 / 20)) ms")
                     print("[skoleår] \(Config.weeksAhead) uger frem, \(events.count) punkter, sidste time \(last.map(DateUtil.day) ?? "-")")
                 }
                 if CommandLine.arguments.contains("--bulletin-html") { let c = client
@@ -142,7 +160,7 @@ final class AppState: ObservableObject {
                     } else { print("[tråd] kunne ikke hente") }
                     if let id = ProcessInfo.processInfo.environment["VIGGO_THREAD"].flatMap(Int.init), let d = try? await c.fetchThread(id) {
                         print("[emne] \(d.subject) fra=\(d.from) til=\(d.to.count) svar-alle=\(d.canReplyAll)")
-                        for m in d.messages { print("[besked] \(m.authorID) \(m.author) | \(m.date) | links=\(m.links.count)\n\(m.text)\n---") }
+                        for m in d.messages { print("[besked] \(m.authorID) \(m.author) | \(m.date) | links=\(m.links.count) | filer=\(m.files.map { "\($0.name) \($0.mime) \($0.url.absoluteString)" })\n\(m.text)\n---") }
                     }
                     if let dir = try? await c.fetchDirectory() { print("[folk] \(dir.people.count) personer, \(dir.groups.count) grupper; fx \(dir.people.first.map { "\($0.name) [\($0.info)]" } ?? "-")") }
                 }
@@ -934,11 +952,11 @@ final class AppState: ObservableObject {
     }
 
     func items(on day: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
-        (list ?? events).filter { visible($0) && $0.kind != .birthday && DateUtil.cal.isDate($0.start, inSameDayAs: day) }
+        onDay(day, list).filter { visible($0) && $0.kind != .birthday }
     }
 
     var dutyTonight: [String] {
-        events.filter { $0.kind == .duty && DateUtil.cal.isDateInToday($0.start) && $0.rawName.localizedCaseInsensitiveContains("aftenvagt") }
+        onDay(Date()).filter { $0.kind == .duty && $0.rawName.localizedCaseInsensitiveContains("aftenvagt") }
             .map { $0.rawName.components(separatedBy: " - ").first ?? $0.rawName }
     }
 
@@ -959,12 +977,10 @@ final class AppState: ObservableObject {
     /// Everyday items left today, shown once lessons are over.
     func afterSchool(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
         guard prefs.menubarRoutine else { return [] }
-        let events = list ?? self.events
-        let school = events.filter { ($0.kind == .lesson || $0.kind == .event) && DateUtil.cal.isDate($0.start, inSameDayAs: now) }
+        let todays = onDay(now, list)
+        let school = todays.filter { $0.kind == .lesson || $0.kind == .event }
         if let lastEnd = school.map(\.end).max(), lastEnd > now { return [] }
-        return events.filter {
-            $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now) && $0.end > now && inMenubar($0.title)
-        }
+        return todays.filter { $0.kind == .routine && $0.end > now && inMenubar($0.title) }
     }
 
     /// Puts the day's food from the meal plan on Middag and Aftensmad, as the event's notes.
@@ -980,7 +996,7 @@ final class AppState: ObservableObject {
     /// like on Viggo: Middag, Tjek af værelser, Hovedrengøring af værelser, Formiddagspause.
     func lunch(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
         guard prefs.panelLunch else { return [] }
-        let todays = (list ?? events).filter { DateUtil.cal.isDate($0.start, inSameDayAs: now) }
+        let todays = onDay(now, list)
         let school = todays.filter { $0.kind == .lesson || $0.kind == .event }
         let routines = todays.filter { $0.kind == .routine }
         let first = school.map(\.start).min() ?? .distantFuture, last = school.map(\.end).max() ?? .distantPast
@@ -1001,7 +1017,7 @@ final class AppState: ObservableObject {
     /// A gap of up to 30 minutes with nothing else in it counts as a break.
     func breaks(_ day: Date, from list: [ViggoEvent]? = nil, menubar: Bool = false) -> [ViggoEvent] {
         guard menubar ? prefs.menubarBreaks : prefs.panelBreaks else { return [] }
-        let todays = (list ?? events).filter { DateUtil.cal.isDate($0.start, inSameDayAs: day) && $0.kind != .duty && $0.kind != .birthday }
+        let todays = onDay(day, list).filter { $0.kind != .duty && $0.kind != .birthday }
         let classes = todays.filter { $0.kind == .lesson && $0.rawName.firstMatch("^\\d+\\s") != nil }
             .sorted { $0.start < $1.start }
         var out: [ViggoEvent] = []
@@ -1032,13 +1048,12 @@ final class AppState: ObservableObject {
     /// `wholeDay` also takes the evening (Aftensmad, Stilletime, Godnat), like Viggo's own schedule.
     func weekItems(_ d: Date, person: UUID?, wholeDay: Bool = false) -> [ViggoEvent] {
         let list = person.flatMap { friendEvents[$0] }
-        let school = (list ?? events).filter { ($0.kind == .lesson || $0.kind == .event) && (person != nil || visible($0))
-            && DateUtil.cal.isDate($0.start, inSameDayAs: d) }
+        let day = onDay(d, list)
+        let school = day.filter { ($0.kind == .lesson || $0.kind == .event) && (person != nil || visible($0)) }
         var extra = lunch(d, from: list) + breaks(d, from: list) + (person == nil ? customEvents(on: d) : [])
         if wholeDay {
             let have = Set(extra.map(\.id))
-            let rest = (list ?? events).filter { $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: d)
-                && !have.contains($0.id) }
+            let rest = day.filter { $0.kind == .routine && !have.contains($0.id) }
             extra += rest
         }
         return (school + extra.map(withFood)).sorted { $0.start < $1.start }
@@ -1050,11 +1065,10 @@ final class AppState: ObservableObject {
 
     /// Today's lessons/events plus the everyday items after school, as one list.
     func timeline(_ now: Date, from list: [ViggoEvent]? = nil) -> [ViggoEvent] {
-        let all = list ?? events
-        let school = all.filter { ($0.kind == .lesson || $0.kind == .event) && visibleOrFriend($0, list != nil)
-            && DateUtil.cal.isDate($0.start, inSameDayAs: now) }
+        let all = onDay(now, list)
+        let school = all.filter { ($0.kind == .lesson || $0.kind == .event) && visibleOrFriend($0, list != nil) }
         let lastEnd = school.map(\.end).max() ?? DateUtil.startOfDay(now)
-        let evening = all.filter { $0.kind == .routine && DateUtil.cal.isDate($0.start, inSameDayAs: now)
+        let evening = all.filter { $0.kind == .routine
             && $0.start >= lastEnd && inMenubar($0.title) }
         let meal = lunch(now, from: list).filter { e in !evening.contains { $0.id == e.id } }
         let own = list == nil ? customEvents(on: now) : []
@@ -1350,7 +1364,7 @@ final class AppState: ObservableObject {
 
     /// People in the schedule with a birthday today.
     var birthdaysToday: [String] {
-        events.filter { $0.kind == .birthday && DateUtil.cal.isDateInToday($0.start) }.map(\.birthdayName)
+        onDay(Date()).filter { $0.kind == .birthday }.map(\.birthdayName)
     }
 
     private func checkBriefs() {

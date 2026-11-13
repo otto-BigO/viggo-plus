@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 
 // MARK: - Inbox list
@@ -420,6 +421,7 @@ private struct Bubble: View {
     var showName = false
     var tail = true
     private var personal: Bool { m.privateWith != nil }
+    @State private var zoomed: URL?
 
     private var shape: UnevenRoundedRectangle {
         let r: CGFloat = 18, t: CGFloat = tail ? 5 : 18
@@ -451,8 +453,19 @@ private struct Bubble: View {
                     Text("↩︎ \(a)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                         .padding(.horizontal, 12).frame(maxWidth: 260, alignment: mine ? .trailing : .leading)
                 }
+                ForEach(m.files.filter(\.isImage)) { f in
+                    Button { Haptic.tap(); zoomed = f.url } label: {
+                        // Clipped inside, so the corners follow the picture and not the frame around it.
+                        ViggoImage(url: f.url) { AnyView($0.resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))) }
+                            .frame(maxWidth: 230, maxHeight: 320, alignment: mine ? .trailing : .leading)
+                    }
+                    .buttonStyle(PressScale(scale: 0.97))
+                    .accessibilityLabel(f.name)
+                }
+                ForEach(m.files.filter { !$0.isImage }) { f in FileChip(f: f) }
+                if !m.text.isEmpty || !m.links.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(m.text).font(.body)
+                    if !m.text.isEmpty { Text(m.text).font(.body) }
                     ForEach(m.links, id: \.self) { u in
                         Link(destination: u) {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "link")
@@ -473,9 +486,54 @@ private struct Bubble: View {
                 .contextMenu {
                     Button { UIPasteboard.general.string = m.text; Haptic.tap() } label: { Label("Kopiér", systemImage: "doc.on.doc") }
                 }
+                }
             }
             if !mine { Spacer(minLength: 56) }
         }
+        .fullScreenCover(item: $zoomed) { u in ZoomImage(url: u) }
+    }
+}
+
+/// A file attached to a message (a PDF, a document). Tap to fetch it with your login and preview it.
+private struct FileChip: View {
+    let f: MessageFile
+    @State private var local: URL?
+    @State private var loading = false
+
+    var body: some View {
+        Button {
+            guard !loading else { return }
+            loading = true
+            Task {
+                defer { loading = false }
+                guard let d = try? await AppState.shared.client.data(f.url) else { Haptic.warning(); return }
+                let u = FileManager.default.temporaryDirectory.appendingPathComponent(f.name.replacingOccurrences(of: "/", with: "-"))
+                try? d.write(to: u, options: .atomic)
+                local = u
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Group {
+                    if loading { ProgressView() } else { Image(systemName: icon).font(.title3) }
+                }
+                .frame(width: 30)
+                Text(f.name).font(.subheadline.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .frame(maxWidth: 240, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.systemGray5)))
+        }
+        .buttonStyle(PressScale(scale: 0.97))
+        .tint(.primary)
+        .quickLookPreview($local)
+    }
+
+    private var icon: String {
+        let n = f.name.lowercased()
+        if n.hasSuffix(".pdf") { return "doc.richtext" }
+        if n.hasSuffix(".doc") || n.hasSuffix(".docx") || n.hasSuffix(".pages") { return "doc.text" }
+        if n.hasSuffix(".mp4") || n.hasSuffix(".mov") { return "film" }
+        return "doc"
     }
 }
 
