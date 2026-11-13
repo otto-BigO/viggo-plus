@@ -242,6 +242,12 @@ final class Directory: ObservableObject {
     private var byID: [Int: Member] = [:]
     private var groupsOf: [Int: [MemberGroup]] = [:]
     private var details: [Int: MemberDetails] = [:]
+    /// Worked out once when the address book loads, so searching only compares strings.
+    private var sortedGroupsOf: [Int: [MemberGroup]] = [:]
+    private var lineOf: [Int: String] = [:]
+    private var summaryOf: [Int: String] = [:]
+    private struct Index { let name: String; let parts: [Substring]; let line: String; let house: String; let room: String; let initials: String }
+    private var index: [Index] = []
     private var loadedAt: Date?
 
     private var cacheURL: URL { CookieJar.dir.appendingPathComponent("directory.json") }
@@ -280,6 +286,17 @@ final class Directory: ObservableObject {
         for g in groups { for m in g.members { of[m, default: []].append(g) } }
         groupsOf = of
         relations = (d.Relations ?? []).map { MemberRelation(master: $0.MasterUserId, user: $0.UserId, kind: $0.RelationsId) }
+        sortedGroupsOf = of.mapValues { list in
+            list.filter { !$0.name.lowercased().hasPrefix("alle ") }
+                .sorted { $0.kind == $1.kind ? $0.display.localizedCompare($1.display) == .orderedAscending : $0.kind < $1.kind }
+        }
+        lineOf = sortedGroupsOf.compactMapValues { $0.first { $0.kind == .linje }?.display }
+        summaryOf = [:]
+        index = members.map { m in
+            let name = m.name.lowercased()
+            return Index(name: name, parts: name.split(separator: " "), line: lineOf[m.id]?.lowercased() ?? "",
+                         house: m.house.lowercased(), room: m.room.lowercased(), initials: m.initials.lowercased())
+        }
         return true
     }
 
@@ -290,14 +307,11 @@ final class Directory: ObservableObject {
     }
 
     /// The groups someone is in, most telling first. "Alle ..." groups say nothing, so they are left out.
-    func groups(of id: Int) -> [MemberGroup] {
-        (groupsOf[id] ?? []).filter { !$0.name.lowercased().hasPrefix("alle ") }
-            .sorted { $0.kind == $1.kind ? $0.display.localizedCompare($1.display) == .orderedAscending : $0.kind < $1.kind }
-    }
+    func groups(of id: Int) -> [MemberGroup] { sortedGroupsOf[id] ?? [] }
     func group(_ id: Int) -> MemberGroup? { groups.first { $0.id == id } }
 
     /// The line someone is on ("Musiklinjen"), from their Linjefag group.
-    func line(of id: Int) -> String? { groups(of: id).first { $0.kind == .linje }?.display }
+    func line(of id: Int) -> String? { lineOf[id] }
 
     func roommates(of m: Member) -> [Member] {
         guard !m.room.isEmpty else { return [] }
@@ -352,6 +366,13 @@ final class Directory: ObservableObject {
 
     /// One line about someone for a list: "10.4 · Musiklinjen · Drengegangen D17", "Lærer · HG", "Mor til Otto".
     func summary(_ m: Member) -> String {
+        if let s = summaryOf[m.id] { return s }
+        let s = makeSummary(m)
+        summaryOf[m.id] = s
+        return s
+    }
+
+    private func makeSummary(_ m: Member) -> String {
         switch m.kind {
         case .student:
             return [m.className.isEmpty ? nil : m.className, line(of: m.id), m.houseRoom.isEmpty ? nil : m.houseRoom]
@@ -377,19 +398,18 @@ final class Directory: ObservableObject {
         let words = q.split(separator: " ").map(String.init)
         let classQ = q.replacingOccurrences(of: ".", with: "")
         var scored: [(Int, Member)] = []
-        for m in members {
-            let name = m.name.lowercased()
-            let parts = name.split(separator: " ")
+        let long = q.count >= 3
+        for (m, x) in zip(members, index) {
             var score = 0
-            if name == q { score = 100 }
-            else if name.hasPrefix(q) { score = 80 }
-            else if words.allSatisfy({ w in parts.contains { $0.hasPrefix(w) } }) { score = 60 }
-            else if !m.initials.isEmpty, m.initials.lowercased() == q { score = 70 }
-            else if !m.room.isEmpty, m.room.lowercased() == q { score = 65 }
+            if x.name == q { score = 100 }
+            else if x.name.hasPrefix(q) { score = 80 }
+            else if words.allSatisfy({ w in x.parts.contains { $0.hasPrefix(w) } }) { score = 60 }
+            else if !x.initials.isEmpty, x.initials == q { score = 70 }
+            else if !x.room.isEmpty, x.room == q { score = 65 }
             else if !m.grade.isEmpty, m.grade == classQ, m.kind == .student { score = 50 }
-            else if q.count >= 3, let l = line(of: m.id)?.lowercased(), l.hasPrefix(q) { score = 45 }
-            else if !m.house.isEmpty, m.house.lowercased().hasPrefix(q), q.count >= 3 { score = 40 }
-            else if q.count >= 3, words.allSatisfy({ m.searchText.contains($0) }) { score = 20 }
+            else if long, !x.line.isEmpty, x.line.hasPrefix(q) { score = 45 }
+            else if long, !x.house.isEmpty, x.house.hasPrefix(q) { score = 40 }
+            else if long, words.allSatisfy({ m.searchText.contains($0) }) { score = 20 }
             guard score > 0 else { continue }
             score += m.kind == .student ? 3 : m.kind == .staff ? 2 : 0
             scored.append((score, m))

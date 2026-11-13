@@ -47,9 +47,13 @@ struct Avatar: View {
         return palette[h % palette.count]
     }
 
+    @State private var loaded: Image?
+
     var body: some View {
-        AsyncImage(url: url) { img in img.resizable().scaledToFill() } placeholder: {
-            if initials.isEmpty {
+        Group {
+            if let img = loaded ?? url.flatMap(AvatarCache.image) {
+                img.resizable().scaledToFill()
+            } else if initials.isEmpty {
                 Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
             } else {
                 Circle().fill(tint.gradient)
@@ -58,6 +62,46 @@ struct Avatar: View {
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
+        .task(id: url) {
+            guard let url, AvatarCache.image(url) == nil else { return }
+            loaded = await AvatarCache.load(url)
+        }
+    }
+}
+
+/// Pictures of people, kept in memory once loaded and shrunk to a small size. AsyncImage
+/// fetched every picture again each time a row came back, which made search lag.
+@MainActor
+enum AvatarCache {
+    private static var images: [URL: Image] = [:]
+    private static var running: [URL: Task<Image?, Never>] = [:]
+
+    static func image(_ url: URL) -> Image? { images[url] }
+
+    static func load(_ url: URL) async -> Image? {
+        if let i = images[url] { return i }
+        if let t = running[url] { return await t.value }
+        let t = Task<Image?, Never> {
+            guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+            return await Task.detached(priority: .utility) { () -> Image? in
+                #if os(macOS)
+                guard let img = NSImage(data: data) else { return nil }
+                return Image(nsImage: img)
+                #else
+                guard let img = UIImage(data: data) else { return nil }
+                let small = img.preparingThumbnail(of: CGSize(width: 180, height: 180 * img.size.height / max(img.size.width, 1))) ?? img
+                return Image(uiImage: small)
+                #endif
+            }.value
+        }
+        running[url] = t
+        let i = await t.value
+        running[url] = nil
+        if let i {
+            if images.count > 600 { images.removeAll() }
+            images[url] = i
+        }
+        return i
     }
 }
 
@@ -709,13 +753,13 @@ struct LoginCard: View {
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.primary.opacity(0.08)))
         .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
         #else
-        // On the iPhone it comes up from the bottom like Apple Pay, away from the form.
-        .padding(.horizontal, 26).padding(.top, 28).padding(.bottom, 20)
-        .frame(maxWidth: .infinity)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 34, style: .continuous).stroke(.primary.opacity(0.08)))
-        .shadow(color: .black.opacity(0.3), radius: 30, y: 4)
-        .padding(.horizontal, 8).padding(.bottom, 8)
+        // On the iPhone it sits in the middle of the screen, like on the Mac.
+        .padding(.horizontal, 26).padding(.top, 28).padding(.bottom, 22)
+        .frame(maxWidth: 330)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(.primary.opacity(0.08)))
+        .shadow(color: .black.opacity(0.3), radius: 30, y: 8)
+        .padding(.horizontal, 24)
         #endif
         .animation(.viggo, value: stage)
         // A tap for every step, and a clear success or error at the end.
@@ -741,13 +785,14 @@ struct LoginCardOverlay: ViewModifier {
                 }
                 .transition(.opacity)
                 #else
-                ZStack(alignment: .bottom) {
+                ZStack {
                     Rectangle().fill(.black.opacity(0.35)).ignoresSafeArea()
                         .onTapGesture { if case .failure = st { state.dismissLoginCard() } }
                         .transition(.opacity)
                     LoginCard(stage: st)
-                        .transition(.move(edge: .bottom))
+                        .transition(.scale(scale: 0.92).combined(with: .opacity))
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea(.keyboard)
                 .onAppear {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)

@@ -11,7 +11,7 @@ func liveColor(_ i: WidgetItem) -> Color {
     if let h = i.color, let c = Color(widgetHex: h) { return c }
     switch i.kind {
     case "lesson": return .blue
-    case "event": return .purple
+    case "event": return .orange
     case "custom": return .green
     default: return .gray
     }

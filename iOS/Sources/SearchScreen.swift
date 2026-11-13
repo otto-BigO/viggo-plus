@@ -24,37 +24,40 @@ struct SearchScreen: View {
     @AppStorage("recentSearches") private var recentRaw = ""
     @Environment(\.dismiss) private var dismiss
 
-    private var q: String { Directory.normalize(query) }
+    /// The query the results are for. It follows what you type after a short pause, so the
+    /// results are worked out once per pause and not for every letter and every redraw.
+    @State private var q = Directory.normalize(ProcessInfo.processInfo.environment["VIGGO_SEARCH"] ?? "")
+    @State private var people: [Member] = []
+    @State private var groups: [MemberGroup] = []
+    @State private var localThreads: [MessageThread] = []
+    @State private var lessons: [ViggoEvent] = []
+    @State private var homework: [Homework] = []
+    @State private var posts: [Bulletin] = []
     private var recent: [String] { recentRaw.split(separator: "\n").map(String.init) }
 
-    private var people: [Member] { dir.search(query) }
-    private var groups: [MemberGroup] { Array(dir.searchGroups(query).prefix(6)) }
     private var threads: [MessageThread] {
-        guard !q.isEmpty else { return [] }
-        let local = inbox.threads.filter { "\($0.sender) \($0.subject) \($0.preview)".lowercased().contains(q) }
-        var seen = Set(local.map(\.id))
-        return local + found.filter { seen.insert($0.id).inserted }
+        var seen = Set(localThreads.map(\.id))
+        return localThreads + found.filter { seen.insert($0.id).inserted }
     }
-    private var lessons: [ViggoEvent] {
-        guard q.count >= 2 else { return [] }
+    private var nothing: Bool {
+        people.isEmpty && groups.isEmpty && threads.isEmpty && lessons.isEmpty && homework.isEmpty && posts.isEmpty
+    }
+
+    private func compute() {
+        people = dir.search(q)
+        groups = Array(dir.searchGroups(q).prefix(6))
+        guard !q.isEmpty else { localThreads = []; lessons = []; homework = []; posts = []; return }
+        localThreads = inbox.threads.filter { "\($0.sender) \($0.subject) \($0.preview)".lowercased().contains(q) }
+        guard q.count >= 2 else { lessons = []; homework = []; posts = []; return }
         let now = Date()
-        return state.events.filter { e in
+        lessons = state.events.filter { e in
             e.end > now && (e.kind == .lesson || e.kind == .event) &&
             "\(e.title) \(e.rawName) \(e.room) \(e.teachers.joined(separator: " ")) \(e.notes)".lowercased().contains(q)
         }
         .sorted { $0.start < $1.start }.prefix(6).map { $0 }
-    }
-    private var homework: [Homework] {
-        guard q.count >= 2 else { return [] }
-        return state.homework.filter { "\($0.title) \($0.group) \($0.notes) \($0.author)".lowercased().contains(q) }
+        homework = state.homework.filter { "\($0.title) \($0.group) \($0.notes) \($0.author)".lowercased().contains(q) }
             .sorted { $0.due > $1.due }.prefix(5).map { $0 }
-    }
-    private var posts: [Bulletin] {
-        guard q.count >= 2 else { return [] }
-        return state.bulletins.filter { "\($0.title) \($0.author) \($0.body) \($0.text)".lowercased().contains(q) }.prefix(5).map { $0 }
-    }
-    private var nothing: Bool {
-        people.isEmpty && groups.isEmpty && threads.isEmpty && lessons.isEmpty && homework.isEmpty && posts.isEmpty
+        posts = state.bulletins.filter { "\($0.title) \($0.author) \($0.body) \($0.text)".lowercased().contains(q) }.prefix(5).map { $0 }
     }
 
     var body: some View {
@@ -73,11 +76,20 @@ struct SearchScreen: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
             .onSubmit(of: .search) { remember(query) }
+            .task(id: query) {
+                let n = Directory.normalize(query)
+                // Clearing is instant; while typing, wait for a short pause.
+                if !n.isEmpty, n != q { try? await Task.sleep(for: .milliseconds(120)) }
+                guard !Task.isCancelled else { return }
+                if n != q { q = n }
+                compute()
+            }
             .task(id: q) { await searchViggo() }
-            .task { await dir.load(); if inbox.threads.isEmpty { await inbox.load() } }
+            .task { await dir.load(); if inbox.threads.isEmpty { await inbox.load() }; compute() }
+            .onChange(of: dir.members.count) { compute() }
+            .onChange(of: inbox.threads.count) { compute() }
             .refreshable { await dir.load(force: true) }
             .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
-            .animation(.viggo, value: q)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button("Luk") { dismiss() } }
             }
@@ -245,7 +257,7 @@ struct FoundScreen: View {
 // MARK: - Rows
 
 struct PersonRow: View {
-    @StateObject private var dir = Directory.shared
+    private var dir: Directory { Directory.shared }
     let m: Member
     var size: CGFloat = 44
     var body: some View {
@@ -465,14 +477,16 @@ struct PersonScreen: View {
             .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
             Text(m.name).font(.title2.weight(.bold)).multilineTextAlignment(.center)
             Text(dir.summary(m)).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            HStack(spacing: 12) {
-                action("Besked", "bubble.left.fill") { composing = true }
-                if !m.anyPhone.isEmpty {
-                    action("Ring", "phone.fill") { openURL(URL(string: "tel:\(m.anyPhone)")!) }
-                    action("SMS", "message.fill") { openURL(URL(string: "sms:\(m.anyPhone)")!) }
+            if m.id != me {
+                HStack(spacing: 12) {
+                    action("Besked", "bubble.left.fill") { composing = true }
+                    if !m.anyPhone.isEmpty {
+                        action("Ring", "phone.fill") { openURL(URL(string: "tel:\(m.anyPhone)")!) }
+                        action("SMS", "message.fill") { openURL(URL(string: "sms:\(m.anyPhone)")!) }
+                    }
                 }
+                .padding(.top, 4)
             }
-            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)

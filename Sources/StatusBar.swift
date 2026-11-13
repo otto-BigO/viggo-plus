@@ -182,6 +182,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             PhoneInstaller.shared.startRenewal()
         }
         // For testing the login transfer in the simulator: write the transfer file and quit.
+        // For looking at Viggo's HTML from Terminal while building a parser: --peek /Basic/... prints the page.
+        if let i = CommandLine.arguments.firstIndex(of: "--peek"), i + 1 < CommandLine.arguments.count {
+            Task { @MainActor in
+                CookieJar.restore()
+                await AppState.shared.sync()
+                if AppState.shared.needsLogin { _ = await AppState.shared.tryAutoLogin(force: true) }
+                do {
+                    let html = String(decoding: try await ViggoClient().getPublic(CommandLine.arguments[i + 1]), as: UTF8.self)
+                    if CommandLine.arguments.contains("--parsed") {
+                        let d = Parser.thread(html, id: 0)
+                        print("[peek] til \(d.to) fra \(d.from)")
+                        for m in d.messages { print("[peek] \(m.id) \(m.author): læst af \(m.readBy.map { "\($0.name) (\($0.date))" })") }
+                    } else { print(html) }
+                }
+                catch { print("[peek] \(error.localizedDescription)") }
+                exit(0)
+            }
+            return
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--write-transfer"), i + 1 < CommandLine.arguments.count {
             let t = LoginTransfer.make()
             try? PropertyListEncoder().encode(t).write(to: URL(fileURLWithPath: CommandLine.arguments[i + 1]))

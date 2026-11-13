@@ -140,8 +140,8 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 
 - **I dag**: et stort Nu-kort med nedtælling, tal for dagen, dagens skema, mad, i morgen, lektier, beskeder og hvornår du har fri sammen med dine venner. Træk ned for at synke.
 - **Uge**: én dag ad gangen, med ugens dage øverst. Swipe sideværts for at skifte dag.
-- **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper.
-- **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo.
+- **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper. Under din nyeste besked står om den er set, og af hvem.
+- **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo. Tryk på en ven under Venner nu eller på dit eget billede for at åbne en personside.
 - **Venner**: hvad dine venner har lige nu, og deres dag.
 - **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
 - **Opdateringer**: Viggo+ på Mac'en opdaterer sig selv og lægger nye versioner af iPhone-appen på telefonen, så snart den er på samme wifi. Appen viser hvad der er nyt.
@@ -151,12 +151,9 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 - **Kontrolcenter**: en knap der viser hvad du har nu og åbner appen.
 - **Notifikationer**: påmindelse før timer, morgen- og aften-brief og fødselsdage, også når appen er lukket. Flyttede timer, nye lektier, beskeder og opslag kommer når iOS lader appen synke i baggrunden.
 - **Live Activity** i skoletiden: timen der er i gang med nedtælling på låseskærmen og i Dynamic Island. Kan startes uden at åbne appen med handlingen **Vis skoledagen** i Genveje (fx som automatisering kl. 7.45 på hverdage) eller fra Kontrolcenter.
-- **Opstart i ASCII**: mens skemaet hentes, vises et landskab tegnet med tegn, i stil med en lo-fi radiostream. Om dagen sorte tegn på creme med skyer der driver og græs i vinden, om aftenen og natten grå tegn på sort med en stor ring, bjerge, skov og stjerner. Øverst står hvad der hentes.
-- **Vælg din opstart**: under Indstillinger > Opstart vælger du mellem otte opstarts-animationer: de nye (Radio, Terminal, Skema, Nordlys, Stjernestøv) og de gamle (Ugle, ASCII-ikon, Ikon). Slå flere til, så får du en tilfældig hver gang.
+- **Opstart**: mens skemaet hentes, tegner app-ikonet sig selv. Cirka hver tiende gang kommer en af de sjældne i stedet: Nordlys, Skema, Terminal eller ASCII-ikon.
 - **Introduktion** første gang du er logget ind: widgets, Vis skoledagen som automatisering og knappen i Kontrolcenter. Den kan åbnes igen under Indstillinger.
 
-<p align="center"><img src="docs/screens/iphone-opstart.png" alt="Opstarten om dagen og om natten" width="520"></p>
-<p align="center"><img src="docs/screens/iphone-opstarter.png" alt="De otte opstarter" width="900"></p>
 <p align="center"><img src="docs/screens/iphone-guide.png" alt="Introduktionen" width="420"></p>
 
 Den er ikke i App Store, men Viggo+ på Mac'en kan lægge den på din iPhone. Åbn **Indstillinger > iPhone-app** i Mac-appen. Der står hvad du skal bruge og hvor lang tid det tager, og en guide der krydser trinene af efterhånden:

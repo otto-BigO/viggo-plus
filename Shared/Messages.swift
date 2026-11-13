@@ -38,6 +38,14 @@ struct ThreadMessage: Identifiable, Hashable {
     let date: String
     let text: String
     let links: [URL]
+    /// Who has read it and when, from Viggo's "Læst af".
+    var readBy: [Reader] = []
+}
+
+struct Reader: Hashable {
+    let name: String
+    let date: String
+    let image: URL?
 }
 
 struct ThreadDetail: Hashable {
@@ -125,8 +133,17 @@ extension Parser {
             }
             let links = body.matches("<a[^>]+href=\"(https?://[^\"]+)\"").compactMap { URL(string: $0[1].htmlDecoded) }
             let text = body.replacingOccurrences(of: "</div>\\s*$", with: "", options: .regularExpression).messageText
+            // "Læst af 3": a hidden list of who read it, "Name (9. nov 2026 19:14)" with a picture.
+            let list = c.components(separatedBy: "<ul class=\"list-icons small\"").dropFirst().first?
+                .components(separatedBy: "</ul>").first ?? ""
+            let readers: [Reader] = list.matches("<img src=\"([^\"]+)\"[^>]*>\\s*<p[^>]*>(.*?)</p>").map { r in
+                let full = r[2].strippedHTML.htmlDecoded
+                let m = full.firstMatch("^(.*) \\((.*)\\)$")
+                return Reader(name: m?[1] ?? full, date: m?[2] ?? "", image: URL(string: r[1].htmlDecoded))
+            }
             return ThreadMessage(id: mid, authorID: author.flatMap { Int($0[1]) } ?? 0, author: author?[2].strippedHTML ?? "",
-                                 image: img.flatMap(URL.init(string:)), date: author?[3].strippedHTML ?? "", text: text, links: links)
+                                 image: img.flatMap(URL.init(string:)), date: author?[3].strippedHTML ?? "", text: text, links: links,
+                                 readBy: readers)
         }
         return ThreadDetail(id: id, subject: subject, from: names(fromBlock), to: names(toBlock), messages: messages,
                             canReplyAll: html.contains("type=AnswerThreadToAll"))

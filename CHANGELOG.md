@@ -1,5 +1,14 @@
 # Ændringer
 
+## 1.16.0 og iPhone-app 1.5.0 (2026-11-13)
+
+- **Set i beskeder**: under din nyeste besked står "Set kl. 14.37", eller "Set af 3 af 12" i grupper, ligesom Viggos "Læst af". Tryk for at se hvem der har set den og hvornår.
+- **Personsider fra I dag**: tryk på en ven under Venner nu for at åbne deres side, og tryk på dit eget billede øverst for at se din egen profil.
+- **Hurtigere søgning**: billeder af personer bliver gemt i stedet for at blive hentet igen for hvert bogstav, og resultaterne regnes ud én gang, når du holder en lille pause i skrivningen. Den lagger ikke længere.
+- **Ny opstart**: app-ikonet tegner sig selv næsten hver gang. Cirka hver tiende gang kommer Nordlys, Skema, Terminal eller ASCII-ikon i stedet. Valget under Indstillinger > Opstart er fjernet.
+- Låseskærmen og widgets bruger nu samme farve som appen, også for begivenheder som Brobygning.
+- Det automatiske login vises midt på skærmen på iPhonen og siger "gemt på din iPhone" i stedet for "din Mac".
+
 ## 1.15.0 (2026-11-13)
 
 - **iPhone-appen på flere iPhones**: sæt en iPhone mere til Mac'en, så vælger Indstillinger > iPhone-app den selv og starter guiden for den. Er der flere, kan du skifte i en menu. Hver iPhone med Viggo+ får sit eget kort med Forny nu og Glem, og de bliver alle fornyet og opdateret automatisk. Dit login sendes kun selv med til din første iPhone. Til de andre sendes det, når du trykker Overfør login nu.

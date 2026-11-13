@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Shown at launch until the first sync is done. Which animation it is comes from
-/// Indstillinger > Opstart: one of the intros switched on there, picked at random each launch.
+/// Shown at launch until the first sync is done. Mostly the icon, now and then one of the rare ones.
 struct LaunchScreen: View {
     let intro: Intro
 
@@ -101,22 +100,13 @@ enum Intro: String, CaseIterable, Identifiable {
         }
     }
 
-    static let key = "intros"
+    /// The ones that turn up now and then instead of the icon.
+    static let rare: [Intro] = [.aurora, .schedule, .terminal, .asciiIcon]
 
-    /// The intros switched on in Indstillinger. Radio until something else is picked.
-    static var enabled: Set<Intro> {
-        get {
-            let ids = UserDefaults.standard.stringArray(forKey: key) ?? [Intro.radio.rawValue]
-            let set = Set(ids.compactMap(Intro.init(rawValue:)))
-            return set.isEmpty ? [.radio] : set
-        }
-        set { UserDefaults.standard.set(allCases.filter(newValue.contains).map(\.rawValue), forKey: key) }
-    }
-
-    /// The one to show at this launch.
+    /// The one to show at this launch: the icon, and about 1 in 10 times one of the rare ones.
     static func pick() -> Intro {
         if let s = ProcessInfo.processInfo.environment["VIGGO_INTRO"], let i = Intro(rawValue: s) { return i }
-        return enabled.randomElement() ?? .radio
+        return Int.random(in: 0..<10) == 0 ? rare.randomElement()! : .icon
     }
 }
 
@@ -159,128 +149,5 @@ struct IntroClock<Content: View>: View {
         TimelineView(.animation(minimumInterval: 1 / fps, paused: reduceMotion || LaunchScreen.frozen != nil)) { tl in
             content(LaunchScreen.frozen ?? (reduceMotion ? still : tl.date.timeIntervalSince(start)))
         }
-    }
-}
-
-// MARK: - Indstillinger > Opstart
-
-struct IntroPicker: View {
-    @State private var on = Intro.enabled
-    @State private var preview: Intro?
-    @State private var nope = false
-
-    private var newOnes: [Intro] { Intro.allCases.filter { $0.from == nil } }
-    private var oldOnes: [Intro] { Intro.allCases.filter { $0.from != nil } }
-
-    var body: some View {
-        List {
-            Section {
-                ForEach(newOnes) { row($0) }
-            } footer: {
-                Text(on.count > 1
-                     ? "Du får en tilfældig af de \(on.count) valgte, hver gang Viggo+ starter."
-                     : "Vælg flere, så får du en tilfældig af dem hver gang Viggo+ starter.")
-            }
-            Section("De gamle") {
-                ForEach(oldOnes) { row($0) }
-            }
-            Section {
-                Button {
-                    Haptic.tap()
-                    preview = on.randomElement()
-                } label: { Label("Afspil en tilfældig", systemImage: "shuffle") }
-                Button {
-                    Haptic.select()
-                    withAnimation(.viggo) { on = Set(Intro.allCases) }
-                    Intro.enabled = on
-                } label: { Label("Slå alle til", systemImage: "checkmark.circle") }
-                    .disabled(on.count == Intro.allCases.count)
-            }
-        }
-        .fullScreenCover(item: $preview) { IntroPreview(intro: $0) }
-        .sensoryFeedback(.error, trigger: nope)
-    }
-
-    private func row(_ i: Intro) -> some View {
-        let isOn = on.contains(i)
-        return HStack(spacing: 12) {
-            Button { toggle(i) } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isOn ? Color.accentColor : Color.secondary.opacity(0.5))
-                        .contentTransition(.symbolEffect(.replace))
-                    Image(systemName: i.symbol)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 30, height: 30)
-                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(i.color.gradient))
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(i.name).foregroundStyle(.primary)
-                            if let v = i.from {
-                                Text("fra \(v)").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                                    .padding(.horizontal, 5).padding(.vertical, 1)
-                                    .background(Capsule().fill(Color(.tertiarySystemFill)))
-                            }
-                        }
-                        Text(i.detail).font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            Button {
-                Haptic.tap()
-                preview = i
-            } label: {
-                Image(systemName: "play.circle.fill").font(.title2).symbolRenderingMode(.hierarchical)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Afspil \(i.name)")
-        }
-        .padding(.vertical, 2)
-    }
-
-    private func toggle(_ i: Intro) {
-        if on.contains(i) {
-            guard on.count > 1 else { nope.toggle(); return }     // one has to stay on
-            on.remove(i)
-        } else {
-            on.insert(i)
-        }
-        Haptic.select()
-        Intro.enabled = on
-    }
-}
-
-/// An intro on its own, full screen, from Indstillinger. Tap to close, or to play it again.
-struct IntroPreview: View {
-    let intro: Intro
-    @Environment(\.dismiss) private var dismiss
-    @State private var run = 0
-    @State private var hint = false
-
-    var body: some View {
-        intro.view
-            .id(run)
-            .overlay(alignment: .bottom) {
-                HStack(spacing: 10) {
-                    Button { Haptic.tap(); run += 1 } label: { Label("Igen", systemImage: "arrow.counterclockwise") }
-                    Button { dismiss() } label: { Label("Luk", systemImage: "xmark") }
-                }
-                .font(.subheadline.weight(.semibold))
-                .buttonStyle(.bordered)
-                .tint(.gray)
-                .environment(\.colorScheme, .dark)
-                .padding(.bottom, 24)
-                .opacity(hint ? 1 : 0)
-            }
-            .statusBarHidden()
-            .task {
-                try? await Task.sleep(for: .seconds(2.5))
-                withAnimation(.easeOut(duration: 0.4)) { hint = true }
-            }
     }
 }

@@ -188,6 +188,12 @@ struct ThreadScreen: View {
     private var firstSender: String { other?.author.components(separatedBy: " ").first ?? "afsender" }
     private var group: Bool { (detail?.to.count ?? 0) > 1 }
     private var empty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    /// Your newest message, which gets "Set" under it like in Beskeder.
+    private var lastMine: Int? { detail?.messages.last { $0.authorID == me }?.id }
+    /// Everyone in the thread but you.
+    private func recipients(_ d: ThreadDetail) -> Int {
+        Set(d.to + d.from).subtracting([state.profile?.name ?? ""]).count
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -208,8 +214,12 @@ struct ThreadScreen: View {
                             Bubble(m: m, mine: m.authorID == me, showName: first && group && m.authorID != me,
                                    tail: last)
                                 .id(m.id)
-                                .padding(.bottom, last ? 6 : 0)
+                                .padding(.bottom, last && m.id != lastMine ? 6 : 0)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                            if m.id == lastMine, sending == nil {
+                                ReadReceipt(readers: m.readBy.filter { $0.name != state.profile?.name }, total: recipients(d))
+                                    .padding(.bottom, 6)
+                            }
                         }
                         if let s = sending {
                             Bubble(m: ThreadMessage(id: -1, authorID: me, author: "", image: nil, date: "", text: s, links: []),
@@ -522,5 +532,80 @@ struct ComposeScreen: View {
             Haptic.error()
             sendError = (error as? LocalizedError)?.errorDescription ?? "Prøv igen."
         }
+    }
+}
+
+/// "Set kl. 14.37" or "Set af 3 af 12" under your newest message. Tap it to see who and when.
+private struct ReadReceipt: View {
+    let readers: [Reader]
+    let total: Int
+    @State private var open = false
+
+    private var label: String {
+        if readers.isEmpty { return "Sendt" }
+        if total <= 1, let r = readers.first { return "Set \(Self.when(r.date))" }
+        if readers.count >= total { return "Set af alle" }
+        return "Set af \(readers.count) af \(total)"
+    }
+
+    /// "13. nov 2026 14:37" → "kl. 14.37" today, "i går 14.37", or "12. nov".
+    static func when(_ d: String) -> String {
+        guard let m = d.firstMatch("^(\\d{1,2})\\. (\\w+) (\\d{4}) (\\d{1,2}):(\\d{2})") else { return d }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "da_DK")
+        f.dateFormat = "d. MMM yyyy"
+        let today = f.string(from: Date()).lowercased().replacingOccurrences(of: ".", with: "")
+        let yesterday = f.string(from: Date().addingTimeInterval(-86400)).lowercased().replacingOccurrences(of: ".", with: "")
+        let day = "\(m[1]) \(m[2].replacingOccurrences(of: ".", with: "")) \(m[3])".lowercased()
+        let time = "\(m[4]).\(m[5])"
+        if day == today { return "kl. \(time)" }
+        if day == yesterday { return "i går kl. \(time)" }
+        return "\(m[1]). \(m[2])"
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            Button {
+                guard !readers.isEmpty, total > 1 || readers.count > 0 else { return }
+                Haptic.tap()
+                withAnimation(.viggo) { open.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    if !readers.isEmpty, total > 1 {
+                        HStack(spacing: -6) {
+                            ForEach(readers.prefix(3), id: \.self) { r in
+                                Avatar(url: r.image, size: 16, name: r.name)
+                                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
+                            }
+                        }
+                    }
+                    Text(label)
+                    if !readers.isEmpty { Image(systemName: open ? "chevron.up" : "chevron.down").font(.system(size: 8, weight: .bold)) }
+                }
+                .font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            if open {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(readers, id: \.self) { r in
+                        HStack(spacing: 8) {
+                            Avatar(url: r.image, size: 24, name: r.name)
+                            Text(r.name).font(.footnote.weight(.medium)).lineLimit(1)
+                            Spacer(minLength: 8)
+                            Text(Self.when(r.date)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    if total > readers.count {
+                        Text("\(total - readers.count) har ikke set den endnu").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: 280)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.trailing, 6).padding(.top, 2)
     }
 }

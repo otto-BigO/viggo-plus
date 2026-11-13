@@ -82,14 +82,20 @@ enum LoginStage: Equatable {
         }
     }
 
+    #if os(macOS)
+    private static let device = "din Mac"
+    #else
+    private static let device = "din iPhone"
+    #endif
+
     var text: String {
         switch self {
-        case .saving: return "Gemmer sikkert på din Mac"
+        case .saving: return "Gemmer sikkert på \(Self.device)"
         case .viggo: return "Forbinder til Viggo"
         case .unilogin: return "UNI-Login"
         case .skoleit: return "Logger ind hos SkoleIT"
         case .verifying: return "Bekræfter"
-        case .success: return "Sessionen er gemt på din Mac"
+        case .success: return "Sessionen er gemt på \(Self.device)"
         case .failure(let why): return why
         }
     }

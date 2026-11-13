@@ -22,6 +22,8 @@ struct TodayScreen: View {
         let f = DateFormatter(); f.locale = Locale(identifier: "da_DK"); f.dateFormat = "EEEE d. MMMM"; return f
     }()
 
+    @State private var showMe = false
+
     var body: some View {
         let all = state.timeline(now)
         let current = all.first { $0.start <= now && $0.end > now && $0.kind != .pause }
@@ -148,6 +150,7 @@ struct TodayScreen: View {
                                     let (text, free) = state.friendStatus(f, now: now)
                                     let expired = state.friendExpired.contains(f.id)
                                     let gaps = expired ? [] : state.freeTogether(with: state.friendEvents[f.id] ?? [], now: now)
+                                    NavigationLink(value: Found.person(f.viggoID)) {
                                     HStack(spacing: 12) {
                                         Avatar(url: f.image, size: 36, name: f.name).opacity(expired ? 0.4 : 1)
                                         VStack(alignment: .leading, spacing: 2) {
@@ -163,9 +166,12 @@ struct TodayScreen: View {
                                         } else {
                                             Circle().fill(free ? Color.green : Color.orange).frame(width: 9, height: 9)
                                         }
+                                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                                     }
                                     .padding(.vertical, 8)
                                     .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -209,12 +215,17 @@ struct TodayScreen: View {
             .refreshable { await state.sync() }
             .navigationDestination(for: Int.self) { ThreadScreen(id: $0) }
             .navigationDestination(for: Bulletin.self) { BulletinScreen(b: $0) }
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
+            .navigationDestination(isPresented: $showMe) { if let id = state.profile?.id { PersonScreen(id: id) } }
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { SearchButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        if state.profile != nil {
+                            Button { showMe = true } label: { Label("Se din profil", systemImage: "person.crop.circle") }
+                        }
                         Button { state.openViggo() } label: { Label("Åbn Viggo", systemImage: "safari") }
                         Button(role: .destructive) { state.logout() } label: { Label("Log ud", systemImage: "rectangle.portrait.and.arrow.right") }
                     } label: {

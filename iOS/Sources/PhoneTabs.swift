@@ -242,7 +242,6 @@ struct SettingsScreen: View {
                             IconArt(style: IconStyle.current, size: 28)
                         }
                     }
-                    NavigationLink { IntroPicker().navigationTitle("Opstart") } label: { row("Opstart", "sparkles", .purple) }
                 }
                 Section {
                     Toggle(isOn: $p.liveActivity) { row("Live Activity i skoletiden", "clock.badge.fill", .orange) }
