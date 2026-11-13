@@ -231,6 +231,12 @@ struct ThreadScreen: View {
     private var me: Int { state.profile?.id ?? -1 }
     private var other: ThreadMessage? { detail?.messages.first { $0.authorID != me } }
     private var firstSender: String { other?.author.components(separatedBy: " ").first ?? "afsender" }
+    /// Who the thread is with when nobody but you has written yet: the one you wrote to, else yourself.
+    private var headerName: String {
+        if let o = other { return o.author }
+        let mine = state.profile?.name ?? ""
+        return detail?.to.first { $0 != mine } ?? mine
+    }
     private var group: Bool { (detail?.to.count ?? 0) > 1 }
     private var empty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty }
     /// Your newest message, which gets "Set" under it like in Beskeder.
@@ -308,8 +314,8 @@ struct ThreadScreen: View {
                 // Tap the sender to see who they are.
                 NavigationLink(value: Found.person(other?.authorID ?? 0)) {
                     VStack(spacing: 2) {
-                        Avatar(url: other?.image, size: 28, name: other?.author)
-                        Text(group ? "\(firstSender) +\((detail?.to.count ?? 1) - 1)" : (other?.author ?? ""))
+                        Avatar(url: other?.image ?? (headerName == state.profile?.name ? state.profile?.image : nil), size: 28, name: headerName)
+                        Text(group && other != nil ? "\(firstSender) +\((detail?.to.count ?? 1) - 1)" : headerName)
                             .font(.caption2.weight(.semibold)).lineLimit(1)
                     }
                 }

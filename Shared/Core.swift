@@ -60,12 +60,10 @@ extension Parser {
 extension ViggoClient {
     /// The student and parent boards shown on Viggo's front page.
     func fetchBulletins() async throws -> [Bulletin] {
-        var all: [Bulletin] = []
-        for type in [28, 29] {
-            let html = String(decoding: try await getPublic("/Basic/BulletinBoard/HomeWidget?show=9&userType=\(type)&ajax=1"), as: UTF8.self)
-            all += Parser.bulletins(html)
-        }
-        return all
+        async let students = getPublic("/Basic/BulletinBoard/HomeWidget?show=9&userType=28&ajax=1")
+        async let parents = getPublic("/Basic/BulletinBoard/HomeWidget?show=9&userType=29&ajax=1")
+        return Parser.bulletins(String(decoding: try await students, as: UTF8.self))
+            + Parser.bulletins(String(decoding: try await parents, as: UTF8.self))
     }
 }
 
@@ -129,10 +127,10 @@ enum MealPlan {
 extension ViggoClient {
     /// Meal plan posts from the student board, also older ones Viggo has taken down from the front page.
     func fetchMealPosts() async throws -> [Bulletin] {
+        async let front = try? getPublic("/Basic/BulletinBoard/HomeWidget?show=60&userType=28&ajax=1")
+        async let old = try? getPublic("/Basic/BulletinBoard/GetOldBulletins/?useTypsId=28")
         var all: [Bulletin] = []
-        for path in ["/Basic/BulletinBoard/HomeWidget?show=60&userType=28&ajax=1", "/Basic/BulletinBoard/GetOldBulletins/?useTypsId=28"] {
-            if let d = try? await getPublic(path) { all += Parser.bulletins(String(decoding: d, as: UTF8.self)) }
-        }
+        for d in [await front, await old] { if let d { all += Parser.bulletins(String(decoding: d, as: UTF8.self)) } }
         return all.filter { $0.title.lowercased().firstMatch("^\\s*(mad|menu)plan") != nil }
     }
 }

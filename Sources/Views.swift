@@ -35,7 +35,7 @@ struct MenuView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(headerTitle).font(Sz.f(14, .bold)).lineLimit(1)
                         .contentTransition(.opacity)
-                    Text(DateUtil.longDayF.string(from: now).capitalized).font(Sz.f(10.5)).foregroundStyle(.secondary)
+                    Text(DateUtil.longDayF.string(from: now).capFirst).font(Sz.f(10.5)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 6)
                 if !state.friends.isEmpty, updater.available == nil {
@@ -245,8 +245,8 @@ struct SettingsView: View {
                         .padding(.bottom, 8)
                     }
                     let hasProfile = state.profile != nil && !state.needsLogin
-                    ForEach(SettingsPage.allCases) { pg in
-                        SidebarRow(highlight: highlight, selected: page == pg && !(pg == .konto && hasProfile)) { withAnimation(.viggo) { page = pg } } content: {
+                    ForEach(SettingsPage.allCases.filter { !($0 == .konto && hasProfile) }) { pg in
+                        SidebarRow(highlight: highlight, selected: page == pg) { withAnimation(.viggo) { page = pg } } content: {
                             SettingsIcon(symbol: pg.icon, color: pg.color)
                             Text(pg.rawValue).font(.system(size: 13)).lineLimit(1)
                         }

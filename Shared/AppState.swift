@@ -435,11 +435,20 @@ final class AppState: ObservableObject {
         questionnaireCount = c.questionnaires ?? 0
     }
 
+    private var cacheWrite: Task<Void, Never>?
+
+    /// The whole school year is a few thousand items, so it is encoded and written off the main
+    /// thread, one write after the other so an older copy never lands on top of a newer one.
     private func saveCache() {
         let c = Cache(events: events, homework: homework, messages: messages, profile: profile, friendEvents: friendEvents,
                       friendHomework: friendHomework, bulletins: bulletins, meals: meals,
                       lastSync: lastSync, unread: unreadCount, questionnaires: questionnaireCount)
-        try? JSONEncoder().encode(c).write(to: cacheURL, options: .atomic)
+        let url = cacheURL, before = cacheWrite
+        cacheWrite = Task.detached(priority: .utility) {
+            await before?.value
+            guard !Task.isCancelled else { return }
+            try? JSONEncoder().encode(c).write(to: url, options: .atomic)
+        }
     }
 
     func start() async {
@@ -466,9 +475,15 @@ final class AppState: ObservableObject {
         if needsLogin { openSettings() }
         Updater.shared.checkIfDue()
         #endif
-        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        // On the minute (plus a moment), so the menubar and the countdown change when the clock does
+        // instead of up to 59 seconds late.
+        let next = DateUtil.cal.nextDate(after: Date(), matching: DateComponents(second: 0), matchingPolicy: .nextTime) ?? Date()
+        let t = Timer(fire: next.addingTimeInterval(0.3), interval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.onTick() }
         }
+        t.tolerance = 0.5
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
         #if os(macOS)
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.keepAlive(); await self?.sync() }
@@ -677,8 +692,17 @@ final class AppState: ObservableObject {
         // Every cookie in the login chain (Viggo, UNI-Login, SkoleIT), so the next login can be someone else.
         HTTPCookieStorage.shared.cookies?.forEach { HTTPCookieStorage.shared.deleteCookie($0) }
         events = []; homework = []; messages = []; unreadCount = 0; questionnaireCount = 0
+        bulletins = []; meals = [:]; farEvents = []; farLoaded = nil
         CookieJar.clear()
-        try? FileManager.default.removeItem(at: cacheURL)
+        cacheWrite?.cancel()
+        let pending = cacheWrite, url = cacheURL
+        cacheWrite = Task.detached { await pending?.value; try? FileManager.default.removeItem(at: url) }
+        // Messages, deadlines and the "what did I last see" list belong to the account too. Without
+        // this the next person saw the old inbox, and got "Aflyst" for every lesson of the last one.
+        Inbox.shared.clear()
+        Deadlines.shared.clear()
+        snapshot = Snapshot()
+        snapshot.save()
         webLogin.clearCookies()
         profile = nil
         lastSync = nil
@@ -727,19 +751,19 @@ final class AppState: ObservableObject {
             if prefs.imported { applyCalendar() }
             // The address book and the room overview load behind the scenes after the schedule is shown.
             Task {
-                async let receipts: Void = Inbox.shared.checkReceipts()
                 async let people: Void = Directory.shared.load()
                 async let rooms: Void = Premises.shared.load()
                 async let far: Void = loadFarWeeks()
-                async let inbox: Void = Inbox.shared.load() // previews for the Deadline-radar
-                _ = await (receipts, people, rooms, far, inbox)
+                // Previews for the Deadline-radar, then who has seen your messages.
+                async let inbox: Void = Inbox.shared.refresh()
+                _ = await (people, rooms, far, inbox)
                 await syncFriends()
                 saveCache()
             }
             detectChanges()
             Deadlines.shared.scanAll()
-            saveCache()
             lastSync = Date()
+            saveCache()
             #if os(iOS)
             pushWidget()
             scheduleAhead()
@@ -1128,6 +1152,15 @@ final class AppState: ObservableObject {
     }
 
     private func visibleOrFriend(_ e: ViggoEvent, _ friend: Bool) -> Bool { friend || visible(e) }
+
+    /// The school part of a day: the lessons, and events that begin before the last lesson ends.
+    /// An evening event (a concert, packing rooms) is not school, so "Efter skole" and "fri kl."
+    /// do not wait for it. A day with no lessons counts its events as the school day.
+    nonisolated static func schoolDay(_ items: [ViggoEvent]) -> [ViggoEvent] {
+        let lessons = items.filter { $0.kind == .lesson }
+        guard let last = lessons.map(\.end).max() else { return items.filter { $0.kind == .event } }
+        return items.filter { $0.kind == .lesson || ($0.kind == .event && $0.start < last) }
+    }
 
     func tomorrowFirst(_ now: Date, from list: [ViggoEvent]? = nil) -> (ViggoEvent, Int)? {
         let t = items(on: DateUtil.add(.day, 1, now), from: list)

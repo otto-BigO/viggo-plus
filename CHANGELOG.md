@@ -1,5 +1,23 @@
 # Ændringer
 
+## 1.21.2 og iPhone-app 1.10.2 (2026-11-14)
+
+- **Svar bliver ikke længere læst bag din ryg**: tjekket af hvem der har set din besked kunne åbne tråden, lige før et nyt svar blev hentet, så svaret stod som læst uden du havde set det. Nu hentes indbakken først, og ulæste tråde bliver aldrig åbnet.
+- **Begivenheder forsvinder ikke**: "Julemiddag", "Temaeftermiddag og Galla" og "Deadline for aflevering af jobopslag" blev regnet som hverdag (fordi "middag" og "aflever" stod inde i ordet) og blev vist gråt eller slet ikke. Nu tæller kun punkter der starter med fx Middag, Aftensmad eller Tjek af.
+- **Log ud rydder det hele**: gemte beskeder, deadlines og listen over hvad du sidst har set, bliver slettet, så den næste der logger ind, ikke ser dine ting eller får "Aflyst" for alle dine timer. Log ud spørger også først.
+- **Stor tekst på iPhonen**: klokkeslæt i Dagen, Uge og Vagter knækkede over to linjer ("08:" og "30"). Kolonnen følger nu tekststørrelsen.
+- De tre talkort på I dag er lige høje, og "timer tilbage" tæller også det du er i gang med, når det er en begivenhed.
+- "Efter skole" står nu efter dagens sidste time. En begivenhed om aftenen flytter den ikke længere ned under Aftensmad og Stilletime.
+- Fri sammen skjules efter kl. 18, hvor der alligevel kun stod at ingen har fri.
+- Opslag viser kort dato ("26. okt"), så titlen ikke bliver klippet.
+- Vagter: en nattevagt siger hvilken dag den slutter ("til lør. 09:00"), midnat står som 24:00, og vagter der er slut i dag, bliver grå.
+- Skriver du en ny besked, står modtagerens navn øverst i tråden i stedet for et tomt ikon, indtil der kommer svar.
+- I Søg har det fremhævede ord samme størrelse som resten af teksten.
+- **Mac**: "Alle fri" og "Fri sammen med" viser alle tidsrum uden at klippe dem eller knække midt i et. I uge-overblikket deles lange ord rigtigt ("Musiklin-je"), og smalle blokke viser kun starttidspunktet i stedet for et klippet tidsrum.
+- Datoer skrives "Fredag 13. november" (ikke "November"), og deadlines bruger samme klokkeslæt og datoer som resten ("i morgen kl. 13:00", "ons. 18. nov.").
+- Indstillinger på Mac'en har ikke længere både din profil og "Konto" i siden; profilen er Konto.
+- Hurtigere og roligere: skemaet gemmes i baggrunden i stedet for at holde appen et øjeblik ved hver opdatering, opslagstavlerne hentes samtidig, og menubaren og nedtællingen skifter på minuttet i stedet for op til et minut for sent.
+
 ## 1.21.1 og iPhone-app 1.10.1 (2026-11-13)
 
 - På iPhonen står login i baggrunden nu i midten nederst, lige over Beskeder, i stedet for i hjørnet hvor det blev skåret af ved kanten af skærmen.

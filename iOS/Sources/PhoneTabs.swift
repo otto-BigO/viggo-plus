@@ -19,6 +19,7 @@ struct WeekBrowser<Header: View>: View {
     /// Which way the last day change went, so the list slides the same way.
     @State private var forward = true
     @State private var showDuty = false
+    @ScaledMetric(relativeTo: .subheadline) private var timeW: CGFloat = 48
     @Namespace private var pill
 
     private var monday: Date { DateUtil.mondayOf(day) }
@@ -98,7 +99,7 @@ struct WeekBrowser<Header: View>: View {
 
     @ViewBuilder private var agenda: some View {
         let items = state.weekItems(day, person: person, wholeDay: true)
-        let school = items.filter { $0.kind == .lesson || $0.kind == .event }
+        let school = AppState.schoolDay(items)
         let birthdays = state.birthdayNames(on: day, person: person)
         let duties = state.duties(on: day, person: person)
         let hw = homework
@@ -138,16 +139,24 @@ struct WeekBrowser<Header: View>: View {
         return "\(what) · \(DateUtil.hm(first))–\(DateUtil.hm(last))"
     }
 
+    /// "23:00", "24:00" for midnight, and "lør. 09:00" when the duty runs into the next day.
+    static func dutyEnd(_ d: Duty) -> String {
+        let cal = DateUtil.cal
+        if cal.isDate(d.end, inSameDayAs: d.start) { return DateUtil.hm(d.end) }
+        if d.end == cal.startOfDay(for: d.end), cal.isDate(d.end.addingTimeInterval(-60), inSameDayAs: d.start) { return "24:00" }
+        return "\(DateUtil.weekdayF.string(from: d.end)) \(DateUtil.hm(d.end))"
+    }
+
     private func dutyCard(_ duties: [Duty]) -> some View {
         Card(title: "Vagter", icon: "person.badge.shield.checkmark.fill") {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(showDuty ? duties : Array(duties.prefix(3))) { d in
                     HStack(spacing: 12) {
-                        Text(DateUtil.hm(d.start)).font(.subheadline.monospacedDigit().weight(.semibold))
-                            .frame(width: 48, alignment: .leading)
+                        Text(DateUtil.hm(d.start)).font(.subheadline.monospacedDigit().weight(.semibold)).lineLimit(1)
+                            .frame(width: timeW, alignment: .leading)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(d.who).font(.subheadline.weight(.medium)).lineLimit(1)
-                            Text("\(d.shift) · til \(DateUtil.hm(d.end))").font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                            Text("\(d.shift) · til \(Self.dutyEnd(d))").font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                         }
                         Spacer(minLength: 0)
                         if d.start <= state.tick && d.end > state.tick {
@@ -156,6 +165,8 @@ struct WeekBrowser<Header: View>: View {
                         }
                     }
                     .padding(.vertical, 6)
+                    // Over for today: grey like the rest of the day's list.
+                    .opacity(d.end <= state.tick && DateUtil.cal.isDateInToday(d.start) ? 0.4 : 1)
                 }
                 if duties.count > 3 {
                     Button(showDuty ? "Vis færre" : "Vis alle \(duties.count)") { withAnimation(.unfold) { showDuty.toggle() } }

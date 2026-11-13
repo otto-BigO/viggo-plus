@@ -222,12 +222,15 @@ struct GridBlock: View {
         let tint = e.subjectColor
         let roomy = height >= 44
         return VStack(alignment: .leading, spacing: 1) {
-            Text(e.shortTitle).font(.system(size: height < 18 ? 9.5 : 11, weight: .semibold))
-                .lineLimit(height >= 70 ? 3 : (roomy ? 2 : 1))
+            Text(e.shortTitle.softHyphenated).font(.system(size: height < 18 ? 9.5 : 11, weight: .semibold))
+                .lineLimit(height >= 96 ? 4 : height >= 70 ? 3 : (roomy ? 2 : 1))
                 .minimumScaleFactor(0.75)
             if roomy {
-                Text("\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))").font(.system(size: 9.5, design: .monospaced))
-                    .foregroundStyle(.secondary).lineLimit(1)
+                ViewThatFits(in: .horizontal) {
+                    Text("\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))")
+                    Text(DateUtil.hm(e.start))
+                }
+                .font(.system(size: 9.5, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
             }
             if height >= 58, !e.room.isEmpty {
                 Text(e.room).font(.system(size: 9.5)).foregroundStyle(.secondary).lineLimit(1)
@@ -303,6 +306,7 @@ struct LessonsTab: View {
 struct AccountTab: View {
     @EnvironmentObject var state: AppState
     @State private var saved = SkoleITLogin.isSet
+    @State private var askLogout = false
 
     var body: some View {
         Form {
@@ -315,7 +319,13 @@ struct AccountTab: View {
                             Text(Config.baseURL.host ?? "Viggo").font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Log ud", role: .destructive) { state.logout() }
+                        Button("Log ud", role: .destructive) { askLogout = true }
+                            .confirmationDialog("Log ud af Viggo?", isPresented: $askLogout, titleVisibility: .visible) {
+                                Button("Log ud", role: .destructive) { state.logout() }
+                                Button("Annuller", role: .cancel) {}
+                            } message: {
+                                Text("Dit gemte login, skema og beskeder fjernes fra denne enhed.")
+                            }
                     }
                 }
             }

@@ -161,10 +161,18 @@ enum Parser {
         }
     }
 
-    static let routineWords = ["morgenmad", "middag", "aftensmad", "rengøring", "godnat", "stilletime",
-                               "tjek af", "oprydning", "eget værelse", "eget område", "morgensamling",
-                               "fællessamling", "aflever", "telefon"]
-    static func isRoutine(_ lower: String) -> Bool { routineWords.contains { lower.contains($0) } }
+    /// Everyday items start with one of these ("Middag", "Tjek af værelser", "Hovedrengøring af ...").
+    /// Matching anywhere in the name made "Julemiddag", "Temaeftermiddag og Galla" and
+    /// "Deadline for aflevering af jobopslag" everyday items too, so they were hidden.
+    static let routineStarts = ["morgenmad", "middag", "aftensmad", "godnat", "stilletime", "tjek af",
+                                "morgensamling", "fællessamling", "formiddagspause", "rengøring",
+                                "hovedrengøring", "oprydning", "på eget", "alle på eget"]
+    static func isRoutine(_ lower: String) -> Bool {
+        let l = lower.trimmingCharacters(in: .whitespacesAndNewlines)
+        if routineStarts.contains(where: { l.hasPrefix($0) }) { return true }
+        if l.contains("eget værelse") || l.contains("eget område") { return true }
+        return l.contains("aflever") && l.contains("telefon")
+    }
 
     static let months = ["jan": 1, "feb": 2, "mar": 3, "apr": 4, "maj": 5, "jun": 6,
                          "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dec": 12]

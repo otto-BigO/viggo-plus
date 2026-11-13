@@ -157,7 +157,7 @@ struct WidgetView: View {
         let hw = entry.data.homeworkList ?? []
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "da_DK"))).capitalized)
+                Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "da_DK"))).capFirstLetter)
                     .font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
                 Spacer()
                 Image(systemName: "graduationcap.fill").foregroundStyle(.tint)
@@ -234,3 +234,8 @@ struct WidgetView: View {
     }
 }
 
+
+private extension String {
+    /// "fredag 13. november" → "Fredag 13. november" (`.capitalized` also made the month a capital).
+    var capFirstLetter: String { prefix(1).uppercased() + dropFirst() }
+}

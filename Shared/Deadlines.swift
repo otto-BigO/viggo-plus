@@ -31,7 +31,7 @@ struct Deadline: Codable, Identifiable, Hashable {
         let f = DateFormatter(); f.locale = Locale(identifier: "da_DK"); f.dateFormat = "EEE d. MMM"; return f
     }()
 
-    /// "I dag kl. 13.00", "I morgen", "Fre. 20. nov kl. 9.55".
+    /// "I dag kl. 13:00", "I morgen", "fre. 20. nov. kl. 09:55".
     func whenText(now: Date = Date()) -> String {
         let days = DateUtil.cal.dateComponents([.day], from: DateUtil.startOfDay(now), to: DateUtil.startOfDay(due)).day ?? 0
         let day: String
@@ -39,13 +39,10 @@ struct Deadline: Codable, Identifiable, Hashable {
         case 0: day = "I dag"
         case 1: day = "I morgen"
         case -1: day = "I går"
-        default:
-            let s = Self.dayF.string(from: due).replacingOccurrences(of: ".$", with: "", options: .regularExpression)
-            day = s.prefix(1).uppercased() + s.dropFirst()
+        default: day = DateUtil.day(due)
         }
         guard hasTime else { return day }
-        let c = DateUtil.cal.dateComponents([.hour, .minute], from: due)
-        return "\(day) kl. \(c.hour ?? 0).\(String(format: "%02d", c.minute ?? 0))"
+        return "\(day) kl. \(DateUtil.hm(due))"
     }
 }
 
@@ -100,6 +97,12 @@ final class Deadlines: ObservableObject {
         #if os(iOS)
         AppState.shared.scheduleAhead()
         #endif
+    }
+
+    /// Forgets everything found for the account that was logged in.
+    func clear() {
+        all = []; done = []; dismissed = []; reminded = []; initialized = false
+        try? FileManager.default.removeItem(at: url)
     }
 
     /// Made-up deadlines for the doc pictures. Not saved.

@@ -329,16 +329,16 @@ private struct FoundThreadRow: View {
                     Spacer()
                     Text(t.when.shortWhen).font(.caption).foregroundStyle(.secondary)
                 }
-                Text(highlight(t.subject)).font(.subheadline).lineLimit(1)
-                Text(highlight(t.preview)).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Text(highlight(t.subject, .subheadline)).font(.subheadline).lineLimit(1)
+                Text(highlight(t.preview, .caption)).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
         }
     }
 
-    private func highlight(_ s: String) -> AttributedString {
+    private func highlight(_ s: String, _ font: Font) -> AttributedString {
         var a = AttributedString(s)
         if !q.isEmpty, let r = a.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) {
-            a[r].font = .body.weight(.bold)
+            a[r].font = font.weight(.bold)
             a[r].foregroundColor = .accentColor
         }
         return a

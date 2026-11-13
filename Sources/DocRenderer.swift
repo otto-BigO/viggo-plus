@@ -43,8 +43,9 @@ enum DocRenderer {
             snap(LessonDetailView(e: fysik), name: "lesson", dir: dir)
         }
 
+        let cur = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0").split(separator: ".").compactMap { Int($0) }
         Updater.shared.available = Updater.Release(
-            version: "1.2.0", highlights: ["Uge-overblik med alle dine timer", "Fødselsdage i panelet", "Genvejstast til panelet"],
+            version: cur.count >= 2 ? "\(cur[0]).\(cur[1] + 1).0" : "2.0.0", highlights: ["Uge-overblik med alle dine timer", "Fødselsdage i panelet", "Genvejstast til panelet"],
             page: URL(string: "https://github.com/otto-BigO/viggo-plus/releases")!, zip: URL(string: "https://example.com")!)
         snap(UpdateView(updater: Updater.shared), name: "update", dir: dir)
         Updater.shared.available = nil

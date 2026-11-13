@@ -405,11 +405,15 @@ final class Inbox: ObservableObject {
         }
     }
 
+    /// When the thread list was last fetched from Viggo (not read from disk).
+    private var loadedAt: Date?
+
     func load() async {
         loading = true
         defer { loading = false }
         do {
             threads = try await client.fetchThreads()
+            loadedAt = Date()
             save()
             error = nil
             AppState.shared.unreadCount = threads.filter(\.unread).count
@@ -463,13 +467,32 @@ final class Inbox: ObservableObject {
 
     /// Fetches the threads where your last message is not seen by everyone yet, and says who
     /// has seen it since last time ("Emilie har set din besked"). Run with every sync.
+    ///
+    /// Opening a thread marks it read on Viggo, so this only runs right after the list was fetched:
+    /// with an old list a new reply would look read here and be opened behind your back.
     func checkReceipts() async {
+        guard let t = loadedAt, Date().timeIntervalSince(t) < 120 else { return }
         for id in Receipts.watched() {
             if let t = threads.first(where: { $0.id == id }), t.unread { Receipts.stop(id); continue }
             guard let d = try? await client.fetchThread(id) else { continue }
             details[d.id] = d
             Receipts.track(d, notify: true)
         }
+    }
+
+    /// The inbox first, then the read receipts, in that order (see `checkReceipts`).
+    func refresh() async {
+        await load()
+        await checkReceipts()
+    }
+
+    /// Forgets everything about the account that was logged in.
+    func clear() {
+        saveTask?.cancel()
+        threads = []; details = [:]; people = []; groups = []; selected = nil; pinned = []
+        loadedAt = nil; error = nil
+        try? FileManager.default.removeItem(at: storeURL)
+        Receipts.clear()
     }
 
     func reply(_ id: Int, kind: ReplyKind, text: String, files: [Attachment] = []) async throws {
@@ -516,6 +539,7 @@ enum Receipts {
     }
 
     static func stop(_ id: Int) { all[String(id)] = nil }
+    static func clear() { UserDefaults.standard.removeObject(forKey: key) }
 
     /// For testing: forget who has seen each message, so the next check tells about them again.
     static func forgetReaders() {

@@ -454,7 +454,7 @@ struct DayPanel: View {
         let current = all.first { $0.start <= now && $0.end > now }
         let next = all.first { $0.start > now && $0.kind != .pause }
         let shown = p.panelHidePast ? all.filter { $0.end > now } : all
-        let schoolEnd = all.filter { $0.kind == .lesson || $0.kind == .event }.map(\.end).max() ?? .distantPast
+        let schoolEnd = AppState.schoolDay(all).map(\.end).max() ?? .distantPast
         let firstEvening = shown.first { ($0.kind == .routine || $0.kind == .custom) && $0.start >= schoolEnd }?.id
         let hasSchool = shown.contains { $0.kind == .lesson || $0.kind == .event }
         let hw = homework.filter { $0.day >= DateUtil.startOfDay(now) }
@@ -470,8 +470,7 @@ struct DayPanel: View {
                     Image(systemName: "person.2.fill").foregroundStyle(.green)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Fri sammen med \(name)").font(Sz.f(12, .semibold))
-                        Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen"
-                             : gaps.map { "\(DateUtil.hm($0.0))–\(DateUtil.hm($0.1))" }.joined(separator: " · "))
+                        Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen" : gapText(gaps))
                             .font(Sz.mono(11)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -638,7 +637,7 @@ struct LessonDetailView: View {
                     RoundedRectangle(cornerRadius: 2).fill(tint).frame(width: 4, height: 40)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(e.title).font(.system(size: 20, weight: .bold)).fixedSize(horizontal: false, vertical: true)
-                        Text("\(DateUtil.longDayF.string(from: e.start).capitalized) · \(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))")
+                        Text("\(DateUtil.longDayF.string(from: e.start).capFirst) · \(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                 }
@@ -730,16 +729,17 @@ struct FriendsNow: View {
                 .contentShape(Rectangle())
                 .onTapGesture { withAnimation(.viggo) { state.selectedFriend = f.id } }
             }
-            if state.friends.count >= 2, Prefs.shared.friendsFreeTogether {
+            // Only while there is school day left; in the evening it would just say "ingen fælles fritid".
+            if state.friends.count >= 2, Prefs.shared.friendsFreeTogether, DateUtil.cal.component(.hour, from: now) < 18 {
                 let group = state.freeGroup
                 let gaps = state.groupFree(now: now)
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "person.3.fill").foregroundStyle(.green).font(Sz.f(11))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Alle fri: \(group.map(\.firstName).joined(separator: ", "))").font(Sz.f(11, .semibold)).lineLimit(1)
-                        Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen"
-                             : gaps.map { "\(DateUtil.hm($0.0))–\(DateUtil.hm($0.1))" }.joined(separator: " · "))
+                        Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen" : gapText(gaps))
                             .font(Sz.mono(10)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                     Menu {
@@ -901,4 +901,9 @@ struct LoginCardOverlay: ViewModifier {
         }
         .animation(.viggo, value: state.loginStage)
     }
+}
+
+/// "14:15–14:30 · 16:00–16:15" with word joiners around the dash, so a line never breaks inside a range.
+func gapText(_ gaps: [(Date, Date)]) -> String {
+    gaps.map { "\(DateUtil.hm($0.0))\u{2060}–\u{2060}\(DateUtil.hm($0.1))" }.joined(separator: " · ")
 }

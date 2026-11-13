@@ -23,6 +23,7 @@ struct TodayScreen: View {
     }()
 
     @State private var showMe = false
+    @State private var askLogout = false
     @ObservedObject private var deadlines = Deadlines.shared
 
     /// A deadline opens the message or post it was found in.
@@ -40,7 +41,7 @@ struct TodayScreen: View {
         let all = state.timeline(now)
         let current = all.first { $0.start <= now && $0.end > now && $0.kind != .pause }
         let next = all.first { $0.start > now && $0.kind != .pause }
-        let school = all.filter { $0.kind == .lesson || $0.kind == .event }
+        let school = AppState.schoolDay(all)
         let shown = p.panelHidePast ? all.filter { $0.end > now } : all
         let hw = state.homework.filter { $0.day >= DateUtil.startOfDay(now) }
 
@@ -68,9 +69,8 @@ struct TodayScreen: View {
                                      tomorrow: state.tomorrowFirst(now)?.0)
                         }
 
-                        let lessons = all.filter { $0.kind == .lesson }
-                        StatRow(lessonsLeft: lessons.filter { $0.end > now }.count,
-                                schoolEnd: lessons.map(\.end).max(),
+                        StatRow(lessonsLeft: school.filter { $0.end > now }.count,
+                                schoolEnd: school.map(\.end).max(),
                                 homework: hw.filter { !$0.done }.count,
                                 unread: state.unreadCount, now: now)
                     }
@@ -201,7 +201,7 @@ struct TodayScreen: View {
                         }
                     }
 
-                    if p.panelFriendsNow, p.friendsFreeTogether, state.friends.count >= 2 {
+                    if p.panelFriendsNow, p.friendsFreeTogether, state.friends.count >= 2, DateUtil.cal.component(.hour, from: now) < 18 {
                         GroupFreeCard(now: now)
                     }
 
@@ -215,7 +215,8 @@ struct TodayScreen: View {
                                             HStack(alignment: .firstTextBaseline) {
                                                 Text(b.title).font(.subheadline.weight(.semibold)).lineLimit(1)
                                                 Spacer()
-                                                Text(b.when).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                                Text(b.when.shortWhen).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                                    .layoutPriority(1)
                                                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                                             }
                                             Text(b.text).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
@@ -247,6 +248,12 @@ struct TodayScreen: View {
             .navigationDestination(isPresented: $showMe) { if let id = state.profile?.id { PersonScreen(id: id) } }
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
+            .confirmationDialog("Log ud af Viggo?", isPresented: $askLogout, titleVisibility: .visible) {
+                Button("Log ud", role: .destructive) { state.logout() }
+                Button("Annuller", role: .cancel) {}
+            } message: {
+                Text("Dit gemte login, skema og beskeder fjernes fra telefonen.")
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { SearchButton() }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -255,7 +262,7 @@ struct TodayScreen: View {
                             Button { showMe = true } label: { Label("Se din profil", systemImage: "person.crop.circle") }
                         }
                         Button { state.openViggo() } label: { Label("Åbn Viggo", systemImage: "safari") }
-                        Button(role: .destructive) { state.logout() } label: { Label("Log ud", systemImage: "rectangle.portrait.and.arrow.right") }
+                        Button(role: .destructive) { askLogout = true } label: { Label("Log ud", systemImage: "rectangle.portrait.and.arrow.right") }
                     } label: {
                         if let p = state.profile { Avatar(url: p.image, size: 32, name: p.name) }
                         else { Image(systemName: "person.crop.circle") }
@@ -290,7 +297,7 @@ private struct TomorrowCard: View {
     var body: some View {
         let day = DateUtil.add(.day, 1, DateUtil.startOfDay(now))
         let items = state.timeline(day)
-        let school = items.filter { $0.kind == .lesson || $0.kind == .event }
+        let school = AppState.schoolDay(items)
         Card(title: "I morgen", icon: "sunrise.fill") {
             VStack(alignment: .leading, spacing: 12) {
                 Button {
@@ -339,7 +346,7 @@ private struct HeroCard: View {
 
     private func mins(_ a: Date, _ b: Date) -> String {
         let m = max(0, Int(b.timeIntervalSince(a) / 60.0 + 0.99))
-        return m >= 60 ? "\(m / 60) t \(m % 60) min" : "\(m) min"
+        return m >= 60 ? (m % 60 == 0 ? "\(m / 60) t" : "\(m / 60) t \(m % 60) min") : "\(m) min"
     }
 
     private var tint: Color { (current ?? next)?.subjectColor ?? .accentColor }
@@ -464,6 +471,7 @@ private struct StatRow: View {
                 Stat(value: "\(unread)", label: "ulæste", icon: "envelope.fill", tint: .red)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -472,14 +480,17 @@ private struct Stat: View {
     let label: String
     let icon: String
     let tint: Color
+    /// The icons are not equally tall, which made the three tiles different heights.
+    @ScaledMetric(relativeTo: .footnote) private var iconH: CGFloat = 16
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon).font(.footnote.weight(.semibold)).foregroundStyle(tint)
+                .frame(height: iconH)
             Text(value).font(.title3.weight(.bold).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
-            Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+            Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.6)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
     }
 }
@@ -559,11 +570,13 @@ struct DayList: View {
 struct PauseRow: View {
     let e: ViggoEvent
     let now: Date
+    /// As wide as "08:30" at the chosen text size; a fixed 48 pt broke the time in two with large text.
+    @ScaledMetric(relativeTo: .subheadline) private var timeW: CGFloat = 48
     var body: some View {
         let current = e.start <= now && e.end > now
         let mins = Int(e.end.timeIntervalSince(e.start) / 60)
         HStack(spacing: 12) {
-            Text(DateUtil.hm(e.start)).font(.footnote.monospacedDigit()).frame(width: 48, alignment: .leading)
+            Text(DateUtil.hm(e.start)).font(.footnote.monospacedDigit()).lineLimit(1).frame(width: timeW, alignment: .leading)
             Image(systemName: "cup.and.saucer.fill").font(.caption)
             Text("Pause, \(mins) min").font(.footnote.weight(current ? .semibold : .regular))
             Spacer()
@@ -580,6 +593,7 @@ struct DayRow: View {
     let e: ViggoEvent
     let now: Date
     @State private var open = false
+    @ScaledMetric(relativeTo: .subheadline) private var timeW: CGFloat = 48
 
     private var isFood: Bool {
         let t = e.title.lowercased()
@@ -593,10 +607,10 @@ struct DayRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(DateUtil.hm(e.start)).font(.subheadline.monospacedDigit().weight(.semibold))
-                    if !quiet { Text(DateUtil.hm(e.end)).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
+                    Text(DateUtil.hm(e.start)).font(.subheadline.monospacedDigit().weight(.semibold)).lineLimit(1)
+                    if !quiet { Text(DateUtil.hm(e.end)).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1) }
                 }
-                .frame(width: 48, alignment: .leading)
+                .frame(width: timeW, alignment: .leading)
                 RoundedRectangle(cornerRadius: 2).fill(e.subjectColor.opacity(quiet ? 0.5 : 1))
                     .frame(width: 4, height: quiet ? 22 : 38)
                 VStack(alignment: .leading, spacing: 2) {
@@ -640,7 +654,7 @@ struct DayRow: View {
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.tertiarySystemGroupedBackground)))
-                .padding(.leading, 64)
+                .padding(.leading, timeW + 16)
                 .transition(.opacity)
             }
         }

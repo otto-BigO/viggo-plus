@@ -55,9 +55,47 @@ enum DateUtil {
     static var fetchEnd: Date { add(.weekOfYear, Config.calendarWeeks + 1, mondayOf(Date())) }
 }
 
+/// Compiled patterns, kept: titles and parsers ask for the same few patterns thousands of times.
+private enum RegexCache {
+    private static var cache: [String: NSRegularExpression] = [:]
+    private static let lock = NSLock()
+    static func get(_ pattern: String) -> NSRegularExpression? {
+        lock.lock(); defer { lock.unlock() }
+        if let re = cache[pattern] { return re }
+        guard let re = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else { return nil }
+        cache[pattern] = re
+        return re
+    }
+}
+
 extension String {
+    /// "fredag 13. november" → "Fredag 13. november". `.capitalized` also made the month a capital.
+    var capFirst: String { prefix(1).uppercased() + dropFirst() }
+
+    /// Soft hyphens at the places Danish allows a break, so a long word in a narrow box breaks
+    /// as "Temaefter-middag" instead of in the middle of a syllable.
+    var softHyphenated: String {
+        let da = Locale(identifier: "da_DK") as CFLocale
+        guard count > 9, CFStringIsHyphenationAvailableForLocale(da) else { return self }
+        return split(separator: " ", omittingEmptySubsequences: false).map { word -> String in
+            guard word.count > 9 else { return String(word) }
+            let ns = String(word) as NSString
+            var cuts: [Int] = []
+            var i = ns.length - 2
+            while i > 2 {
+                let at = CFStringGetHyphenationLocationBeforeIndex(ns, i, CFRange(location: 0, length: ns.length), 0, da, nil)
+                guard at != kCFNotFound, at > 1 else { break }
+                cuts.append(at)
+                i = at - 1
+            }
+            let m = NSMutableString(string: ns)
+            for at in cuts { m.insert("\u{00AD}", at: at) }
+            return m as String
+        }.joined(separator: " ")
+    }
+
     func matches(_ pattern: String) -> [[String]] {
-        guard let re = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else { return [] }
+        guard let re = RegexCache.get(pattern) else { return [] }
         let ns = self as NSString
         return re.matches(in: self, range: NSRange(location: 0, length: ns.length)).map { m in
             (0..<m.numberOfRanges).map { i in

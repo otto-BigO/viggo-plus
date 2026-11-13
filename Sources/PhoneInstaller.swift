@@ -418,7 +418,7 @@ import Foundation
     static func when(_ d: Date) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "da_DK")
-        f.dateFormat = Calendar.current.isDate(d, equalTo: Date(), toGranularity: .weekOfYear) ? "EEEE 'kl.' HH.mm" : "EEEE d. MMMM 'kl.' HH.mm"
+        f.dateFormat = Calendar.current.isDate(d, equalTo: Date(), toGranularity: .weekOfYear) ? "EEEE 'kl.' HH:mm" : "EEEE d. MMMM 'kl.' HH:mm"
         return f.string(from: d)
     }
 

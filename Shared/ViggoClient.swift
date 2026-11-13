@@ -12,7 +12,7 @@ final class ViggoClient {
         cookies?.forEach { c.httpCookieStorage?.setCookie($0) }
         c.httpCookieAcceptPolicy = .always
         c.timeoutIntervalForRequest = 30
-        c.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 ViggoPlus/0.1"]
+        c.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 ViggoPlus/1.0"]
         // For checking offline mode: VIGGO_OFFLINE=1 fails every request as if there were no internet.
         if ProcessInfo.processInfo.environment["VIGGO_OFFLINE"] != nil { c.protocolClasses = [NoNetwork.self] }
         session = URLSession(configuration: c)
@@ -93,8 +93,9 @@ final class ViggoClient {
                 let path = paths[next]; next += 1
                 group.addTask {
                     let data = try await self.get(path)
-                    guard (try? JSONSerialization.jsonObject(with: data)) is [Any] else { throw ViggoError.notLoggedIn }
-                    return try Parser.events(data)
+                    // Anything but the JSON list is Viggo's login page.
+                    guard let list = try? Parser.events(data) else { throw ViggoError.notLoggedIn }
+                    return list
                 }
             }
             for _ in 0..<6 { add() }
