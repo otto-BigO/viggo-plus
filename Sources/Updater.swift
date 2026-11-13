@@ -182,7 +182,7 @@ final class Updater: ObservableObject {
                 while kill -0 \(ProcessInfo.processInfo.processIdentifier) 2>/dev/null; do sleep 0.2; done
                 rm -rf "\(dest).old"
                 mv "\(dest)" "\(dest).old" && mv "\(app.path)" "\(dest)" && rm -rf "\(dest).old" || mv "\(dest).old" "\(dest)"
-                open "\(dest)"
+                env -u VIGGO_PRETEND_VERSION -u VIGGO_IDLE open "\(dest)"
                 rm -rf "\(work.path)"
                 """.write(to: script, atomically: true, encoding: .utf8)
                 let p = Process()
