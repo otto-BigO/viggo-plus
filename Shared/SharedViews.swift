@@ -33,6 +33,8 @@ extension ViggoEvent {
     }
 }
 
+#if os(macOS)
+// The week grid is only used on the Mac; the iPhone has its own Uge.
 /// Hours down the side, a column per day, and each lesson as tall as it lasts, like on Viggo.
 struct WeekGrid: View {
     let days: [Date]
@@ -252,6 +254,8 @@ struct GridBlock: View {
     }
 }
 
+
+#endif
 
 struct LessonsTab: View {
     @EnvironmentObject var state: AppState

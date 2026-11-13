@@ -49,9 +49,11 @@ final class ViggoClient {
 
     /// Unread messages and questionnaires waiting for you.
     func fetchCounts() async throws -> (unread: Int, questionnaires: Int) {
-        let w = String(decoding: try await get("/Basic/Message/HomeWidget?show=20&ajax=1"), as: UTF8.self)
+        async let widget = get("/Basic/Message/HomeWidget?show=20&ajax=1")
+        async let front = get("/")
+        let w = String(decoding: try await widget, as: UTF8.self)
         let unread = Set(w.matches("Message/Details/(?:\\d+/)?(\\d+)").map { $0[1] }).count
-        let home = String(decoding: try await get("/"), as: UTF8.self)
+        let home = String(decoding: try await front, as: UTF8.self)
         let q = home.firstMatch("Du har (\\d+) spørgeskema").flatMap { Int($0[1]) } ?? 0
         return (unread, q)
     }
@@ -70,26 +72,36 @@ final class ViggoClient {
 
     func fetchEvents(weeksBack: Int = Config.weeksBack, weeksAhead: Int = Config.weeksAhead) async throws -> [ViggoEvent] {
         let monday = DateUtil.mondayOf(Date())
-        var all: [String: ViggoEvent] = [:]
-        for w in -weeksBack...weeksAhead {
-            let m = DateUtil.add(.weekOfYear, w, monday)
-            let s = DateUtil.ymd(m), e = DateUtil.ymd(DateUtil.add(.day, 6, m))
-            let data = try await get("/Shared/Events/GetEventItems?target=YourSchedule&date=\(s)&type=week&startDate=\(s)&endDate=\(e)")
-            guard (try? JSONSerialization.jsonObject(with: data)) is [Any] else { throw ViggoError.notLoggedIn }
-            for ev in try Parser.events(data) { all[ev.key] = ev }
+        // All weeks at once: one request per week, so fetching them in a row took most of the startup time.
+        let weeks = try await withThrowingTaskGroup(of: [ViggoEvent].self) { group in
+            for w in -weeksBack...weeksAhead {
+                let m = DateUtil.add(.weekOfYear, w, monday)
+                let s = DateUtil.ymd(m), e = DateUtil.ymd(DateUtil.add(.day, 6, m))
+                group.addTask {
+                    let data = try await self.get("/Shared/Events/GetEventItems?target=YourSchedule&date=\(s)&type=week&startDate=\(s)&endDate=\(e)")
+                    guard (try? JSONSerialization.jsonObject(with: data)) is [Any] else { throw ViggoError.notLoggedIn }
+                    return try Parser.events(data)
+                }
+            }
+            var all: [[ViggoEvent]] = []
+            for try await list in group { all.append(list) }
+            return all
         }
+        var all: [String: ViggoEvent] = [:]
+        for ev in weeks.joined() { all[ev.key] = ev }
         return all.values.sorted { $0.start < $1.start }
     }
 
     func fetchHomework() async throws -> [Homework] {
         let monday = DateUtil.mondayOf(Date())
+        let d0 = monday, d1 = DateUtil.add(.day, 14, monday)
+        async let a = get("/Basic/HomeworkAndAssignment/?date=\(DateUtil.ymd(d0))")
+        async let b = get("/Basic/HomeworkAndAssignment/?date=\(DateUtil.ymd(d1))")
+        let pages = [(String(decoding: try await a, as: UTF8.self), d0), (String(decoding: try await b, as: UTF8.self), d1)]
         var all: [Int: Homework] = [:]
-        for offset in [0, 14] {
-            let d = DateUtil.add(.day, offset, monday)
-            let data = try await get("/Basic/HomeworkAndAssignment/?date=\(DateUtil.ymd(d))")
-            let html = String(decoding: data, as: UTF8.self)
+        for (i, (html, d)) in pages.enumerated() {
             guard html.contains("homework-data") else { throw ViggoError.notLoggedIn }
-            if offset == 0, let p = Parser.profile(html) { profile = p }
+            if i == 0, let p = Parser.profile(html) { profile = p }
             for h in Parser.homework(html, near: d) { all[h.id] = h }
         }
         return all.values.sorted { $0.due < $1.due }

@@ -1,5 +1,6 @@
 import SwiftUI
 import CryptoKit
+import ImageIO
 #if os(iOS)
 import UIKit
 #endif
@@ -101,7 +102,8 @@ enum AvatarCache {
                 let fm = FileManager.default
                 let age = (try? fm.attributesOfItem(atPath: path.path)[.modificationDate] as? Date).map { -$0.timeIntervalSinceNow } ?? .infinity
                 if age < 7 * 86400, let d = try? Data(contentsOf: path), let i = decode(d, shrink: false) { return i.0 }
-                guard let (data, _) = try? await URLSession.shared.data(from: url), let (img, small) = decode(data, shrink: true) else {
+                let fetched = await DownloadGate.shared.run { try? await URLSession.shared.data(from: url).0 }
+                guard let data = fetched, let (img, small) = decode(data, shrink: true) else {
                     // Offline: an old picture is better than none.
                     if let d = try? Data(contentsOf: path) { return decode(d, shrink: false)?.0 }
                     return nil
@@ -120,17 +122,40 @@ enum AvatarCache {
         return i
     }
 
-    /// The picture, plus the bytes to keep on disk (shrunk on the iPhone).
+    /// The picture, plus the bytes to keep on disk. ImageIO decodes straight to a small size, so a
+    /// big profile photo never sits in memory at full resolution (the Mac used to keep the original).
     nonisolated private static func decode(_ data: Data, shrink: Bool) -> (Image, Data)? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let opts: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                                     kCGImageSourceCreateThumbnailWithTransform: true,
+                                     kCGImageSourceThumbnailMaxPixelSize: 240]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else { return nil }
         #if os(macOS)
-        guard let img = NSImage(data: data) else { return nil }
-        return (Image(nsImage: img), data)
+        let image = Image(nsImage: NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height)))
         #else
-        guard let img = UIImage(data: data) else { return nil }
-        guard shrink else { return (Image(uiImage: img), data) }
-        let small = img.preparingThumbnail(of: CGSize(width: 180, height: 180 * img.size.height / max(img.size.width, 1))) ?? img
-        return (Image(uiImage: small), small.jpegData(compressionQuality: 0.85) ?? data)
+        let image = Image(uiImage: UIImage(cgImage: cg))
         #endif
+        guard shrink else { return (image, data) }
+        let out = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(out, "public.jpeg" as CFString, 1, nil) else { return (image, data) }
+        CGImageDestinationAddImage(dest, cg, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
+        return (image, CGImageDestinationFinalize(dest) ? out as Data : data)
+    }
+}
+
+/// At most a few picture downloads at a time. Scrolling through everyone used to start hundreds at
+/// once, and the ones on screen had to wait behind the ones already scrolled past.
+actor DownloadGate {
+    static let shared = DownloadGate(limit: 6)
+    private let limit: Int
+    private var active = 0
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+    init(limit: Int) { self.limit = limit }
+
+    func run<T: Sendable>(_ work: @Sendable () async -> T) async -> T {
+        if active >= limit { await withCheckedContinuation { waiting.append($0) } } else { active += 1 }
+        defer { if waiting.isEmpty { active -= 1 } else { waiting.removeLast().resume() } } // newest first: that is the row on screen now
+        return await work()
     }
 }
 
@@ -155,6 +180,8 @@ struct Sz {
 
 extension Notification.Name { static let viggoToggleNote = Notification.Name("viggoToggleNote") }
 
+#if os(macOS)
+// The menubar panel's rows: the iPhone draws its own (DayList in TodayScreen).
 struct TimelineRow: View {
     let e: ViggoEvent
     let now: Date
@@ -571,6 +598,8 @@ struct DayPanel: View {
 
 // MARK: - Lesson details
 
+#endif
+
 struct LessonDetailView: View {
     let e: ViggoEvent
 
@@ -663,6 +692,8 @@ struct LessonDetailView: View {
 
 // MARK: - Friends right now
 
+#if os(macOS)
+// Mac only; the iPhone's I dag has its own friends card.
 struct FriendsNow: View {
     @EnvironmentObject var state: AppState
     let now: Date
@@ -711,6 +742,8 @@ struct FriendsNow: View {
         }
     }
 }
+
+#endif
 
 struct SkoleITFields: View {
     let button: String

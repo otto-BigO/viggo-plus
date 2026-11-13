@@ -1,5 +1,12 @@
 # Ændringer
 
+## 1.18.1 og iPhone-app 1.7.1 (2026-11-13)
+
+- **Hurtigere opdatering**: skema, lektier, beskeder, opslag og madplan hentes nu samtidig i stedet for én ad gangen. En opdatering tager omkring 1,5 sekund i stedet for 5.
+- Personer, lokaleoversigt og venner med eget login hentes også samtidig i baggrunden.
+- Billeder af personer bruger mindre hukommelse og fylder omkring 12 KB hver. Når du scroller hurtigt gennem en lang liste, hentes billederne på skærmen først.
+- iPhone-appen er blevet lidt mindre, fordi Mac'ens ugeskema og panel ikke længere kommer med i den.
+
 ## 1.18.0 og iPhone-app 1.7.0 (2026-11-13)
 
 - **Ny Uge på iPhonen**: én dag ad gangen som en liste i samme stil som I dag, i stedet for det trange skema med kasser. Alt hvad Viggo har den dag kommer med: timer, begivenheder, måltider og hele aftenen, fødselsdage og hvem der har vagt. Lektier til dagen står nedenunder. Stryg til siden for at skifte dag, og tryk på en time for at se detaljer.

@@ -545,7 +545,8 @@ final class AppState: ObservableObject {
         do {
             let c = client
             let (ev, hw, msg) = try await withRelogin { () async throws -> ([ViggoEvent], [Homework], [ViggoMessage]) in
-                (try await c.fetchEvents(), try await c.fetchHomework(), try await c.fetchMessages())
+                async let ev = c.fetchEvents(), hw = c.fetchHomework(), msg = c.fetchMessages()
+                return (try await ev, try await hw, try await msg)
             }
             events = ev
             homework = hw
@@ -557,16 +558,20 @@ final class AppState: ObservableObject {
             }
             messages = msg
             if let p = c.profile { profile = p }
-            if let n = try? await c.fetchCounts() { unreadCount = n.unread; questionnaireCount = n.questionnaires }
-            if let b = try? await c.fetchBulletins() { bulletins = b }
-            if let m = try? await c.fetchMealPosts() { meals = MealPlan.parse(m) }
+            async let counts = try? c.fetchCounts()
+            async let posts = try? c.fetchBulletins()
+            async let mealPosts = try? c.fetchMealPosts()
+            if let n = await counts { unreadCount = n.unread; questionnaireCount = n.questionnaires }
+            if let b = await posts { bulletins = b }
+            if let m = await mealPosts { meals = MealPlan.parse(m) }
             needsLogin = false
             if prefs.imported { applyCalendar() }
             // The address book and the room overview load behind the scenes after the schedule is shown.
             Task {
-                await Inbox.shared.checkReceipts()
-                await Directory.shared.load()
-                await Premises.shared.load()
+                async let receipts: Void = Inbox.shared.checkReceipts()
+                async let people: Void = Directory.shared.load()
+                async let rooms: Void = Premises.shared.load()
+                _ = await (receipts, people, rooms)
                 await syncFriends()
                 saveCache()
             }
@@ -720,15 +725,22 @@ final class AppState: ObservableObject {
             let list = Premises.shared.schedule(for: f.viggoID)
             if !list.isEmpty || friendEvents[f.id] == nil { friendEvents[f.id] = list }
         }
-        for f in friends where f.needsLogin && !friendExpired.contains(f.id) {
-            let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
-            do {
-                friendEvents[f.id] = try await c.fetchEvents(weeksBack: 0, weeksAhead: 1)
-                friendHomework[f.id] = (try? await c.fetchHomework()) ?? friendHomework[f.id] ?? []
-                CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id))
-            } catch ViggoError.notLoggedIn {
-                await friendSessionExpired(f)
-            } catch {}
+        // Friends with their own login, all at the same time.
+        await withTaskGroup(of: Void.self) { group in
+            for f in friends where f.needsLogin && !friendExpired.contains(f.id) {
+                group.addTask { @MainActor in
+                    let c = ViggoClient(cookies: CookieJar.read(CookieJar.friendURL(f.id)))
+                    do {
+                        async let ev = c.fetchEvents(weeksBack: 0, weeksAhead: 1)
+                        async let hw = try? c.fetchHomework()
+                        self.friendEvents[f.id] = try await ev
+                        self.friendHomework[f.id] = await hw ?? self.friendHomework[f.id] ?? []
+                        CookieJar.write(c.cookies, to: CookieJar.friendURL(f.id))
+                    } catch ViggoError.notLoggedIn {
+                        await self.friendSessionExpired(f)
+                    } catch {}
+                }
+            }
         }
     }
 
@@ -754,17 +766,6 @@ final class AppState: ObservableObject {
         prefs.includedRoutines = r.sorted()
     }
 
-    var importPreview: String {
-        let from = DateUtil.fetchStart
-        let ev = events.filter { visible($0) && $0.start >= from }
-        var n = 0
-        if prefs.importSchedule { n += ev.filter { $0.kind == .lesson }.count }
-        if prefs.importEvents { n += ev.filter { $0.kind == .event || $0.kind == .birthday }.count }
-        n += ev.filter { $0.kind == .routine }.count
-        if prefs.importHomework { n += homework.count }
-        return "\(n) punkter fra \(DateUtil.day(from)) til \(DateUtil.day(DateUtil.add(.day, -1, DateUtil.fetchEnd)))"
-    }
-
     func importToCalendar() {
         prefs.imported = true
         applyCalendar()
@@ -788,11 +789,6 @@ final class AppState: ObservableObject {
     var dutyTonight: [String] {
         events.filter { $0.kind == .duty && DateUtil.cal.isDateInToday($0.start) && $0.rawName.localizedCaseInsensitiveContains("aftenvagt") }
             .map { $0.rawName.components(separatedBy: " - ").first ?? $0.rawName }
-    }
-
-    var upcomingHomework: [Homework] {
-        let today = DateUtil.startOfDay(Date())
-        return homework.filter { $0.day >= today }
     }
 
     static let eveningDefaults = ["aftensmad", "stilletime", "fællessamling", "område", "værelse", "godnat"]

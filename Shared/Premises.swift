@@ -35,12 +35,18 @@ import Foundation
 
     private func fetch() async {
         let monday = DateUtil.mondayOf(Date())
-        var all: [Any] = []
-        for w in 0...1 {
+        func week(_ w: Int) -> String {
             let m = DateUtil.add(.weekOfYear, w, monday)
             let s = DateUtil.ymd(m), e = DateUtil.ymd(DateUtil.add(.day, 6, m))
-            guard let data = try? await client.getPublic("/Shared/Events/GetEventItems?target=OnlyPremises&date=\(s)&type=week&startDate=\(s)&endDate=\(e)"),
-                  let arr = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return }
+            return "/Shared/Events/GetEventItems?target=OnlyPremises&date=\(s)&type=week&startDate=\(s)&endDate=\(e)"
+        }
+        // Both weeks at once; each is a big response for the whole school.
+        let c = client, p0 = week(0), p1 = week(1)
+        async let a = try? c.getPublic(p0)
+        async let b = try? c.getPublic(p1)
+        var all: [Any] = []
+        for data in [await a, await b] {
+            guard let data, let arr = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return }
             all += arr
         }
         guard let data = try? JSONSerialization.data(withJSONObject: all), apply(data) else { return }
