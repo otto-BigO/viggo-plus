@@ -6,6 +6,8 @@ enum Found: Hashable {
     case group(Int)
     case thread(Int)
     case bulletin(Bulletin)
+    /// Everyone living in a house (boområde), by room.
+    case house(String)
 }
 
 // MARK: - Søg
@@ -250,6 +252,7 @@ struct FoundScreen: View {
         case .group(let id): GroupScreen(id: id)
         case .thread(let id): ThreadScreen(id: id)
         case .bulletin(let b): BulletinScreen(b: b)
+        case .house(let h): HouseScreen(house: h)
         }
     }
 }
@@ -368,6 +371,7 @@ struct PersonScreen: View {
     @State private var threads: [MessageThread] = []
     @State private var composing = false
     @State private var showAllGroups = false
+    @State private var photo = false
 
     private var me: Int? { state.profile?.id }
 
@@ -403,9 +407,16 @@ struct PersonScreen: View {
 
             Section("Info") {
                 if !m.className.isEmpty { info("Klasse", m.className, "person.3.fill") }
-                if let l = dir.line(of: m.id) ?? details?.field("Skolelinje") { info("Linje", l, "star.fill") }
-                if !m.house.isEmpty { info("Hus", m.house, "house.fill") }
-                if !m.room.isEmpty { info("Værelse", m.room, "bed.double.fill") }
+                if let l = dir.line(of: m.id) ?? details?.field("Skolelinje") {
+                    if let g = dir.groups(of: m.id).first(where: { $0.kind == .linje }) {
+                        NavigationLink(value: Found.group(g.id)) { info("Linje", l, "star.fill") }
+                    } else { info("Linje", l, "star.fill") }
+                }
+                if !m.houseRoom.isEmpty {
+                    if !m.house.isEmpty {
+                        NavigationLink(value: Found.house(m.house)) { info("Værelse", m.houseRoom, "bed.double.fill") }
+                    } else { info("Værelse", m.houseRoom, "bed.double.fill") }
+                }
                 if !m.studentNo.isEmpty { info("Elevnummer", m.studentNo, "number") }
                 if !m.initials.isEmpty { info("Initialer", m.initials, "textformat") }
                 if let b = m.birthday {
@@ -419,7 +430,7 @@ struct PersonScreen: View {
                 if let mail = details?.field("Email") {
                     Button { if let u = URL(string: "mailto:\(mail)") { openURL(u) } } label: { info("Email", mail, "envelope.fill") }
                 }
-                if let a = details?.address, !a.isEmpty {
+                if let a = details?.address.map({ $0.trimmingCharacters(in: CharacterSet(charactersIn: ", ").union(.whitespaces)) }).filter({ !$0.isEmpty }), !a.isEmpty {
                     Button {
                         let s = a.joined(separator: ", ").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
                         if let u = URL(string: "maps://?q=\(s)") { openURL(u) }
@@ -434,15 +445,6 @@ struct PersonScreen: View {
             familySection(m)
             people(m.kind == .parent ? "Børn" : "Børn på skolen", dir.children(of: m.id))
             people("Kontaktelever", dir.contactStudents(of: m.id))
-
-            if let me, me != m.id {
-                let shared = dir.shared(me, m.id).filter { $0.kind != .andet }
-                if !shared.isEmpty {
-                    Section {
-                        Text(shared.map(\.display).joined(separator: ", ")).font(.subheadline)
-                    } header: { Text("Fælles med dig (\(shared.count))") }
-                }
-            }
 
             lessonsWith(m)
             groupsSection(m)
@@ -510,6 +512,8 @@ struct PersonScreen: View {
             .frame(width: 120, height: 120)
             .clipShape(Circle())
             .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+            .onTapGesture { if m.imageBig ?? m.image != nil { Haptic.tap(); photo = true } }
+            .fullScreenCover(isPresented: $photo) { PhotoViewer(url: m.imageBig ?? m.image, fallback: m.image, name: m.name) }
             Text(m.name).font(.title2.weight(.bold)).multilineTextAlignment(.center)
             Text(dir.summary(m)).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
             if m.id != me {
@@ -606,17 +610,116 @@ struct PersonScreen: View {
         }
     }
 
+    /// Every group the person is in. The ones you are in too get a "Fælles" mark and come first.
     @ViewBuilder private func groupsSection(_ m: Member) -> some View {
         let all = dir.groups(of: m.id)
         if !all.isEmpty {
-            let shown = showAllGroups ? all : all.filter { $0.kind != .fag && $0.kind != .andet }
+            let mine = (me != nil && me != m.id) ? Set(dir.shared(me!, m.id).map(\.id)) : []
+            let sorted = all.filter { mine.contains($0.id) } + all.filter { !mine.contains($0.id) }
+            let shown = showAllGroups ? sorted : sorted.filter { mine.contains($0.id) || ($0.kind != .fag && $0.kind != .andet) }
             Section {
-                ForEach(shown) { g in NavigationLink(value: Found.group(g.id)) { GroupRow(g: g) } }
-                if shown.count < all.count || showAllGroups {
+                ForEach(shown) { g in
+                    NavigationLink(value: Found.group(g.id)) {
+                        HStack {
+                            GroupRow(g: g)
+                            Spacer(minLength: 6)
+                            if mine.contains(g.id) {
+                                Label("Fælles", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon)
+                                    .font(.caption.weight(.semibold)).foregroundStyle(.green)
+                                    .padding(.horizontal, 8).padding(.vertical, 3)
+                                    .background(Capsule().fill(Color.green.opacity(0.14)))
+                            }
+                        }
+                    }
+                }
+                if shown.count < sorted.count || showAllGroups {
                     Button(showAllGroups ? "Vis færre" : "Vis alle \(all.count) grupper") { withAnimation(.viggo) { showAllGroups.toggle() } }
                 }
-            } header: { Text("Grupper") }
+            } header: {
+                Text(mine.isEmpty ? "Grupper" : "Grupper · \(mine.count) fælles med dig")
+            }
         }
+    }
+}
+
+// MARK: - Photo
+
+/// A profile picture at full size. Pinch or double-tap to zoom, swipe down or tap Luk to close.
+struct PhotoViewer: View {
+    let url: URL?
+    let fallback: URL?
+    let name: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1
+    @State private var base: CGFloat = 1
+    @State private var drag: CGSize = .zero
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(1 - min(abs(drag.height) / 400, 0.6)).ignoresSafeArea()
+            AsyncImage(url: url) { img in
+                img.resizable().scaledToFit()
+            } placeholder: {
+                AsyncImage(url: fallback) { $0.resizable().scaledToFit() } placeholder: { ProgressView().tint(.white) }
+            }
+            .scaleEffect(scale)
+            .offset(scale == 1 ? drag : .zero)
+            .gesture(MagnificationGesture()
+                .onChanged { scale = max(1, min(base * $0, 5)) }
+                .onEnded { _ in base = scale })
+            .simultaneousGesture(DragGesture()
+                .onChanged { if scale == 1 { drag = $0.translation } }
+                .onEnded { g in
+                    if scale == 1, abs(g.translation.height) > 120 { dismiss() }
+                    else { withAnimation(.spring(duration: 0.3)) { drag = .zero } }
+                })
+            .onTapGesture(count: 2) {
+                withAnimation(.spring(duration: 0.3)) { scale = scale > 1 ? 1 : 2.5; base = scale }
+            }
+            VStack {
+                HStack {
+                    Text(name).font(.headline).foregroundStyle(.white)
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                            .frame(width: 34, height: 34).background(Circle().fill(.white.opacity(0.2)))
+                    }
+                    .accessibilityLabel("Luk")
+                }
+                .padding(.horizontal, 20).padding(.top, 8)
+                .opacity(drag == .zero ? 1 : 0)
+                Spacer()
+            }
+        }
+        .statusBarHidden()
+    }
+}
+
+// MARK: - A house
+
+/// Everyone in a boområde, room by room, like searching for the house.
+struct HouseScreen: View {
+    @StateObject private var dir = Directory.shared
+    let house: String
+
+    var body: some View {
+        let people = dir.members.filter { $0.kind == .student && $0.house == house }
+        let rooms = Dictionary(grouping: people, by: \.room)
+        let keys = rooms.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        List {
+            ForEach(keys, id: \.self) { r in
+                Section(r.isEmpty ? "Uden værelse" : "Værelse \(r)") {
+                    ForEach(rooms[r]!.sorted { $0.name < $1.name }) { p in
+                        NavigationLink(value: Found.person(p.id)) { PersonRow(m: p, size: 36) }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(house)
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay { if people.isEmpty { ContentUnavailableView("Ingen", systemImage: "house", description: Text("Ingen elever bor i \(house).")) } }
+        .task { await dir.load() }
     }
 }
 

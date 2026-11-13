@@ -40,6 +40,20 @@ struct ThreadMessage: Identifiable, Hashable {
     let links: [URL]
     /// Who has read it and when, from Viggo's "Læst af".
     var readBy: [Reader] = []
+    /// A personal answer inside a group thread: only you and this person can see it.
+    var privateWith: String? = nil
+    /// The start of the message it answers ("Hej Malou og Otto. Vær sød ...").
+    var answers: String? = nil
+}
+
+/// A file picked to go with a message.
+struct Attachment: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let mime: String
+    let data: Data
+    var size: String { ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file) }
+    var isImage: Bool { mime.hasPrefix("image/") }
 }
 
 struct Reader: Hashable {
@@ -141,9 +155,14 @@ extension Parser {
                 let m = full.firstMatch("^(.*) \\((.*)\\)$")
                 return Reader(name: m?[1] ?? full, date: m?[2] ?? "", image: URL(string: r[1].htmlDecoded))
             }
+            // <li class="me personal answered-to"> … "Personlig besked mellem dig og Heidi Gerneu".
+            let personal = c.firstMatch("Personlig besked mellem dig og ([^<]+)<")?[1].htmlDecoded.trimmingCharacters(in: .whitespaces)
+            let answers = c.firstMatch("<div class=\"answered-to-message\">.*?<a href=\"#mid_\\d+\">(.*?)</a>")?[1].strippedHTML.htmlDecoded
+                // Viggo drops the line breaks in this snippet ("Otto.Vær", "HeidiEmilie"), so put a space back.
+                .replacingOccurrences(of: "([.!?]|\\p{Ll})(\\p{Lu})", with: "$1 $2", options: .regularExpression)
             return ThreadMessage(id: mid, authorID: author.flatMap { Int($0[1]) } ?? 0, author: author?[2].strippedHTML ?? "",
                                  image: img.flatMap(URL.init(string:)), date: author?[3].strippedHTML ?? "", text: text, links: links,
-                                 readBy: readers)
+                                 readBy: readers, privateWith: personal, answers: answers)
         }
         return ThreadDetail(id: id, subject: subject, from: names(fromBlock), to: names(toBlock), messages: messages,
                             canReplyAll: html.contains("type=AnswerThreadToAll"))
@@ -208,21 +227,73 @@ extension ViggoClient {
         return (d.Users.sorted { $0.name < $1.name }, d.Groups.filter { !$0.members.isEmpty }.sorted { $0.name < $1.name })
     }
 
-    func reply(to id: Int, kind: ReplyKind, text: String) async throws {
-        try await send(form: "/Basic/Message/AddEdit/\(id)/?type=\(kind.rawValue)&ajax=1", set: ["Contents": text.messageHTML])
+    func reply(to id: Int, kind: ReplyKind, text: String, files: [Attachment] = []) async throws {
+        let ids = try await upload(files)
+        try await send(form: "/Basic/Message/AddEdit/\(id)/?type=\(kind.rawValue)&ajax=1", set: ["Contents": text.messageHTML], files: ids)
     }
 
-    func newMessage(to users: [Int], subject: String, text: String) async throws {
+    func newMessage(to users: [Int], subject: String, text: String, files: [Attachment] = []) async throws {
+        let ids = try await upload(files)
         try await send(form: "/Basic/Message/AddEdit/?ajax=1",
-                       set: ["users": users.map(String.init).joined(separator: ","), "headline": subject, "Contents": text.messageHTML])
+                       set: ["users": users.map(String.init).joined(separator: ","), "headline": subject, "Contents": text.messageHTML],
+                       files: ids)
+    }
+
+    /// Viggo takes up to 10 MB per file.
+    static let maxFileSize = 10 * 1024 * 1024
+
+    func upload(_ files: [Attachment]) async throws -> [String] {
+        var ids: [String] = []
+        for f in files { ids.append(try await uploadFile(f)) }
+        return ids
+    }
+
+    /// Puts a file in Viggo's temporary store the way the message form does and returns its id.
+    /// It only becomes part of a message when the form is sent with `temporaryFile=<id>`.
+    func uploadFile(_ f: Attachment) async throws -> String {
+        guard f.data.count <= Self.maxFileSize else { throw ViggoError.unexpected("\(f.name) er over 10 MB") }
+        let boundary = "ViggoPlus-\(UUID().uuidString)"
+        var body = Data()
+        func field(_ name: String, _ value: String) {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".utf8))
+        }
+        let safe = f.name.replacingOccurrences(of: "\"", with: "")
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(safe)\"\r\nContent-Type: \(f.mime)\r\n\r\n".utf8))
+        body.append(f.data)
+        body.append(Data("\r\n".utf8))
+        field("id", "0")
+        field("function", "1")
+        body.append(Data("--\(boundary)--\r\n".utf8))
+        var req = URLRequest(url: URL(string: "/Basic/Message/UploadFile", relativeTo: base)!.absoluteURL)
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+        req.setValue("ViggoAjax", forHTTPHeaderField: "X-Request-By")
+        req.httpBody = body
+        let (data, resp) = try await session.data(for: req)
+        if let u = resp.url, u.path.lowercased().contains("/account") { throw ViggoError.notLoggedIn }
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(code) else { throw ViggoError.unexpected("Viggo afviste \(f.name) (\(code))") }
+        // A number or an id string, maybe in quotes or as {"fileId": …}.
+        let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: CharacterSet(charactersIn: "\" \n\r\t"))
+        if text.range(of: "^[0-9a-zA-Z_-]+$", options: .regularExpression) != nil { return text }
+        if let m = text.firstMatch("\"(?:fileId|id)\"\\s*:\\s*\"?([0-9a-zA-Z_-]+)") { return m[1] }
+        throw ViggoError.unexpected("Viggo gav intet fil-id for \(f.name)")
+    }
+
+    /// Removes a temporary upload again (used by the upload self-test).
+    func deleteTemporaryFile(_ id: String, name: String) async {
+        let n = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        _ = try? await getPublic("/Shared/Files/DeleteTemporaryFiles/?id=\(id)&name=\(n)")
     }
 
     /// Loads Viggo's own form (so the hidden fields and token are right), fills it in and posts it.
-    private func send(form path: String, set values: [String: String]) async throws {
+    private func send(form path: String, set values: [String: String], files: [String] = []) async throws {
         let html = String(decoding: try await getPublic(path), as: UTF8.self)
         guard html.contains("/Basic/Message/SaveMessage") else { throw ViggoError.unexpected("Kunne ikke åbne svar-formularen") }
         var fields = Parser.formFields(html).filter { values[$0.0] == nil }
         for (k, v) in values { fields.append((k, v)) }
+        for id in files { fields.append(("temporaryFile", id)) }
         if !fields.contains(where: { $0.0 == "Contents" }) { fields.append(("Contents", "")) }
         var allowed = CharacterSet.alphanumerics; allowed.insert(charactersIn: "-._*")
         let body = fields.map { "\($0.0.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")=\($0.1.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")" }
@@ -332,13 +403,13 @@ final class Inbox: ObservableObject {
         }
     }
 
-    func reply(_ id: Int, kind: ReplyKind, text: String) async throws {
-        try await client.reply(to: id, kind: kind, text: text)
+    func reply(_ id: Int, kind: ReplyKind, text: String, files: [Attachment] = []) async throws {
+        try await client.reply(to: id, kind: kind, text: text, files: files)
         await load()
     }
 
-    func send(to: [Int], subject: String, text: String) async throws {
-        try await client.newMessage(to: to, subject: subject, text: text)
+    func send(to: [Int], subject: String, text: String, files: [Attachment] = []) async throws {
+        try await client.newMessage(to: to, subject: subject, text: text, files: files)
         await load()
     }
 
@@ -362,8 +433,9 @@ enum Receipts {
 
     static func receipt(_ d: ThreadDetail) -> Inbox.Receipt? {
         guard let me = AppState.shared.profile, let last = d.messages.last, last.authorID == me.id else { return nil }
-        return Inbox.Receipt(readers: last.readBy.filter { $0.name != me.name },
-                             total: Set(d.to + d.from).subtracting([me.name]).count)
+        // A personal answer can only be seen by the one it went to.
+        let total = last.privateWith != nil ? 1 : Set(d.to + d.from).subtracting([me.name]).count
+        return Inbox.Receipt(readers: last.readBy.filter { $0.name != me.name }, total: total)
     }
 
     /// Threads still worth checking: your last message, not seen by everyone, less than a week old.

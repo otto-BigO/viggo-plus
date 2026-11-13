@@ -1,5 +1,15 @@
 # Ændringer
 
+## 1.18.0 og iPhone-app 1.7.0 (2026-11-13)
+
+- **Ny Uge på iPhonen**: én dag ad gangen som en liste i samme stil som I dag, i stedet for det trange skema med kasser. Alt hvad Viggo har den dag kommer med: timer, begivenheder, måltider og hele aftenen, fødselsdage og hvem der har vagt. Lektier til dagen står nedenunder. Stryg til siden for at skifte dag, og tryk på en time for at se detaljer.
+- **Vennens skema i ny stil**: under Venner ser en vens dag nu ud som Uge, med deres billede og navn øverst. Tryk på dem for at åbne deres side.
+- **Send billeder og filer**: i Beskeder er der en clips ved feltet, hvor du kan vælge billeder fra Fotos eller filer fra Filer, både når du svarer og skriver en ny besked. Billeder bliver gjort mindre (typisk 1 til 3 MB), så de hurtigt kommer op. Højst 10 MB pr. fil.
+- **Private svar kan ses**: et personligt svar i en gruppetråd har nu en stiplet kant og "Privat til Heidi" over sig, og Set tæller kun den ene, der kan se det, i stedet for "Set af 1 af 2". Også på Mac'en.
+- **Personsider**: tryk på billedet for at se det i fuld størrelse (knib for at zoome). Hus og værelse står på én linje, Værelse. Tryk på linjen (fx Musiklinjen) eller værelset for at se alle på linjen eller i huset. Grupper I har sammen er markeret med Fælles i listen over grupper i stedet for en særskilt boks.
+- Adressen på personsider viser ikke længere to kommaer efter hinanden.
+- Ugeoversigten på Mac'en viser også aftenen, fødselsdage og antal vagter (hold musen over for at se hvem).
+
 ## 1.17.0 og iPhone-app 1.6.0 (2026-11-13)
 
 - **Venner uden login**: vælg en ven fra Viggo under Venner, eller tryk Tilføj som ven på deres side. Viggo+ finder vennens timer og lokaler i Viggos lokaleoversigt ud fra de hold vennen går på, så vennen skal ikke logge ind. Lektier kræver stadig at vennen logger ind.

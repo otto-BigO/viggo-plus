@@ -194,6 +194,18 @@ final class AppState: ObservableObject {
                     let d = DateUtil.add(.day, n, Date())
                     if let r = homeworkReminder(for: d) { print("[påmindelse] \(DateUtil.day(d)) kl. \(prefs.homeworkReminderAt / 60): \(r.0) | \(r.1.replacingOccurrences(of: "\n", with: " / "))") }
                 }
+                // --week-check prints, for each day this week and next, what Viggo has and the week view leaves out.
+                if CommandLine.arguments.contains("--week-check") {
+                    let mon = DateUtil.mondayOf(Date())
+                    for n in 0..<14 {
+                        let d = DateUtil.add(.day, n, mon)
+                        let raw = events.filter { DateUtil.cal.isDate($0.start, inSameDayAs: d) }
+                        let shown = Set(weekItems(d, person: nil, wholeDay: true).map(\.key))
+                        let missing = raw.filter { !shown.contains($0.key) }
+                        print("[uge] \(DateUtil.day(d)): viggo \(raw.count), vist \(shown.count), mangler \(missing.count)")
+                        for e in missing { print("[mangler]   \(e.kind.rawValue) \(DateUtil.hm(e.start))-\(DateUtil.hm(e.end)) \(e.rawName.prefix(60))") }
+                    }
+                }
                 print("[menubar] \(menuTitle)")
                 // --at 09:40 prints the menubar text at that time today.
                 if let i = CommandLine.arguments.firstIndex(of: "--at"), i + 1 < CommandLine.arguments.count {

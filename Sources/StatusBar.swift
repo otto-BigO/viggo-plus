@@ -193,10 +193,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     if CommandLine.arguments.contains("--parsed") {
                         let d = Parser.thread(html, id: 0)
                         print("[peek] til \(d.to) fra \(d.from)")
-                        for m in d.messages { print("[peek] \(m.id) \(m.author): læst af \(m.readBy.map { "\($0.name) (\($0.date))" })") }
+                        for m in d.messages { print("[peek] \(m.id) \(m.author)\(m.privateWith.map { " [privat med \($0)]" } ?? ""): læst af \(m.readBy.map { "\($0.name) (\($0.date))" })") }
+                        if let r = Receipts.receipt(d) { print("[peek] set af \(r.readers.count) af \(r.total)") }
                     } else { print(html) }
                 }
                 catch { print("[peek] \(error.localizedDescription)") }
+                exit(0)
+            }
+            return
+        }
+        // --upload-test: puts a tiny file in Viggo's temporary upload store, prints its id and deletes it again.
+        // Sends no message.
+        if CommandLine.arguments.contains("--upload-test") {
+            Task { @MainActor in
+                CookieJar.restore()
+                await AppState.shared.sync()
+                let c = ViggoClient()
+                let f = Attachment(name: "viggoplus-test.txt", mime: "text/plain", data: Data("Viggo+ upload-test\n".utf8))
+                do {
+                    let id = try await c.uploadFile(f)
+                    print("[upload] id \(id)")
+                    await c.deleteTemporaryFile(id, name: f.name)
+                    print("[upload] slettet igen")
+                } catch { print("[upload] fejl: \(error.localizedDescription)") }
                 exit(0)
             }
             return

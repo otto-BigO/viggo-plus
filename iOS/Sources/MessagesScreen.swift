@@ -221,13 +221,14 @@ struct ThreadScreen: View {
     @State private var kind: ReplyKind = .all
     @State private var sending: String?
     @State private var sendError: String?
+    @State private var files: [Attachment] = []
     @FocusState private var typing: Bool
 
     private var me: Int { state.profile?.id ?? -1 }
     private var other: ThreadMessage? { detail?.messages.first { $0.authorID != me } }
     private var firstSender: String { other?.author.components(separatedBy: " ").first ?? "afsender" }
     private var group: Bool { (detail?.to.count ?? 0) > 1 }
-    private var empty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var empty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty }
     /// Your newest message, which gets "Set" under it like in Beskeder.
     private var lastMine: Int? { detail?.messages.last { $0.authorID == me }?.id }
     /// Everyone in the thread but you.
@@ -257,7 +258,7 @@ struct ThreadScreen: View {
                                 .padding(.bottom, last && m.id != lastMine ? 6 : 0)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                             if m.id == lastMine, sending == nil {
-                                ReadReceipt(readers: m.readBy.filter { $0.name != state.profile?.name }, total: recipients(d))
+                                ReadReceipt(readers: m.readBy.filter { $0.name != state.profile?.name }, total: m.privateWith != nil ? 1 : recipients(d))
                                     .padding(.bottom, 6)
                             }
                         }
@@ -341,7 +342,10 @@ struct ThreadScreen: View {
     }
 
     private var replyBar: some View {
+        VStack(spacing: 6) {
+        AttachmentChips(files: $files)
         HStack(alignment: .bottom, spacing: 8) {
+            AttachButton(files: $files, error: $sendError)
             if detail?.canReplyAll == true, group {
                 Menu {
                     Picker("Svar", selection: $kind) {
@@ -380,24 +384,27 @@ struct ThreadScreen: View {
             .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).strokeBorder(Color(.separator), lineWidth: 1))
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: empty)
         }
-        .padding(.horizontal, 10).padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        }
+        .padding(.vertical, 8)
         .background(.bar)
     }
 
     private func send() async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        let attached = files
+        guard !text.isEmpty || !attached.isEmpty else { return }
         Haptic.tap()
-        withAnimation(.viggo) { sending = text; draft = "" }
+        let shown = text + (attached.isEmpty ? "" : (text.isEmpty ? "" : "\n") + attached.map { "📎 \($0.name)" }.joined(separator: "\n"))
+        withAnimation(.viggo) { sending = shown; draft = ""; files = [] }
         do {
-            try await inbox.reply(id, kind: kind, text: text)
+            try await inbox.reply(id, kind: kind, text: text, files: attached)
             let d = try? await inbox.open(id)
             Haptic.success()
             withAnimation(.viggo) { sending = nil; if let d { detail = d } }
         } catch {
             Haptic.error()
-            withAnimation(.viggo) { sending = nil; draft = text }
-            Haptic.error()
+            withAnimation(.viggo) { sending = nil; draft = text; files = attached }
             sendError = (error as? LocalizedError)?.errorDescription ?? "Prøv igen."
         }
     }
@@ -408,6 +415,7 @@ private struct Bubble: View {
     let mine: Bool
     var showName = false
     var tail = true
+    private var personal: Bool { m.privateWith != nil }
 
     private var shape: UnevenRoundedRectangle {
         let r: CGFloat = 18, t: CGFloat = tail ? 5 : 18
@@ -425,9 +433,19 @@ private struct Bubble: View {
                 .frame(width: 28, height: 28)
             }
             VStack(alignment: mine ? .trailing : .leading, spacing: 2) {
-                if showName {
+                if showName && m.privateWith == nil {
                     Text(m.author.components(separatedBy: " ").first ?? m.author)
                         .font(.caption2).foregroundStyle(.secondary).padding(.leading, 12)
+                }
+                if let p = m.privateWith {
+                    Label(mine ? "Privat til \(p.components(separatedBy: " ").first ?? p)" : "Privat fra \(m.author.components(separatedBy: " ").first ?? m.author)",
+                          systemImage: "lock.fill")
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.indigo)
+                        .padding(.horizontal, 12).padding(.top, 4)
+                }
+                if let a = m.answers, m.privateWith != nil {
+                    Text("↩︎ \(a)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        .padding(.horizontal, 12).frame(maxWidth: 260, alignment: mine ? .trailing : .leading)
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     Text(m.text).font(.body)
@@ -436,14 +454,17 @@ private struct Bubble: View {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "link")
                                 .font(.subheadline.weight(.semibold)).lineLimit(1)
                                 .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(Capsule().fill(mine ? Color.white.opacity(0.2) : Color.accentColor.opacity(0.12)))
+                                .background(Capsule().fill(mine && !personal ? Color.white.opacity(0.2) : Color.accentColor.opacity(0.12)))
                         }
-                        .tint(mine ? .white : .accentColor)
+                        .tint(mine && !personal ? .white : .accentColor)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
-                .foregroundStyle(mine ? .white : .primary)
-                .background(shape.fill(mine ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color(.systemGray5))))
+                .foregroundStyle(mine && !personal ? .white : .primary)
+                .background(shape.fill(personal ? AnyShapeStyle(Color.indigo.opacity(0.1))
+                                       : mine ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color(.systemGray5))))
+                // A personal answer in a group thread: outlined, so it is clear only one person sees it.
+                .overlay { if personal { shape.strokeBorder(Color.indigo.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])) } }
                 .contentShape(.contextMenuPreview, shape)
                 .contextMenu {
                     Button { UIPasteboard.general.string = m.text; Haptic.tap() } label: { Label("Kopiér", systemImage: "doc.on.doc") }
@@ -465,6 +486,7 @@ struct ComposeScreen: View {
     @State private var text = ""
     @State private var sending = false
     @State private var sendError: String?
+    @State private var files: [Attachment] = []
     @FocusState private var searching: Bool
 
     init(to: [Person] = []) { _to = State(initialValue: to) }
@@ -545,6 +567,15 @@ struct ComposeScreen: View {
                 Section("Besked") {
                     TextField("Skriv din besked", text: $text, axis: .vertical).lineLimit(6...20)
                 }
+                Section {
+                    if !files.isEmpty {
+                        AttachmentChips(files: $files).listRowInsets(EdgeInsets(top: 8, leading: 6, bottom: 8, trailing: 6))
+                    }
+                    HStack(spacing: 10) {
+                        AttachButton(files: $files, error: $sendError)
+                        Text(files.isEmpty ? "Vedhæft billeder eller filer" : "\(files.count) vedhæftet").foregroundStyle(.secondary)
+                    }
+                } footer: { Text("Højst 10 MB pr. fil.") }
             }
             .navigationTitle("Ny besked")
             .navigationBarTitleDisplayMode(.inline)
@@ -566,7 +597,7 @@ struct ComposeScreen: View {
         sending = true
         defer { sending = false }
         do {
-            try await inbox.send(to: to.map(\.id), subject: subject, text: text)
+            try await inbox.send(to: to.map(\.id), subject: subject, text: text, files: files)
             Haptic.success()
             dismiss()
         } catch {

@@ -192,11 +192,16 @@ private struct MacThreadView: View {
 private struct MacBubble: View {
     let m: ThreadMessage
     let mine: Bool
+    private var personal: Bool { m.privateWith != nil }
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if mine { Spacer(minLength: 80) } else { Avatar(url: m.image, size: 28, name: m.author) }
             VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
                 Text(mine ? m.date : "\(m.author) · \(m.date)").font(.system(size: 11)).foregroundStyle(.secondary)
+                if let p = m.privateWith {
+                    Label(mine ? "Privat til \(p)" : "Privat besked til dig", systemImage: "lock.fill")
+                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(.indigo)
+                }
                 VStack(alignment: .leading, spacing: 8) {
                     Text(m.text).font(.system(size: 13)).textSelection(.enabled)
                     ForEach(m.links, id: \.self) { u in
@@ -204,13 +209,20 @@ private struct MacBubble: View {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "arrow.up.right.square")
                                 .font(.system(size: 12, weight: .medium))
                         }
-                        .foregroundStyle(mine ? Color.white : Color.accentColor)
+                        .foregroundStyle(mine && !personal ? Color.white : Color.accentColor)
                     }
                 }
                 .padding(.horizontal, 13).padding(.vertical, 9)
-                .foregroundStyle(mine ? Color.white : Color.primary)
+                .foregroundStyle(mine && !personal ? Color.white : Color.primary)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(mine ? Color.accentColor : Color.primary.opacity(0.07)))
+                    .fill(personal ? Color.indigo.opacity(0.1) : mine ? Color.accentColor : Color.primary.opacity(0.07)))
+                // A personal answer in a group thread: outlined, so it is clear only one person sees it.
+                .overlay {
+                    if personal {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color.indigo.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                    }
+                }
             }
             if !mine { Spacer(minLength: 60) }
         }

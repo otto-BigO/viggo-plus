@@ -106,7 +106,7 @@ Klik på en side for at se den.
 - Import til Apple Kalender som separate kalendere (skema, lektier, begivenheder, hverdag), som holdes opdateret. Én kontakt fjerner dem igen.
 - Venner: en ven logger ind på sin egen konto i et privat vindue. Du ser vennens dag i samme layout, og hvornår I begge har fri. Gemmer du vennens SkoleIT-login, logger Viggo+ også vennen ind igen af sig selv.
 - Fokus i timerne, hvis du vil, via to genveje.
-- Uge-overblik med hele ugens timer i kolonner, også for dine venner.
+- Uge-overblik med hele ugens timer i kolonner, også for dine venner, med aftenen, fødselsdage og vagter.
 - "Venner nu": hvem af dine venner der har fri, og hvem der har time.
 - Fødselsdage i panelet og som notifikation om morgenen.
 - Notifikation når der kommer et nyt opslag på opslagstavlen.
@@ -139,9 +139,9 @@ Skolen står i `Shared/Util.swift` (`Config.baseURL`, lige nu `broeruphus.viggo.
 Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Shared/`). Den har:
 
 - **I dag**: et stort Nu-kort med nedtælling, tal for dagen, dagens skema, mad, i morgen, lektier, beskeder og hvornår du har fri sammen med dine venner. Træk ned for at synke.
-- **Uge**: én dag ad gangen, med ugens dage øverst. Swipe sideværts for at skifte dag.
-- **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper. Under din nyeste besked står om den er set, og af hvem, og listen viser Set ved trådene. Du får en besked, når nogen har set din besked.
-- **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser hvor personen er lige nu (time og lokale), klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo. Tryk på en ven under Venner nu eller på dit eget billede for at åbne en personside.
+- **Uge**: én dag ad gangen som en liste, med ugens dage øverst. Alt fra Viggos skema er med: timer, begivenheder, måltider, aftenen, fødselsdage, vagter og dagens lektier. Swipe sideværts for at skifte dag. En vens dag under Venner ser ens ud, og et tryk på vennen åbner deres side.
+- **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper. Vedhæft billeder fra Fotos eller filer fra Filer. Personlige svar i en gruppetråd har en stiplet kant. Under din nyeste besked står om den er set, og af hvem, og listen viser Set ved trådene. Du får en besked, når nogen har set din besked.
+- **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser hvor personen er lige nu (time og lokale), klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo. Tryk på en ven under Venner nu eller på dit eget billede for at åbne en personside. Tryk på billedet for at se det i fuld størrelse, og på linjen eller værelset for at se alle på linjen eller i huset. Grupper I har sammen er markeret med Fælles.
 - **Venner**: hvad dine venner har lige nu, og deres dag. Vælg en ven fra Viggo, så skal vennen ikke logge ind: Viggo+ finder timerne i Viggos lokaleoversigt. Fri sammen på I dag viser hvornår du og flere venner alle har fri.
 - **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
 - **Opdateringer**: Viggo+ på Mac'en opdaterer sig selv og lægger nye versioner af iPhone-appen på telefonen, så snart den er på samme wifi. Appen viser hvad der er nyt.

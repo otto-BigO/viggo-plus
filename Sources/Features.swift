@@ -48,7 +48,18 @@ struct WeekView: View {
     private var homework: [Homework] { person.flatMap { state.friendHomework[$0] } ?? state.homework }
     private var range: ClosedRange<Int> { person == nil ? -Config.weeksBack...Config.weeksAhead : 0...1 }
 
-    private func dayItems(_ d: Date) -> [ViggoEvent] { state.weekItems(d, person: person) }
+    /// Everything Viggo has that day, evening routines too, like Viggo's own schedule.
+    private func dayItems(_ d: Date) -> [ViggoEvent] { state.weekItems(d, person: person, wholeDay: true) }
+
+    private func notes(_ d: Date) -> [(icon: String, text: String, help: String)] {
+        var out: [(icon: String, text: String, help: String)] = state.birthdayNames(on: d, person: person).map { ("gift.fill", $0, "Fødselsdag") }
+        let duty = state.duties(on: d, person: person)
+        if !duty.isEmpty {
+            out.append(("person.badge.shield.checkmark", "\(duty.count) vagt\(duty.count == 1 ? "" : "er")",
+                        duty.map { "\(DateUtil.hm($0.start))–\(DateUtil.hm($0.end)) \($0.shift): \($0.who)" }.joined(separator: "\n")))
+        }
+        return out
+    }
 
     var body: some View {
         let days = (0..<7).map { DateUtil.add(.day, $0, monday) }
@@ -75,7 +86,8 @@ struct WeekView: View {
             .padding(.horizontal, 20).padding(.top, 34).padding(.bottom, 14)
 
             WeekGrid(days: shown, items: dayItems,
-                     homework: { d in homework.filter { DateUtil.cal.isDate($0.due, inSameDayAs: d) } })
+                     homework: { d in homework.filter { DateUtil.cal.isDate($0.due, inSameDayAs: d) } },
+                     notes: notes)
                 .padding(.horizontal, 12).padding(.bottom, 12)
         }
         .frame(minWidth: 860, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity, alignment: .top)

@@ -35,7 +35,7 @@ struct TodayScreen: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(Self.dateF.string(from: now).capitalized)
+                    Text({ let t = Self.dateF.string(from: now); return t.prefix(1).uppercased() + t.dropFirst() }())
                         .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                         .padding(.top, -8)
 
@@ -462,7 +462,7 @@ private struct Stat: View {
 
 // MARK: - Cards
 
-private struct Card<Content: View>: View {
+struct Card<Content: View>: View {
     let title: String
     let icon: String
     var badge = 0
@@ -487,7 +487,7 @@ private struct Card<Content: View>: View {
     }
 }
 
-private struct Banner: View {
+struct Banner: View {
     let icon: String
     let tint: Color
     var chevron = false
@@ -509,7 +509,7 @@ private struct Banner: View {
 
 // MARK: - The day
 
-private struct DayList: View {
+struct DayList: View {
     let items: [ViggoEvent]
     let now: Date
     let schoolEnd: Date?
@@ -532,7 +532,7 @@ private struct DayList: View {
     }
 }
 
-private struct PauseRow: View {
+struct PauseRow: View {
     let e: ViggoEvent
     let now: Date
     var body: some View {
@@ -551,7 +551,7 @@ private struct PauseRow: View {
     }
 }
 
-private struct DayRow: View {
+struct DayRow: View {
     @EnvironmentObject var state: AppState
     let e: ViggoEvent
     let now: Date
@@ -635,7 +635,7 @@ private struct DayRow: View {
     }
 }
 
-private struct MealLine: View {
+struct MealLine: View {
     let when: String
     let text: String
     let icon: String
@@ -653,7 +653,7 @@ private struct MealLine: View {
     }
 }
 
-private struct HomeworkRow: View {
+struct HomeworkRow: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
     let h: Homework

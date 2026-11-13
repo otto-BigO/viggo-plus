@@ -39,8 +39,8 @@ struct WeekGrid: View {
     let items: (Date) -> [ViggoEvent]
     let homework: (Date) -> [Homework]
     var hourHeight: CGFloat = 52
-    /// The day name above each column. The iPhone has its own day strip, so it leaves it out.
-    var dayNames = true
+    /// Extra lines under the day name: birthdays and the teachers on duty (icon, text, hover text).
+    var notes: (Date) -> [(icon: String, text: String, help: String)] = { _ in [] }
     private let gutter: CGFloat = 44
 
     private var hours: ClosedRange<Int> {
@@ -63,7 +63,6 @@ struct WeekGrid: View {
                 ForEach(days, id: \.self) { d in
                     let today = DateUtil.cal.isDateInToday(d)
                     VStack(alignment: .leading, spacing: 4) {
-                        if dayNames {
                         HStack(alignment: .firstTextBaseline, spacing: 5) {
                             Text(DateUtil.weekdayF.string(from: d).capitalized).font(.system(size: 13, weight: .semibold))
                             Text("\(DateUtil.cal.component(.day, from: d)).").font(.system(size: 13))
@@ -71,6 +70,10 @@ struct WeekGrid: View {
                                 .padding(.horizontal, today ? 6 : 0).padding(.vertical, today ? 1 : 0)
                                 .background(Capsule().fill(today ? Color.accentColor : .clear))
                         }
+                        ForEach(Array(notes(d).enumerated()), id: \.offset) { _, n in
+                            Label(n.text, systemImage: n.icon)
+                                .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                                .help(n.help)
                         }
                         ForEach(homework(d)) { hw in
                             Label(hw.title, systemImage: hw.done ? "checkmark.circle.fill" : "book.closed")
