@@ -162,14 +162,18 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 Den er ikke i App Store, men Viggo+ på Mac'en kan lægge den på din iPhone. Åbn **Indstillinger > iPhone-app** i Mac-appen. Der står hvad du skal bruge og hvor lang tid det tager, og en guide der krydser trinene af efterhånden:
 
 1. Hent Xcode fra App Store (gratis, ca. 15 GB, 20 til 60 min).
-2. Åbn Xcode én gang og vælg iOS (5 til 15 min).
+2. Gør Xcode klar: Viggo+ åbner Xcode for dig, og du trykker Agree og vælger iOS (5 til 15 min).
 3. Log ind med dit Apple-ID under **Xcode > Indstillinger > Apple Accounts**. Et gratis Apple-ID er nok.
 4. Sæt iPhonen til med kabel, lås den op og tryk **Stol på**.
 5. Slå **Udviklertilstand** til under **Indstillinger > Anonymitet og sikkerhed** på iPhonen.
-6. Tryk **Installer** i Viggo+ (2 til 5 min første gang).
+6. Viggo+ installerer appen af sig selv, når trin 5 er klaret (2 til 5 min første gang).
 7. Første gang: stol på dit Apple-ID under **Indstillinger > Generelt > VPN og enhedsadministration** på iPhonen.
 
-Dit login (og dine venner) sendes med fra Mac'en, så iPhone-appen er logget ind med det samme. Det kan slås fra, og der er en knap til at sende det igen.
+Hvert trin har en kort forklaring trin for trin, og Viggo+ åbner selv Xcode, når det skal bruges. Mens Xcode kører med iPhonen sat til, dukker Udviklertilstand op på iPhonen.
+
+Dit login (og dine venner) sendes med fra Mac'en til din første iPhone, så iPhone-appen er logget ind med det samme. Det kan slås fra, og der er en knap til at sende det igen.
+
+**Flere iPhones**: sæt en iPhone mere til, så starter guiden forfra for den, og trin 1 til 3 er allerede klaret. Siden viser et kort for hver iPhone, og alle bliver fornyet. Til en iPhone mere sendes dit login kun, hvis du trykker **Overfør login nu**, så den anden kan logge ind med sin egen konto.
 
 Med et gratis Apple-ID virker appen 7 dage ad gangen og på højst 3 iPhones. Viggo+ fornyer den selv, når der er under 3 dage tilbage og iPhonen er på samme wifi som Mac'en eller sat til med kabel. Kablet skal kun bruges første gang. Det tager under et minut, iPhonen må gerne være låst, og dine data bliver liggende.
 

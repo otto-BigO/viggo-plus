@@ -20,40 +20,74 @@ struct PhoneTab: View {
     private var steps: [Step] {
         let d = inst.device
         let rec = d.flatMap { inst.records[$0.id] }
-        let openXcode: (String, () -> Void) = ("Åbn Xcode", { if let x = inst.xcodeApp { NSWorkspace.shared.open(x) } })
+        let phone = d?.name ?? "iPhonen"
+        let openXcode: (String, () -> Void) = ("Åbn Xcode", { inst.openXcode() })
         return [
             Step(id: 1, title: "Hent Xcode", time: "20 til 60 min",
                  done: inst.xcodeApp != nil,
-                 detail: "Xcode er Apples gratis program til at lave apps. Viggo+ bruger det til at bygge iPhone-appen og signere den med dit Apple-ID. Det fylder ca. 15 GB, så det meste af tiden er ventetid på download. Du skal ikke selv bruge Xcode bagefter.",
+                 detail: "Xcode er et gratis program fra Apple. Viggo+ bruger det til at lave iPhone-appen, så du skal ikke selv bruge det.\n\nTryk Åbn App Store, og tryk Hent. Det fylder ca. 15 GB, så det tager et stykke tid. Denne side opdager selv, når det er hentet.",
                  doneNote: inst.xcodeApp?.lastPathComponent,
                  actions: [("Åbn App Store", { NSWorkspace.shared.open(URL(string: "macappstore://apps.apple.com/app/xcode/id497799835")!) })]),
-            Step(id: 2, title: "Åbn Xcode én gang", time: "5 til 15 min",
+            Step(id: 2, title: "Gør Xcode klar", time: "5 til 15 min",
                  done: inst.firstLaunchDone && inst.iosPlatform,
                  detail: inst.firstLaunchDone && !inst.iosPlatform
-                    ? "Xcode mangler iOS-delen. Gå til Xcode > Indstillinger > Components, og tryk Get ud for iOS. Den er på nogle GB."
-                    : "Åbn Xcode, accepter licensen, og sæt flueben ved iOS når den spørger hvilke platforme du vil have. Den henter så det sidste. Luk Xcode bagefter.",
+                    ? "Xcode mangler det, der skal til for at lave iPhone-apps.\n\n1. Klik på Xcode i menulinjen øverst, og vælg Settings.\n2. Vælg Components.\n3. Tryk Get ud for iOS, og vent til den er færdig."
+                    : "Viggo+ har åbnet Xcode for dig.\n\n1. Tryk Agree, og skriv din Mac-kode hvis den spørger.\n2. Sæt flueben ved iOS, og tryk Download & Install.\n3. Vent til den er færdig. Du kan lade Xcode være åben.",
                  actions: [openXcode]),
             Step(id: 3, title: "Log ind med dit Apple-ID i Xcode", time: "2 min",
                  done: inst.team != nil,
-                 detail: "I Xcode: Xcode > Indstillinger > Apple Accounts > + > Apple Account, og log ind. Et almindeligt gratis Apple-ID er nok, det koster ingenting.",
+                 detail: "Appen bliver lavet med dit Apple-ID. Det almindelige gratis Apple-ID er nok.\n\n1. Klik på Xcode i menulinjen øverst, og vælg Settings.\n2. Vælg Apple Accounts.\n3. Tryk + nederst til venstre, og vælg Apple Account.\n4. Log ind med dit Apple-ID.",
                  doneNote: inst.team.map { $0.free ? "\($0.name), gratis" : $0.name },
                  actions: [openXcode]),
-            Step(id: 4, title: "Sæt iPhonen til med kabel", time: "1 min",
+            Step(id: 4, title: "Sæt iPhonen i Mac'en med et kabel", time: "1 min",
                  done: d.map { $0.paired && $0.reachable } ?? false,
-                 detail: "Brug et USB-kabel og lås iPhonen op. Når den spørger \"Stol på denne computer?\", tryk Stol på og skriv din kode. Kablet skal kun bruges første gang; derefter kan Mac'en finde den på samme wifi.",
+                 detail: "1. Sæt iPhonen i Mac'en med et USB-kabel.\n2. Lås iPhonen op.\n3. Spørger den \"Stol på denne computer?\", så tryk Stol på og skriv din kode.\n\nKablet skal kun bruges første gang. Derefter finder Mac'en den på samme wifi.",
                  doneNote: d.map { "\($0.name), \($0.model), iOS \($0.os), \($0.wired ? "med kabel" : "over wifi")" }),
-            Step(id: 5, title: "Slå Udviklertilstand til på iPhonen", time: "3 min",
+            Step(id: 5, title: "Slå Udviklertilstand til på \(phone)", time: "3 min",
                  done: d?.developerMode == true,
-                 detail: "På iPhonen: Indstillinger > Anonymitet og sikkerhed > Udviklertilstand (helt nederst) > slå til. iPhonen genstarter. Tryk Slå til når den er tændt igen, og skriv din kode. Menuen dukker først op efter iPhonen har været sat til en Mac med Xcode, så gør trin 4 først."),
+                 detail: "Det er en indstilling, der tillader apps, som ikke kommer fra App Store.\n\nPå iPhonen:\n1. Åbn Indstillinger.\n2. Tryk Anonymitet og sikkerhed.\n3. Rul helt ned, og tryk Udviklertilstand.\n4. Slå den til, og tryk Genstart.\n5. Når iPhonen er tændt igen, tryk Slå til og skriv din kode.\n\nKan du ikke finde Udviklertilstand? Tag kablet ud og sæt det i igen, mens Xcode er åben. Så dukker den op.",
+                 actions: [openXcode]),
             Step(id: 6, title: "Installer Viggo+", time: "2 til 5 min første gang",
                  done: rec != nil,
-                 detail: "Mac'en bygger appen, signerer den med dit Apple-ID og lægger den på iPhonen. Hold iPhonen ulåst imens.",
+                 detail: "Mac'en laver nu appen og lægger den på \(phone). Det starter af sig selv. Hold iPhonen låst op og i kablet imens.",
                  doneNote: rec.map { "Version \($0.version)" }),
-            Step(id: 7, title: "Stol på dit Apple-ID på iPhonen", time: "1 min",
+            Step(id: 7, title: "Godkend dit Apple-ID på iPhonen", time: "1 min",
                  done: rec?.trusted == true,
-                 detail: "Kun første gang. På iPhonen: Indstillinger > Generelt > VPN og enhedsadministration > \(inst.signer ?? "Apple Development: din e-mail") > Stol på. Tryk så på knappen her, så åbner Viggo+ på iPhonen.",
+                 detail: "Kun første gang. iPhonen skal godkende, at appen er lavet med dit Apple-ID.\n\nPå iPhonen:\n1. Åbn Indstillinger > Generelt > VPN og enhedsadministration.\n2. Tryk på \(inst.signer ?? "Apple Development: din e-mail").\n3. Tryk Stol på.\n\nTryk så på knappen herunder, så åbner Viggo+ på iPhonen.",
                  actions: d.map { dev in [("Åbn Viggo+ på iPhonen", { Task { await inst.launch(dev) } })] } ?? []),
         ]
+    }
+
+    /// Steps Xcode has already been opened for on this visit, so closing it doesn't make it pop up again.
+    @State private var openedFor: Set<Int> = []
+    /// Phones that got to step 6 by going through the guide here: their install starts by itself.
+    @State private var walked: Set<String> = []
+    @State private var autoStarted: Set<String> = []
+
+    /// Does for you what the current step would otherwise ask: opens Xcode, and starts the install.
+    private func helpWithCurrentStep() {
+        guard inst.job == nil, let current = steps.first(where: { !$0.done })?.id else { return }
+        switch current {
+        case 2, 3:
+            // You have to click in Xcode for these two, so it comes to the front.
+            if !openedFor.contains(current), !inst.xcodeRunning {
+                openedFor.insert(current)
+                inst.openXcode()
+            }
+        case 4, 5:
+            if let d = inst.device { walked.insert(d.id) }
+            // While Xcode runs with the phone plugged in, the Udviklertilstand menu shows up on the phone.
+            if current == 5, inst.device?.reachable == true, !inst.xcodeRunning, !openedFor.contains(5) {
+                openedFor.insert(5)
+                inst.openXcode(inBackground: true)
+            }
+        case 6:
+            if let d = inst.device, d.reachable, walked.contains(d.id), !autoStarted.contains(d.id) {
+                autoStarted.insert(d.id)
+                Task { await inst.install(d) }
+            }
+        default: break
+        }
     }
 
     var body: some View {
@@ -83,7 +117,10 @@ struct PhoneTab: View {
             if DocRenderer.outDir != nil { return }
             // Look again every few seconds, so the steps tick off while you work through them.
             while !Task.isCancelled {
-                if inst.job == nil { await inst.refresh() }
+                if inst.job == nil {
+                    await inst.refresh()
+                    helpWithCurrentStep()
+                }
                 try? await Task.sleep(for: .seconds(4))
             }
         }

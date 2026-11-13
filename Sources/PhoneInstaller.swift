@@ -131,6 +131,19 @@ import Foundation
         checked = true
     }
 
+    var xcodeRunning: Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dt.Xcode").isEmpty
+    }
+
+    /// Opens Xcode. In the background it only has to run, so the phone shows its Udviklertilstand menu.
+    func openXcode(inBackground: Bool = false) {
+        guard let xcodeApp else { return }
+        let c = NSWorkspace.OpenConfiguration()
+        c.activates = !inBackground
+        c.hides = inBackground
+        NSWorkspace.shared.openApplication(at: xcodeApp, configuration: c)
+    }
+
     static func findXcode() -> URL? {
         let fm = FileManager.default
         if let p = try? Shell.runSync("/usr/bin/xcode-select", ["-p"]),

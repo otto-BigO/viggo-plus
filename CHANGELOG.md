@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.15.0 (2026-11-13)
+
+- **iPhone-appen på flere iPhones**: sæt en iPhone mere til Mac'en, så vælger Indstillinger > iPhone-app den selv og starter guiden for den. Er der flere, kan du skifte i en menu. Hver iPhone med Viggo+ får sit eget kort med Forny nu og Glem, og de bliver alle fornyet og opdateret automatisk. Dit login sendes kun selv med til din første iPhone. Til de andre sendes det, når du trykker Overfør login nu.
+- **Nemmere guide**: hvert trin forklares med korte nummererede punkter. Viggo+ åbner selv Xcode, når du skal bruge det, og holder det åbent i baggrunden, så Udviklertilstand dukker op på iPhonen. Når Udviklertilstand er slået til, går installationen i gang af sig selv.
+
 ## 1.14.0 og iPhone-app 1.4.0 (2026-11-13)
 
 - **iPhone-appen opdaterer sig selv**: når Viggo+ på Mac'en har en nyere iPhone-app, lægger den den på iPhonen med det samme, så snart iPhonen er på samme wifi eller sat til med kabel. Den venter ikke længere på den næste fornyelse, og den kigger hvert 5. minut så længe en ny version venter. Du får en besked når den er lagt på.
