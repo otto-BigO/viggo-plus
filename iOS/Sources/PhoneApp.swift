@@ -41,6 +41,14 @@ struct RootView: View {
     @State private var splash = true
     @State private var guide = false
     @State private var intro = Intro.pick()
+    /// One zoom namespace per tab and one for Søg: today's lessons are in both I dag and Uge,
+    /// and a page must grow out of the row on the screen you are looking at.
+    @Namespace private var zoom0
+    @Namespace private var zoom1
+    @Namespace private var zoom2
+    @Namespace private var zoom3
+    @Namespace private var zoomSearch
+    private var zoomNow: Namespace.ID { state.showSearch ? zoomSearch : [zoom0, zoom1, zoom2, zoom3][min(tab, 3)] }
 
     var body: some View {
         ZStack {
@@ -69,8 +77,10 @@ struct RootView: View {
         }
         .sheet(isPresented: $guide, onDismiss: { UserDefaults.standard.set(true, forKey: GuideSheet.seenKey) }) { GuideSheet() }
         .onChange(of: state.needsLogin) { if !splash { offerGuide() } }
-        .sheet(isPresented: Binding(get: { state.showSearch && !splash }, set: { state.showSearch = $0 })) { SearchScreen() }
-        .sheet(item: $state.shownLesson) { e in LessonSheet(e: e) }
+        .sheet(isPresented: Binding(get: { state.showSearch && !splash }, set: { state.showSearch = $0 })) {
+            SearchScreen().environment(\.zoomSpace, zoomSearch)
+        }
+        .sheet(item: $state.shownLesson) { e in LessonSheet(e: e).environment(\.zoomSpace, zoomNow) }
     }
 
     /// Keep the launch screen up until the first sync is done (at least long enough for the
@@ -106,11 +116,11 @@ struct RootView: View {
                     if new == tab { NotificationCenter.default.post(name: .viggoTabAgain, object: new) }
                     tab = new
                 })) {
-                    Tab("I dag", systemImage: "sun.max.fill", value: 0) { TodayScreen() }
-                    Tab("Uge", systemImage: "calendar", value: 1) { WeekScreen() }
-                    Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill", value: 2) { MessagesScreen() }
+                    Tab("I dag", systemImage: "sun.max.fill", value: 0) { TodayScreen().environment(\.zoomSpace, zoom0) }
+                    Tab("Uge", systemImage: "calendar", value: 1) { WeekScreen().environment(\.zoomSpace, zoom1) }
+                    Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill", value: 2) { MessagesScreen().environment(\.zoomSpace, zoom2) }
                         .badge(state.unreadCount)
-                    Tab("Venner", systemImage: "person.2.fill", value: 3) { FriendsScreen() }
+                    Tab("Venner", systemImage: "person.2.fill", value: 3) { FriendsScreen().environment(\.zoomSpace, zoom3) }
                     Tab("Indstillinger", systemImage: "gearshape.fill", value: 4) { SettingsScreen() }
                 }
                 .onChange(of: tab) { Haptic.select() }
@@ -143,6 +153,7 @@ private struct LessonSheet: View {
         }
         .presentationDetents(content == 0 ? [.medium, .large] : [fitted, .large], selection: $detent)
         .presentationDragIndicator(.visible)
+        .zoomsFrom(e.id)
         .onAppear { Haptic.soft() }
     }
 }

@@ -90,8 +90,9 @@ struct SearchScreen: View {
             .task { await dir.load(); if inbox.threads.isEmpty { await inbox.load() }; compute() }
             .onChange(of: dir.members.count) { compute() }
             .onChange(of: inbox.threads.count) { compute() }
-            .refreshable { await dir.load(force: true) }
-            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
+            .refreshable { await finish { await dir.load(force: true) } }
+            .refreshIcon()
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0).zoomsFromPicture($0) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button("Luk") { dismiss() } }
             }
@@ -120,7 +121,7 @@ struct SearchScreen: View {
                 }
                 if !me.room.isEmpty {
                     NavigationLink(value: Found.person(me.id)) {
-                        Label("Dig og værelse \(me.room)", systemImage: "bed.double.fill")
+                        Label("Dig og værelse \(me.room)", systemImage: "bed.double.fill").zoomSource(Found.person(me.id))
                     }
                 }
             } header: { Text("Dine") }
@@ -265,7 +266,7 @@ struct PersonRow: View {
     var size: CGFloat = 44
     var body: some View {
         HStack(spacing: 12) {
-            Avatar(url: m.image, size: size, name: m.name)
+            Avatar(url: m.image, size: size, name: m.name).zoomSource(Found.person(m.id))
             VStack(alignment: .leading, spacing: 2) {
                 Text(m.name).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(1)
                 let s = dir.summary(m)
@@ -377,8 +378,9 @@ struct PersonScreen: View {
 
     var body: some View {
         Group {
-            if let m = dir.member(id) { content(m) }
-            else if dir.loading { ProgressView() }
+            if Skeleton.forced { SkeletonProfile() }
+            else if let m = dir.member(id) { content(m) }
+            else if dir.loading { SkeletonProfile() }
             else { ContentUnavailableView("Ikke fundet", systemImage: "person.slash", description: Text("Personen er ikke i Viggos adressebog.")) }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -740,7 +742,7 @@ struct GroupScreen: View {
 
     var body: some View {
         Group {
-            if let g = dir.group(id) { content(g) } else { ProgressView() }
+            if let g = dir.group(id) { content(g) } else { SkeletonProfile() }
         }
         .task { await dir.load() }
     }

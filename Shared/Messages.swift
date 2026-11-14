@@ -441,6 +441,21 @@ final class Inbox: ObservableObject {
         return d
     }
 
+    /// Marks a thread read without showing it: Viggo marks it when the thread is fetched.
+    /// The dot goes at once and comes back if the fetch fails.
+    func markRead(_ id: Int) {
+        guard let i = threads.firstIndex(where: { $0.id == id }), threads[i].unread else { return }
+        threads[i].unread = false
+        AppState.shared.unreadCount = max(0, AppState.shared.unreadCount - 1)
+        Task {
+            do { keep(try await client.fetchThread(id)) }
+            catch {
+                if let j = threads.firstIndex(where: { $0.id == id }) { threads[j].unread = true }
+                AppState.shared.unreadCount += 1
+            }
+        }
+    }
+
     private func keep(_ d: ThreadDetail) {
         details[d.id] = d
         Receipts.track(d, notify: false)

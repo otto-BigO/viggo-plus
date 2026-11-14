@@ -12,7 +12,10 @@ struct MessagesScreen: View {
     @State private var path: [Int] = []
 
     private var searching: Bool { !search.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// Nothing saved and the first fetch is running: grey rows instead of an empty list.
+    private var firstLoad: Bool { Skeleton.forced || inbox.threads.isEmpty && inbox.loading }
     private var shown: [MessageThread] {
+        if Skeleton.forced { return [] }
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
         guard !q.isEmpty else { return inbox.otherThreads }
         return inbox.threads.filter { "\($0.sender) \($0.subject) \($0.preview)".lowercased().contains(q) }
@@ -27,17 +30,27 @@ struct MessagesScreen: View {
                 if let e = inbox.error {
                     Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
-                if !searching, !inbox.pinnedThreads.isEmpty {
+                if !searching, !inbox.pinnedThreads.isEmpty, !firstLoad {
                     PinnedGrid(threads: inbox.pinnedThreads) { path.append($0) }
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 4, trailing: 12))
+                }
+                if firstLoad {
+                    SkeletonThreads()
+                        .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                        .transition(.opacity)
                 }
                 ForEach(shown) { t in
                     NavigationLink(value: t.id) { ThreadRow(t: t) }
                         .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 16))
                         .alignmentGuide(.listRowSeparatorLeading) { _ in 76 }
-                        .swipeActions(edge: .leading) { pinButton(t) }
-                        .contextMenu { pinButton(t) } preview: { ThreadPreview(t: t) }
+                        // Like Mail: right for read, left for the rest.
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) { if t.unread { readButton(t) } }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) { pinButton(t) }
+                        .contextMenu {
+                            if t.unread { readButton(t) }
+                            pinButton(t)
+                        } preview: { ThreadPreview(t: t) }
                 }
             }
             .listStyle(.plain)
@@ -45,17 +58,17 @@ struct MessagesScreen: View {
             .animation(.viggo, value: inbox.threads)
             .overlay {
                 if inbox.threads.isEmpty {
-                    if inbox.loading { ProgressView("Henter beskeder") }
-                    else if inbox.error == nil { ContentUnavailableView("Ingen beskeder", systemImage: "tray") }
+                    if !inbox.loading, inbox.error == nil { ContentUnavailableView("Ingen beskeder", systemImage: "tray") }
                 } else if searching, shown.isEmpty {
                     ContentUnavailableView.search(text: search)
                 }
             }
             .navigationTitle("Beskeder")
             .navigationDestination(for: Int.self) { ThreadScreen(id: $0) }
-            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0).zoomsFromPicture($0) }
             .searchable(text: $search, prompt: "Søg")
-            .refreshable { await inbox.load(); Haptic.soft() }
+            .refreshable { await finish { await inbox.load(); Haptic.soft() } }
+            .refreshIcon()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { SearchButton() }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -85,6 +98,17 @@ struct MessagesScreen: View {
             Label(on ? "Frigør" : "Fastgør", systemImage: on ? "pin.slash.fill" : "pin.fill")
         }
         .tint(.yellow)
+    }
+
+    /// Opening a thread is what marks it read on Viggo, so this fetches it without showing it.
+    private func readButton(_ t: MessageThread) -> some View {
+        Button {
+            Haptic.firm()
+            withAnimation(.viggo) { inbox.markRead(t.id) }
+        } label: {
+            Label("Læst", systemImage: "envelope.open.fill")
+        }
+        .tint(.blue)
     }
 }
 
@@ -254,7 +278,7 @@ struct ThreadScreen: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                if let d = detail {
+                if let d = detail, !Skeleton.forced {
                     LazyVStack(spacing: 2) {
                         header(d)
                         ForEach(Array(d.messages.enumerated()), id: \.element.id) { i, m in
@@ -271,20 +295,34 @@ struct ThreadScreen: View {
                                    tail: last, mentions: mentions)
                                 .id(m.id)
                                 .padding(.bottom, last && m.id != lastMine ? 6 : 0)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                // Your own takes the place of the one that was being sent; a new one
+                                // from someone else grows up from the corner by their picture.
+                                .transition(m.authorID == me ? .opacity
+                                            : .scale(scale: 0.4, anchor: .bottomLeading).combined(with: .opacity))
                             if m.id == lastMine, sending == nil {
                                 ReadReceipt(readers: m.readBy.filter { $0.name != state.profile?.name }, total: m.privateWith != nil ? 1 : recipients(d))
                                     .padding(.bottom, 6)
+                                    .transition(.opacity)
                             }
                         }
                         if let s = sending {
                             Bubble(m: ThreadMessage(id: -1, authorID: me, author: "", image: nil, date: "", text: s, links: []),
                                    mine: true, showName: false, tail: true)
-                                .opacity(0.6)
+                                .opacity(0.7)
                                 .id(-1)
-                                .transition(.scale(scale: 0.6, anchor: .bottomTrailing).combined(with: .opacity))
-                            Text("Sender…").font(.caption2).foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 6)
+                                // Flies up out of the text field.
+                                .transition(.asymmetric(
+                                    insertion: .scale(scale: 0.3, anchor: .bottomTrailing).combined(with: .offset(y: 40)).combined(with: .opacity),
+                                    removal: .opacity))
+                            HStack(spacing: 6) {
+                                TypingDots()
+                                Text("Sender").font(.caption2).foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(Capsule().fill(Color(.tertiarySystemFill)))
+                            .frame(maxWidth: .infinity, alignment: .trailing).padding(.top, 3)
+                            .transition(.scale(scale: 0.5, anchor: .trailing).combined(with: .opacity))
+                            .accessibilityLabel("Sender")
                         }
                     }
                     .padding(.horizontal, 12).padding(.bottom, 8)
@@ -292,7 +330,7 @@ struct ThreadScreen: View {
                     ContentUnavailableView("Kunne ikke åbne beskeden", systemImage: "exclamationmark.bubble")
                         .padding(.top, 80)
                 } else {
-                    ProgressView().padding(.top, 80).frame(maxWidth: .infinity)
+                    SkeletonBubbles().transition(.opacity)
                 }
             }
             .defaultScrollAnchor(.bottom)
@@ -320,6 +358,7 @@ struct ThreadScreen: View {
                 NavigationLink(value: Found.person(other?.authorID ?? 0)) {
                     VStack(spacing: 2) {
                         Avatar(url: other?.image ?? (headerName == state.profile?.name ? state.profile?.image : nil), size: 28, name: headerName)
+                            .zoomSource(Found.person(other?.authorID ?? 0))
                         Text(group && other != nil ? "\(firstSender) +\((detail?.to.count ?? 1) - 1)" : headerName)
                             .font(.caption2.weight(.semibold)).lineLimit(1)
                     }
@@ -338,6 +377,14 @@ struct ThreadScreen: View {
         }
         .task { await load() }
         .task { await dir.load() }
+        .task {
+            // VIGGO_SEND_DEMO=1 shows what sending looks like, without sending anything.
+            guard ProcessInfo.processInfo.environment["VIGGO_SEND_DEMO"] != nil else { return }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.viggo) { sending = "Det her er en prøve" }
+            try? await Task.sleep(for: .seconds(5))
+            withAnimation(.viggo) { sending = nil }
+        }
         .onChange(of: detail, initial: true) { _, d in if let d { mentions = Mentions(thread: d, state: state) } }
         .onChange(of: dir.members.count) { if let d = detail { mentions = Mentions(thread: d, state: state) } }
         .environment(\.openURL, OpenURLAction { u in

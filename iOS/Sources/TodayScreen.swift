@@ -62,7 +62,7 @@ struct TodayScreen: View {
 
                     // Until the first schedule arrives, show grey placeholders instead of
                     // "Fri resten af dagen" and zeros that would be wrong a second later.
-                    let loading = state.events.isEmpty && state.lastSync == nil && !state.needsLogin
+                    let loading = Skeleton.forced || state.events.isEmpty && state.lastSync == nil && !state.needsLogin
                     Group {
                         if p.panelNow {
                             HeroCard(current: current, next: next, now: now,
@@ -77,7 +77,13 @@ struct TodayScreen: View {
                     .redacted(reason: loading ? .placeholder : [])
                     .saturation(loading ? 0 : 1)
                     .opacity(loading ? 0.5 : 1)
+                    .shimmer(loading)
                     .animation(.viggo, value: loading)
+
+                    if loading {
+                        Card(title: "Dagen", icon: "clock") { SkeletonDay() }
+                            .transition(.opacity)
+                    }
 
                     if p.panelBirthdays, !state.birthdaysToday.isEmpty {
                         Banner(icon: "birthday.cake.fill", tint: .pink,
@@ -91,9 +97,9 @@ struct TodayScreen: View {
                         .buttonStyle(PressScale(scale: 0.98))
                     }
 
-                    if p.panelTimeline, !shown.isEmpty {
+                    if p.panelTimeline, !shown.isEmpty, !loading {
                         Card(title: "Dagen", icon: "clock") {
-                            DayList(items: shown, now: now, schoolEnd: school.map(\.end).max())
+                            DayList(items: shown, now: now, schoolEnd: school.map(\.end).max(), line: true)
                         }
                     }
 
@@ -191,6 +197,7 @@ struct TodayScreen: View {
                                         .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
+                                    .zoomSource(b)
                                 }
                             }
                         }
@@ -206,10 +213,11 @@ struct TodayScreen: View {
                 .animation(.viggo, value: current?.id)
             }
             .background(Color(.systemGroupedBackground))
-            .refreshable { await state.sync() }
+            .refreshable { await finish { await state.sync() } }
+            .refreshIcon()
             .navigationDestination(for: Int.self) { ThreadScreen(id: $0) }
-            .navigationDestination(for: Bulletin.self) { BulletinScreen(b: $0) }
-            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
+            .navigationDestination(for: Bulletin.self) { BulletinScreen(b: $0).zoomsFrom($0) }
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0).zoomsFromPicture($0) }
             .navigationDestination(isPresented: $showMe) { if let id = state.profile?.id { PersonScreen(id: id) } }
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
@@ -484,6 +492,7 @@ struct Card<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        .cardEntrance()
     }
 }
 
@@ -504,6 +513,7 @@ struct Banner: View {
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        .cardEntrance()
     }
 }
 
@@ -513,11 +523,17 @@ struct DayList: View {
     let items: [ViggoEvent]
     let now: Date
     let schoolEnd: Date?
+    /// Draw the line at the current time (only the list for today wants it).
+    var line = false
 
     var body: some View {
         let afterSchool = items.first { ($0.kind == .routine || $0.kind == .custom) && $0.start >= (schoolEnd ?? .distantFuture) }?.id
+        // Between two things: a line at the current time, like in Kalender.
+        let between = line && !items.contains { $0.start <= now && $0.end > now }
+        let lineBefore = between ? items.first { $0.start > now }?.id : nil
         VStack(spacing: 0) {
             ForEach(items) { e in
+                if e.id == lineBefore { NowLine(now: now) }
                 if e.id == afterSchool, items.contains(where: { $0.kind == .lesson }) {
                     HStack(spacing: 8) {
                         Rectangle().fill(.quaternary).frame(height: 1)
@@ -545,7 +561,12 @@ struct PauseRow: View {
             Image(systemName: "cup.and.saucer.fill").font(.caption)
             Text("Pause, \(mins) min").font(.footnote.weight(current ? .semibold : .regular))
             Spacer()
-            if current { Text("Nu").font(.caption.weight(.bold)).foregroundStyle(.tint) }
+            if current {
+                HStack(spacing: 5) {
+                    PulseDot(color: .accentColor, size: 5)
+                    Text("Nu").font(.caption.weight(.bold)).foregroundStyle(.tint)
+                }
+            }
         }
         .foregroundStyle(.secondary)
         .padding(.vertical, 6)
@@ -593,9 +614,13 @@ struct DayRow: View {
                 }
                 Spacer(minLength: 4)
                 if current {
-                    Text("NU").font(.caption2.weight(.heavy)).foregroundStyle(.white)
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(Capsule().fill(e.subjectColor))
+                    HStack(spacing: 5) {
+                        PulseDot(size: 5)
+                        Text("NU").font(.caption2.weight(.heavy))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(Capsule().fill(e.subjectColor))
                 } else if e.hasInfo && !isFood {
                     Image(systemName: open ? "chevron.up" : "text.alignleft").font(.footnote.weight(.bold)).foregroundStyle(.tint)
                 }
@@ -626,11 +651,12 @@ struct DayRow: View {
         .padding(.vertical, quiet ? 6 : 8)
         .padding(.horizontal, current ? 10 : 0)
         .background {
-            if current { RoundedRectangle(cornerRadius: 14, style: .continuous).fill(e.subjectColor.opacity(0.12)) }
+            if current { NowGlow(color: e.subjectColor) }
         }
         .padding(.horizontal, current ? -10 : 0)
         .opacity(past ? 0.4 : 1)
         .contentShape(Rectangle())
+        .zoomSource(e.id)
         .onTapGesture {
             if e.hasInfo { Haptic.tap(); withAnimation(.unfold) { open.toggle() } }
             else if e.kind != .custom { state.openLesson(e) }
@@ -749,8 +775,12 @@ struct FriendsNowCard: View {
                 .foregroundStyle(.primary)
                 Spacer(minLength: 4)
                 if let g = gaps.first, g.0 <= now {
-                    Text("Nu").font(.caption.weight(.bold)).foregroundStyle(.white)
-                        .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(.green))
+                    HStack(spacing: 5) {
+                        PulseDot(size: 5)
+                        Text("Nu").font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(.green))
                 }
                 Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
             }
@@ -773,6 +803,7 @@ struct FriendsNowCard: View {
         return NavigationLink(value: Found.person(f.viggoID)) {
             HStack(spacing: 12) {
                 Avatar(url: f.image, size: 36, name: f.name).opacity(expired ? 0.4 : 1)
+                    .zoomSource(Found.person(f.viggoID))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(f.firstName).font(.body.weight(.medium))
                     Text(expired ? "Skal logge ind" : text).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)

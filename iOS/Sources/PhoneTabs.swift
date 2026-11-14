@@ -113,7 +113,10 @@ struct WeekBrowser<Header: View>: View {
                 Banner(icon: "gift.fill", tint: .pink,
                        text: birthdays.count == 1 ? "\(birthdays[0]) har fødselsdag 🎉" : "Fødselsdag: " + birthdays.joined(separator: ", "))
             }
-            if items.isEmpty {
+            if Skeleton.forced || person == nil && state.events.isEmpty && state.lastSync == nil && !state.needsLogin {
+                // The first schedule has not arrived yet.
+                Card(title: "Dagen", icon: "calendar") { SkeletonDay(rows: 6) }
+            } else if items.isEmpty {
                 Card(title: "Fri", icon: "sun.max.fill") {
                     Text("Ingen lektioner eller aftaler i Viggo denne dag.").font(.subheadline).foregroundStyle(.secondary)
                 }
@@ -121,7 +124,7 @@ struct WeekBrowser<Header: View>: View {
                 Card(title: "Dagen", icon: "calendar") {
                     // Only today greys out what is over; other days read in full.
                     DayList(items: items, now: DateUtil.cal.isDateInToday(day) ? state.tick : .distantPast,
-                            schoolEnd: school.map(\.end).max())
+                            schoolEnd: school.map(\.end).max(), line: DateUtil.cal.isDateInToday(day))
                 }
             }
             if !hw.isEmpty {
@@ -153,6 +156,7 @@ struct WeekBrowser<Header: View>: View {
                             .frame(width: timeW, alignment: .leading)
                         // Their picture, so you know at a glance who is on duty.
                         Avatar(url: m?.image, size: 34, name: d.who)
+                            .zoomSource(Found.person(m?.id ?? -1))
                         VStack(alignment: .leading, spacing: 1) {
                             Text(d.who).font(.subheadline.weight(.medium)).lineLimit(1)
                             Text("\(d.shift) · til \(Self.dutyEnd(d))").font(.footnote).foregroundStyle(.secondary).lineLimit(1)
@@ -160,8 +164,12 @@ struct WeekBrowser<Header: View>: View {
                         }
                         Spacer(minLength: 0)
                         if d.start <= state.tick && d.end > state.tick {
-                            Text("NU").font(.caption2.weight(.heavy)).foregroundStyle(.white)
-                                .padding(.horizontal, 7).padding(.vertical, 3).background(Capsule().fill(.teal))
+                            HStack(spacing: 5) {
+                                PulseDot(size: 5)
+                                Text("NU").font(.caption2.weight(.heavy))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 7).padding(.vertical, 3).background(Capsule().fill(.teal))
                         }
                         if m != nil {
                             Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
@@ -215,7 +223,9 @@ struct WeekScreen: View {
             }
             .navigationTitle("Uge \(DateUtil.cal.component(.weekOfYear, from: DateUtil.mondayOf(day)))")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0).zoomsFromPicture($0) }
+            .refreshable { await finish { await state.sync(); Haptic.soft() } }
+            .refreshIcon()
             .task { await Directory.shared.load() }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarLeading) {
@@ -288,6 +298,7 @@ struct FriendsScreen: View {
                             NavigationLink(value: FriendRoute(id: f.id)) {
                                 HStack(spacing: 12) {
                                     Avatar(url: f.image, size: 40, name: f.name).opacity(expired ? 0.4 : 1)
+                                        .zoomSource(FriendRoute(id: f.id))
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(f.name).font(.body.weight(.medium))
                                         HStack(spacing: 5) {
@@ -311,11 +322,12 @@ struct FriendsScreen: View {
                 }
             }
             .navigationTitle("Venner")
-            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0).zoomsFromPicture($0) }
             .navigationDestination(for: FriendRoute.self) { r in
-                if let f = state.friends.first(where: { $0.id == r.id }) { FriendDayScreen(friend: f) }
+                if let f = state.friends.first(where: { $0.id == r.id }) { FriendDayScreen(friend: f).zoomsFrom(r) }
             }
-            .refreshable { await state.syncFriends() }
+            .refreshable { await finish { await state.syncFriends() } }
+            .refreshIcon()
         }
     }
 }
@@ -349,6 +361,7 @@ struct FriendDayScreen: View {
                 .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
             }
             .buttonStyle(PressScale(scale: 0.97))
+            .zoomSource(Found.person(friend.viggoID))
             if expired {
                 HStack {
                     Text("\(friend.firstName) skal logge ind igen").font(.subheadline).foregroundStyle(.orange)
@@ -359,7 +372,8 @@ struct FriendDayScreen: View {
         }
         .navigationTitle(friend.firstName)
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await state.syncFriends() }
+        .refreshable { await finish { await state.syncFriends() } }
+        .refreshIcon()
     }
 }
 

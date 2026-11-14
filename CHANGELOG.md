@@ -1,5 +1,17 @@
 # Ændringer
 
+## 1.21.4 og iPhone-app 1.12.0 (2026-11-14)
+
+- **Sider vokser ud af det du trykker på**: en profil vokser ud af personens billede (venner, vagter, søgning og toppen af en tråd), en lektion ud af sin række og et opslag ud af sin linje på I dag. Træk siden ned for at lukke den igen.
+- **Grå pladsholdere mens der hentes**: I dag, Uge, Beskeder, en tråd og en profil viser formen af det der kommer, med et lys der glider hen over, i stedet for en tom skærm eller et hjul.
+- **Kort glider ind**: kortene på I dag og i Uge toner og vokser det sidste stykke på plads, når du scroller ned til dem.
+- **Nu-prikken pulserer**: alle "NU"-mærker har en prik der pulserer, timen der er i gang lyser svagt, og når du er mellem to ting, står der en rød linje med klokkeslættet i dagens liste.
+- **Stryg på en besked**: til højre markerer en ulæst tråd som læst uden at åbne den, til venstre fastgør den. Før lå fastgør til højre.
+- **Beskeder der sendes**: din besked flyver op fra tekstfeltet med tre hoppende prikker, mens den sendes, og en ny besked fra en anden vokser op fra deres billede.
+- **App-ikonet i træk for at opdatere**: det ikon du har valgt, drejer ind mens du trækker, og snurrer mens der hentes. Uge kan nu også trækkes ned for at opdatere.
+- Træk for at opdatere på I dag blev nogle gange afbrudt halvvejs og skrev "cancelled". Nu bliver opdateringen altid gjort færdig.
+- Har du slået "Reducer bevægelse" til på telefonen, står alt det her stille.
+
 ## 1.21.3 og iPhone-app 1.11.0 (2026-11-14)
 
 - **Videoer i Beskeder**: en video vises nu i tråden med et billede fra den, en afspil-knap og hvor lang den er, og spiller i fuld skærm med lyd. Før var den bare en fil man skulle åbne.
