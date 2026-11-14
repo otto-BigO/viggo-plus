@@ -58,6 +58,7 @@ struct MessageFile: Identifiable, Hashable, Codable {
     /// A small version, for pictures.
     let preview: URL?
     var isImage: Bool { mime.hasPrefix("image/") || preview != nil && name.range(of: "\\.(jpe?g|png|gif|heic|webp)$", options: [.regularExpression, .caseInsensitive]) != nil }
+    var isVideo: Bool { mime.hasPrefix("video/") || name.range(of: "\\.(mp4|mov|m4v)$", options: [.regularExpression, .caseInsensitive]) != nil }
 }
 
 /// A file picked to go with a message.

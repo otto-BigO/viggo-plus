@@ -1,3 +1,4 @@
+import AVKit
 import QuickLook
 import SwiftUI
 
@@ -226,6 +227,10 @@ struct ThreadScreen: View {
     @State private var sending: String?
     @State private var sendError: String?
     @State private var files: [Attachment] = []
+    @State private var mentions = Mentions.none
+    /// A name tapped in a message.
+    @State private var mentioned: Int?
+    @ObservedObject private var dir = Directory.shared
     @FocusState private var typing: Bool
 
     private var me: Int { state.profile?.id ?? -1 }
@@ -263,7 +268,7 @@ struct ThreadScreen: View {
                                     .frame(maxWidth: .infinity).padding(.top, 14).padding(.bottom, 4)
                             }
                             Bubble(m: m, mine: m.authorID == me, showName: first && group && m.authorID != me,
-                                   tail: last)
+                                   tail: last, mentions: mentions)
                                 .id(m.id)
                                 .padding(.bottom, last && m.id != lastMine ? 6 : 0)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -332,6 +337,16 @@ struct ThreadScreen: View {
             }
         }
         .task { await load() }
+        .task { await dir.load() }
+        .onChange(of: detail, initial: true) { _, d in if let d { mentions = Mentions(thread: d, state: state) } }
+        .onChange(of: dir.members.count) { if let d = detail { mentions = Mentions(thread: d, state: state) } }
+        .environment(\.openURL, OpenURLAction { u in
+            guard u.scheme == Mentions.scheme, let id = Int(u.host ?? "") else { return .systemAction }
+            Haptic.tap()
+            mentioned = id
+            return .handled
+        })
+        .navigationDestination(item: $mentioned) { PersonScreen(id: $0) }
         .alert("Beskeden blev ikke sendt", isPresented: .constant(sendError != nil)) {
             Button("OK") { sendError = nil }
         } message: { Text(sendError ?? "") }
@@ -429,6 +444,7 @@ private struct Bubble: View {
     let mine: Bool
     var showName = false
     var tail = true
+    var mentions = Mentions.none
     private var personal: Bool { m.privateWith != nil }
     @State private var zoomed: URL?
 
@@ -465,16 +481,21 @@ private struct Bubble: View {
                 ForEach(m.files.filter(\.isImage)) { f in
                     Button { Haptic.tap(); zoomed = f.url } label: {
                         // Clipped inside, so the corners follow the picture and not the frame around it.
-                        ViggoImage(url: f.url) { AnyView($0.resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))) }
+                        ViggoImage(url: f.url, corner: 18) { AnyView($0.resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))) }
                             .frame(maxWidth: 230, maxHeight: 320, alignment: mine ? .trailing : .leading)
                     }
                     .buttonStyle(PressScale(scale: 0.97))
                     .accessibilityLabel(f.name)
                 }
-                ForEach(m.files.filter { !$0.isImage }) { f in FileChip(f: f) }
+                ForEach(m.files.filter { $0.isVideo && !$0.isImage }) { f in VideoBubble(f: f) }
+                ForEach(m.files.filter { !$0.isImage && !$0.isVideo }) { f in FileChip(f: f) }
                 if !m.text.isEmpty || !m.links.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    if !m.text.isEmpty { Text(m.text).font(.body) }
+                    if !m.text.isEmpty {
+                        Text(mentions.linked(m.text, author: m.authorID))
+                            .font(.body)
+                            .tint(mine && !personal ? .white : .accentColor)
+                    }
                     ForEach(m.links, id: \.self) { u in
                         Link(destination: u) {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "link")
@@ -500,6 +521,181 @@ private struct Bubble: View {
             if !mine { Spacer(minLength: 56) }
         }
         .fullScreenCover(item: $zoomed) { u in ZoomImage(url: u) }
+    }
+}
+
+/// A video in a message: a still from it with a play button and its length. Tap to play it full screen.
+private struct VideoBubble: View {
+    let f: MessageFile
+    @State private var local: URL?
+    @State private var poster: UIImage?
+    @State private var length: String?
+    @State private var failed = false
+    @State private var playing = false
+
+    var body: some View {
+        Button {
+            guard local != nil else { return }
+            Haptic.tap()
+            playing = true
+        } label: {
+            ZStack {
+                if let poster { Image(uiImage: poster).resizable().scaledToFit() }
+                else { Color(.systemGray5).frame(width: 200, height: 260) }
+                if failed {
+                    Label("Videoen kunne ikke hentes", systemImage: "video.slash").font(.footnote).foregroundStyle(.secondary).padding()
+                } else if local == nil {
+                    ProgressView()
+                } else {
+                    Image(systemName: "play.fill").font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
+                        .frame(width: 54, height: 54).background(Circle().fill(.black.opacity(0.45)))
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if let length {
+                    Text(length).font(.caption2.monospacedDigit().weight(.semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 7).padding(.vertical, 3).background(Capsule().fill(.black.opacity(0.5))).padding(8)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .frame(maxWidth: 230, maxHeight: 320)
+        }
+        .buttonStyle(PressScale(scale: 0.97))
+        .accessibilityLabel("Video \(length ?? "")")
+        .fullScreenCover(isPresented: $playing) { if let local { VideoScreen(url: local) } }
+        .task(id: f.id) { await load() }
+    }
+
+    /// Fetched once with your login and kept in Caches, so the still and the player use the same file.
+    private func load() async {
+        let ext = (f.name as NSString).pathExtension.isEmpty ? "mp4" : (f.name as NSString).pathExtension.lowercased()
+        let u = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("video-\(f.id).\(ext)")
+        if !FileManager.default.fileExists(atPath: u.path) {
+            guard let d = try? await AppState.shared.client.data(f.url) else { failed = true; return }
+            try? d.write(to: u, options: .atomic)
+        }
+        let asset = AVURLAsset(url: u)
+        let gen = AVAssetImageGenerator(asset: asset)
+        gen.appliesPreferredTrackTransform = true
+        gen.maximumSize = CGSize(width: 700, height: 700)
+        if let still = try? await gen.image(at: .zero) { withAnimation(.viggo) { poster = UIImage(cgImage: still.image) } }
+        if let d = try? await asset.load(.duration), d.seconds.isFinite {
+            let s = Int(d.seconds.rounded())
+            length = String(format: "%d:%02d", s / 60, s % 60)
+        }
+        local = u
+    }
+}
+
+private struct VideoScreen: View {
+    @Environment(\.dismiss) private var dismiss
+    let url: URL
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            if let player { VideoPlayer(player: player).ignoresSafeArea() }
+            Button { dismiss() } label: {
+                Image(systemName: "xmark").font(.body.weight(.bold)).foregroundStyle(.white)
+                    .frame(width: 36, height: 36).background(Circle().fill(.white.opacity(0.2)))
+            }
+            .padding()
+        }
+        .onAppear {
+            // Sound even with the ring switch on silent, like videos in Beskeder.
+            try? AVAudioSession.sharedInstance().setCategory(.playback)
+            let p = AVPlayer(url: url)
+            player = p
+            p.play()
+        }
+        .onDisappear { player?.pause() }
+    }
+}
+
+/// Names of people at school in a message, made blue and tappable like mentions in Beskeder.
+/// Full names match anyone in Viggo's address book; a first name alone only matches a friend or
+/// someone in the thread, since "Emil" alone could be any of several.
+struct Mentions {
+    static let none = Mentions(full: [:], first: [:], me: -1)
+    static let scheme = "viggoplus-person"
+
+    /// "emilie kroer" → id. Two people with the same name map to nil and are left alone.
+    let full: [String: Int?]
+    let first: [String: Int?]
+    let me: Int
+
+    init(full: [String: Int?], first: [String: Int?], me: Int) { self.full = full; self.first = first; self.me = me }
+
+    @MainActor init(thread d: ThreadDetail, state: AppState) {
+        let dir = Directory.shared
+        me = state.profile?.id ?? -1
+        full = Self.fullIndex(dir.members)
+        var first: [String: Int?] = [:]
+        func add(_ name: String, _ id: Int) {
+            guard id > 0, let f = name.components(separatedBy: " ").first?.lowercased(), f.count >= 2 else { return }
+            if let old = first[f], old != id { first[f] = .some(nil) } else { first[f] = id }
+        }
+        for m in d.messages { add(m.author, m.authorID) }
+        for n in d.to + d.from { if let m = dir.member(named: n) { add(m.name, m.id) } }
+        // Friends win over others with the same first name: they are who you talk about.
+        for f in state.friends { first[f.firstName.lowercased()] = f.viggoID }
+        self.first = first
+    }
+
+    private static var cache: (count: Int, index: [String: Int?])?
+    private static func fullIndex(_ members: [Member]) -> [String: Int?] {
+        if let c = cache, c.count == members.count { return c.index }
+        var idx: [String: Int?] = [:]
+        func put(_ k: String, _ id: Int) {
+            if let old = idx[k], old != id { idx[k] = .some(nil) } else { idx[k] = id }
+        }
+        for m in members where m.kind == .student || m.kind == .staff {
+            let parts = m.name.lowercased().split(separator: " ").map(String.init)
+            guard parts.count >= 2 else { continue }
+            put(parts.joined(separator: " "), m.id)
+            // "Emilie Holck" as well as "Emilie Kroer Holck Hansen": first name with any later name.
+            for p in parts.dropFirst() where p.count >= 2 { put("\(parts[0]) \(p)", m.id) }
+        }
+        cache = (members.count, idx)
+        return idx
+    }
+
+    /// The text with each name found turned into a link to that person.
+    func linked(_ text: String, author: Int) -> AttributedString {
+        var out = AttributedString(text)
+        guard !full.isEmpty || !first.isEmpty else { return out }
+        // Words with their ranges; a name starts with a capital letter.
+        let ns = text as NSString
+        let words = (try? NSRegularExpression(pattern: "[\\p{L}][\\p{L}\\-]*"))?.matches(in: text, range: NSRange(location: 0, length: ns.length)) ?? []
+        var i = 0
+        while i < words.count {
+            let w = ns.substring(with: words[i].range)
+            guard w.first?.isUppercase == true else { i += 1; continue }
+            var hit: (Int, NSRange)?
+            // Longest first: three names, two, then a first name alone.
+            for len in [3, 2] where i + len <= words.count {
+                let span = words[i...(i + len - 1)]
+                // Only names written next to each other, with just a space between.
+                let joined = NSRange(location: words[i].range.location,
+                                     length: NSMaxRange(words[i + len - 1].range) - words[i].range.location)
+                let spaced = (i..<(i + len - 1)).allSatisfy { k in
+                    let end = NSMaxRange(words[k].range)
+                    return ns.substring(with: NSRange(location: end, length: words[k + 1].range.location - end)) == " "
+                }
+                guard spaced, span.allSatisfy({ ns.substring(with: $0.range).first?.isUppercase == true }) else { continue }
+                let key = span.map { ns.substring(with: $0.range).lowercased() }.joined(separator: " ")
+                if let id = full[key] ?? nil { hit = (id, joined); i += len - 1; break }
+            }
+            if hit == nil, let id = first[w.lowercased()] ?? nil { hit = (id, words[i].range) }
+            if let (id, r) = hit, id != me, id != author, let range = Range(r, in: text),
+               let lo = AttributedString.Index(range.lowerBound, within: out), let hi = AttributedString.Index(range.upperBound, within: out) {
+                out[lo..<hi].link = URL(string: "\(Self.scheme)://\(id)")
+                out[lo..<hi].inlinePresentationIntent = .stronglyEmphasized
+            }
+            i += 1
+        }
+        return out
     }
 }
 

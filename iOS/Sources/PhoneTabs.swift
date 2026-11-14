@@ -19,6 +19,7 @@ struct WeekBrowser<Header: View>: View {
     /// Which way the last day change went, so the list slides the same way.
     @State private var forward = true
     @State private var showDuty = false
+    @ObservedObject private var dir = Directory.shared
     @ScaledMetric(relativeTo: .subheadline) private var timeW: CGFloat = 48
     @Namespace private var pill
 
@@ -140,33 +141,41 @@ struct WeekBrowser<Header: View>: View {
     }
 
     /// "23:00", "24:00" for midnight, and "lør. 09:00" when the duty runs into the next day.
-    static func dutyEnd(_ d: Duty) -> String {
-        let cal = DateUtil.cal
-        if cal.isDate(d.end, inSameDayAs: d.start) { return DateUtil.hm(d.end) }
-        if d.end == cal.startOfDay(for: d.end), cal.isDate(d.end.addingTimeInterval(-60), inSameDayAs: d.start) { return "24:00" }
-        return "\(DateUtil.weekdayF.string(from: d.end)) \(DateUtil.hm(d.end))"
-    }
+    static func dutyEnd(_ d: Duty) -> String { untilText(d.start, d.end) }
 
     private func dutyCard(_ duties: [Duty]) -> some View {
         Card(title: "Vagter", icon: "person.badge.shield.checkmark.fill") {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(showDuty ? duties : Array(duties.prefix(3))) { d in
-                    HStack(spacing: 12) {
+                    let m = dir.staff(named: d.who)
+                    let row = HStack(spacing: 12) {
                         Text(DateUtil.hm(d.start)).font(.subheadline.monospacedDigit().weight(.semibold)).lineLimit(1)
                             .frame(width: timeW, alignment: .leading)
+                        // Their picture, so you know at a glance who is on duty.
+                        Avatar(url: m?.image, size: 34, name: d.who)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(d.who).font(.subheadline.weight(.medium)).lineLimit(1)
                             Text("\(d.shift) · til \(Self.dutyEnd(d))").font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                                .minimumScaleFactor(0.8)
                         }
                         Spacer(minLength: 0)
                         if d.start <= state.tick && d.end > state.tick {
                             Text("NU").font(.caption2.weight(.heavy)).foregroundStyle(.white)
                                 .padding(.horizontal, 7).padding(.vertical, 3).background(Capsule().fill(.teal))
                         }
+                        if m != nil {
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
                     }
                     .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                     // Over for today: grey like the rest of the day's list.
                     .opacity(d.end <= state.tick && DateUtil.cal.isDateInToday(d.start) ? 0.4 : 1)
+                    if let m {
+                        NavigationLink(value: Found.person(m.id)) { row }.buttonStyle(.plain)
+                    } else {
+                        row
+                    }
                 }
                 if duties.count > 3 {
                     Button(showDuty ? "Vis færre" : "Vis alle \(duties.count)") { withAnimation(.unfold) { showDuty.toggle() } }
@@ -206,6 +215,8 @@ struct WeekScreen: View {
             }
             .navigationTitle("Uge \(DateUtil.cal.component(.weekOfYear, from: DateUtil.mondayOf(day)))")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: Found.self) { FoundScreen(found: $0) }
+            .task { await Directory.shared.load() }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button { jump(-7) } label: { Image(systemName: "chevron.left") }
@@ -239,6 +250,14 @@ struct WeekScreen: View {
             }
         }
     }
+}
+
+/// "23:00", "24:00" for midnight, and "lør. 09:00" when it runs into the next day.
+func untilText(_ start: Date, _ end: Date) -> String {
+    let cal = DateUtil.cal
+    if cal.isDate(end, inSameDayAs: start) { return DateUtil.hm(end) }
+    if end == cal.startOfDay(for: end), cal.isDate(end.addingTimeInterval(-60), inSameDayAs: start) { return "24:00" }
+    return "\(DateUtil.weekdayF.string(from: end)) \(DateUtil.hm(end))"
 }
 
 extension Notification.Name { static let viggoTabAgain = Notification.Name("viggoTabAgain") }

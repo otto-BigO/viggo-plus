@@ -70,16 +70,7 @@ struct RootView: View {
         .sheet(isPresented: $guide, onDismiss: { UserDefaults.standard.set(true, forKey: GuideSheet.seenKey) }) { GuideSheet() }
         .onChange(of: state.needsLogin) { if !splash { offerGuide() } }
         .sheet(isPresented: Binding(get: { state.showSearch && !splash }, set: { state.showSearch = $0 })) { SearchScreen() }
-        .sheet(item: $state.shownLesson) { e in
-            NavigationStack {
-                LessonDetailView(e: e)
-                        .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .onAppear { Haptic.soft() }
-        }
+        .sheet(item: $state.shownLesson) { e in LessonSheet(e: e) }
     }
 
     /// Keep the launch screen up until the first sync is done (at least long enough for the
@@ -126,6 +117,33 @@ struct RootView: View {
                 .onChange(of: state.openThread) { if state.openThread != nil { tab = 2 } }
             }
         }
+    }
+}
+
+/// A lesson or event as a sheet that is as tall as what it says, and can be pulled up to full height.
+private struct LessonSheet: View {
+    @EnvironmentObject var state: AppState
+    let e: ViggoEvent
+    @State private var content: CGFloat = 0
+    @State private var detent: PresentationDetent = .medium
+
+    /// Room for the grabber and the bar with Færdig above the content.
+    private var fitted: PresentationDetent { .height(content + 72) }
+
+    var body: some View {
+        NavigationStack {
+            LessonDetailView(e: e) { h in
+                guard abs(h - content) > 1 else { return }
+                let wasFitted = content == 0 || detent == fitted
+                content = h
+                if wasFitted { detent = fitted }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
+        }
+        .presentationDetents(content == 0 ? [.medium, .large] : [fitted, .large], selection: $detent)
+        .presentationDragIndicator(.visible)
+        .onAppear { Haptic.soft() }
     }
 }
 

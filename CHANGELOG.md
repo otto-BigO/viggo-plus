@@ -1,5 +1,16 @@
 # Ændringer
 
+## 1.21.3 og iPhone-app 1.11.0 (2026-11-14)
+
+- **Videoer i Beskeder**: en video vises nu i tråden med et billede fra den, en afspil-knap og hvor lang den er, og spiller i fuld skærm med lyd. Før var den bare en fil man skulle åbne.
+- **GIF'er bevæger sig**: en GIF i en besked eller et opslag kører nu, og en GIF du sender, bliver sendt som GIF i stedet for at blive lavet om til et stillbillede.
+- Videoer over 10 MB bliver gjort mindre, før de sendes, i stedet for at blive afvist.
+- **Navne i beskeder er blå**: skriver nogen et navn på en fra skolen (fulde navn, eller fornavnet på en ven eller en i tråden), bliver det blåt ligesom i Beskeder, og et tryk åbner deres profil.
+- **Venner nu og Fri sammen er ét kort**: øverst står hvornår I alle har fri, og et tryk på det vælger hvem der er med. Under det står vennerne, og kun en ven med en anden fri-tid end resten viser sin egen.
+- **Vagter i Uge har billeder**, og et tryk på en vagt åbner personens profil.
+- Arket med en begivenhed i Uge og I dag er nu kun så højt som det, der står i det, i stedet for halvdelen af skærmen med tom plads.
+- På en lærers profil står en vagt som "Lørdagsvagt, til søn. 09:00" i stedet for "09.00 - 09.00 Lørdagsvagt, til 09:00".
+
 ## 1.21.2 og iPhone-app 1.10.2 (2026-11-14)
 
 - **Svar bliver ikke længere læst bag din ryg**: tjekket af hvem der har set din besked kunne åbne tråden, lige før et nyt svar blev hentet, så svaret stod som læst uden du havde set det. Nu hentes indbakken først, og ulæste tråde bliver aldrig åbnet.

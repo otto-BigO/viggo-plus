@@ -615,6 +615,8 @@ struct DayPanel: View {
 
 struct LessonDetailView: View {
     let e: ViggoEvent
+    /// The content's height, so the iPhone sheet can be just as tall instead of half the screen.
+    var onHeight: (CGFloat) -> Void = { _ in }
 
     private func linkLabel(_ u: URL) -> String {
         let host = (u.host ?? u.absoluteString).replacingOccurrences(of: "www.", with: "")
@@ -693,6 +695,7 @@ struct LessonDetailView: View {
             .padding(.horizontal, 22).padding(.top, 34).padding(.bottom, 18)
             #else
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 18)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeight($0) }
             #endif
         }
         #if os(macOS)

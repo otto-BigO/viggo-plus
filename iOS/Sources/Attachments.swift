@@ -1,3 +1,4 @@
+import AVFoundation
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
@@ -50,7 +51,18 @@ struct AttachButton: View {
             let n = files.count + 1
             if type?.conforms(to: .movie) == true {
                 let ext = type?.preferredFilenameExtension ?? "mov"
-                add(Attachment(name: "Video \(n).\(ext)", mime: type?.preferredMIMEType ?? "video/quicktime", data: data))
+                if data.count <= ViggoClient.maxFileSize {
+                    add(Attachment(name: "Video \(n).\(ext)", mime: type?.preferredMIMEType ?? "video/quicktime", data: data))
+                } else if let small = await Self.shrinkVideo(data, ext: ext) {
+                    // Most phone videos are over Viggo's 10 MB, so make them smaller instead of refusing them.
+                    add(Attachment(name: "Video \(n).mp4", mime: "video/mp4", data: small))
+                } else {
+                    error = "Videoen er for lang. Viggo tager højst 10 MB pr. fil, også når den er gjort mindre."
+                    Haptic.error()
+                }
+            } else if data.starts(with: [0x47, 0x49, 0x46]) || item.supportedContentTypes.contains(where: { $0.conforms(to: .gif) }) {
+                // A GIF stays a GIF; as JPEG it would stop moving.
+                add(Attachment(name: "GIF \(n).gif", mime: "image/gif", data: data))
             } else if let img = UIImage(data: data), let jpg = Self.jpeg(img) {
                 // HEIC does not open everywhere, so pictures go as JPEG, scaled to at most 2560 px.
                 add(Attachment(name: "Billede \(n).jpg", mime: "image/jpeg", data: jpg))
@@ -76,6 +88,23 @@ struct AttachButton: View {
         var data = image.jpegData(compressionQuality: q)
         while let d = data, d.count > target, q > 0.3 { q -= 0.15; data = image.jpegData(compressionQuality: q) }
         return data
+    }
+
+    /// A video as MP4 in the biggest size that fits under 10 MB, or nil if even the smallest is too big.
+    static func shrinkVideo(_ data: Data, ext: String) async -> Data? {
+        let tmp = FileManager.default.temporaryDirectory
+        let src = tmp.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext)
+        guard (try? data.write(to: src)) != nil else { return nil }
+        defer { try? FileManager.default.removeItem(at: src) }
+        for preset in [AVAssetExportPreset1280x720, AVAssetExportPreset960x540, AVAssetExportPreset640x480] {
+            let out = tmp.appendingPathComponent(UUID().uuidString).appendingPathExtension("mp4")
+            defer { try? FileManager.default.removeItem(at: out) }
+            guard let s = AVAssetExportSession(asset: AVURLAsset(url: src), presetName: preset) else { continue }
+            s.shouldOptimizeForNetworkUse = true
+            guard (try? await s.export(to: out, as: .mp4)) != nil, let d = try? Data(contentsOf: out) else { continue }
+            if d.count <= ViggoClient.maxFileSize { return d }
+        }
+        return nil
     }
 
     private func addFile(_ u: URL) {

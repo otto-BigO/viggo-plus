@@ -306,6 +306,20 @@ final class Directory: ObservableObject {
         return members.first { $0.name.lowercased() == n }
     }
 
+    /// A staff member from a name written by hand, like a duty in the schedule ("Johan Meklenborg"
+    /// for "Johan Meklenborg Nielsen"). Exact name first, then first name plus every other name given.
+    func staff(named name: String) -> Member? {
+        let parts = name.lowercased().split(separator: " ").map(String.init)
+        guard parts.count >= 2 else { return nil }
+        if let m = member(named: name) { return m }
+        let hits = members.filter { m in
+            let have = m.name.lowercased().split(separator: " ").map(String.init)
+            return have.first == parts[0] && parts.dropFirst().allSatisfy(have.dropFirst().contains)
+        }
+        let staff = hits.filter { $0.kind == .staff }
+        return staff.count == 1 ? staff[0] : hits.count == 1 ? hits[0] : nil
+    }
+
     /// The groups someone is in, most telling first. "Alle ..." groups say nothing, so they are left out.
     func groups(of id: Int) -> [MemberGroup] { sortedGroupsOf[id] ?? [] }
     func group(_ id: Int) -> MemberGroup? { groups.first { $0.id == id } }

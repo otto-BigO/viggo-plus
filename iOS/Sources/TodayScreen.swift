@@ -167,42 +167,7 @@ struct TodayScreen: View {
                     }
 
                     if p.panelFriendsNow, !state.friends.isEmpty {
-                        Card(title: "Venner nu", icon: "person.2.fill") {
-                            VStack(spacing: 0) {
-                                ForEach(Array(state.friends.enumerated()), id: \.element.id) { i, f in
-                                    if i > 0 { Divider().padding(.leading, 44) }
-                                    let (text, free) = state.friendStatus(f, now: now)
-                                    let expired = state.friendExpired.contains(f.id)
-                                    let gaps = expired ? [] : state.freeTogether(with: state.friendEvents[f.id] ?? [], now: now)
-                                    NavigationLink(value: Found.person(f.viggoID)) {
-                                    HStack(spacing: 12) {
-                                        Avatar(url: f.image, size: 36, name: f.name).opacity(expired ? 0.4 : 1)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(f.firstName).font(.body.weight(.medium))
-                                            Text(expired ? "Skal logge ind" : text).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                                        }
-                                        Spacer()
-                                        if let g = gaps.first {
-                                            VStack(alignment: .trailing, spacing: 1) {
-                                                Text("Fri sammen").font(.caption2.weight(.semibold)).foregroundStyle(.green)
-                                                Text("\(DateUtil.hm(g.0))-\(DateUtil.hm(g.1))").font(.footnote.monospacedDigit().weight(.semibold))
-                                            }
-                                        } else {
-                                            Circle().fill(free ? Color.green : Color.orange).frame(width: 9, height: 9)
-                                        }
-                                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-                                    }
-                                    .padding(.vertical, 8)
-                                    .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-
-                    if p.panelFriendsNow, p.friendsFreeTogether, state.friends.count >= 2, DateUtil.cal.component(.hour, from: now) < 18 {
-                        GroupFreeCard(now: now)
+                        FriendsNowCard(now: now)
                     }
 
                     if p.panelBulletin, !state.bulletins.isEmpty {
@@ -718,54 +683,114 @@ struct HomeworkRow: View {
     }
 }
 
-/// "Fri sammen" for several friends at once: pick who, see when you are all free today.
-struct GroupFreeCard: View {
+/// Friends right now and when you are free together, in one card. With two or more friends the top
+/// shows when the picked group is free; each row then only shows its own time if it is different.
+struct FriendsNowCard: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject private var p = Prefs.shared
     let now: Date
 
+    private func span(_ g: (Date, Date)) -> String { "\(DateUtil.hm(g.0))\u{2060}\u{2013}\u{2060}\(DateUtil.hm(g.1))" }
+    private func length(_ g: (Date, Date)) -> String {
+        let m = Int(g.1.timeIntervalSince(g.0) / 60)
+        return m >= 60 ? (m % 60 == 0 ? "\(m / 60) t" : "\(m / 60) t \(m % 60) min") : "\(m) min"
+    }
+
     var body: some View {
+        let showGroup = p.friendsFreeTogether && state.friends.count >= 2 && DateUtil.cal.component(.hour, from: now) < 18
         let group = state.freeGroup
-        let gaps = state.groupFree(now: now)
-        Card(title: "Fri sammen", icon: "person.3.fill") {
-            VStack(alignment: .leading, spacing: 12) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(state.friends) { f in
-                            let on = group.contains { $0.id == f.id }
-                            Button {
-                                Haptic.select()
-                                withAnimation(.viggo) { state.toggleFreeGroup(f) }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Avatar(url: f.image, size: 22, name: f.name)
-                                    Text(f.firstName).font(.subheadline.weight(.medium))
-                                }
-                                .padding(.leading, 4).padding(.trailing, 10).padding(.vertical, 4)
-                                .background(Capsule().fill(on ? Color.green.opacity(0.18) : Color(.tertiarySystemFill)))
-                                .overlay(Capsule().stroke(on ? Color.green.opacity(0.6) : .clear, lineWidth: 1))
-                                .opacity(on ? 1 : 0.55)
-                            }
-                            .buttonStyle(PressScale(scale: 0.94))
-                        }
-                    }
+        let groupGaps = showGroup ? state.groupFree(now: now) : []
+        Card(title: "Venner nu", icon: "person.2.fill") {
+            VStack(spacing: 0) {
+                if showGroup {
+                    together(group: group, gaps: groupGaps)
+                        .padding(.bottom, 6)
                 }
-                if gaps.isEmpty {
-                    Label("Ingen tid hvor I alle har fri resten af skoledagen", systemImage: "moon.zzz.fill")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                } else {
-                    ForEach(Array(gaps.enumerated()), id: \.offset) { _, g in
-                        HStack {
-                            Text("\(DateUtil.hm(g.0))–\(DateUtil.hm(g.1))").font(.body.monospacedDigit().weight(.semibold))
-                            Spacer()
-                            let mins = Int(g.1.timeIntervalSince(g.0) / 60)
-                            Text(mins >= 60 ? "\(mins / 60) t \(mins % 60 > 0 ? "\(mins % 60) min" : "")" : "\(mins) min")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                            if g.0 <= now { Text("Nu").font(.caption.weight(.bold)).foregroundStyle(.white)
-                                .padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(.green)) }
-                        }
-                    }
+                ForEach(Array(state.friends.enumerated()), id: \.element.id) { i, f in
+                    if i > 0 { Divider().padding(.leading, 48) }
+                    row(f, groupGap: group.contains { $0.id == f.id } ? groupGaps.first : nil)
                 }
             }
         }
+    }
+
+    /// When you and the picked friends are all free. Tap the faces to choose who counts.
+    private func together(group: [Friend], gaps: [(Date, Date)]) -> some View {
+        Menu {
+            Section("Fri sammen med") {
+                ForEach(state.friends) { f in
+                    Toggle(f.firstName, isOn: Binding(get: { group.contains { $0.id == f.id } },
+                                                      set: { _ in Haptic.select(); withAnimation(.viggo) { state.toggleFreeGroup(f) } }))
+                }
+            }
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                HStack(spacing: -10) {
+                    ForEach(group.prefix(4)) { f in
+                        Avatar(url: f.image, size: 30, name: f.name)
+                            .overlay(Circle().stroke(Color(.secondarySystemGroupedBackground), lineWidth: 2))
+                    }
+                    if group.count > 4 {
+                        Text("+\(group.count - 4)").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+                            .frame(width: 30, height: 30).background(Circle().fill(Color(.tertiarySystemFill)))
+                            .overlay(Circle().stroke(Color(.secondarySystemGroupedBackground), lineWidth: 2))
+                    }
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    if let g = gaps.first {
+                        Text(span(g)).font(.headline.monospacedDigit())
+                        Text(gaps.count > 1 ? "Fri sammen · \(length(g)) · \(gaps.count - 1) mere i dag" : "Fri sammen · \(length(g))")
+                            .font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                    } else {
+                        Text("Ingen fælles fri").font(.headline)
+                        Text("resten af skoledagen").font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                .foregroundStyle(.primary)
+                Spacer(minLength: 4)
+                if let g = gaps.first, g.0 <= now {
+                    Text("Nu").font(.caption.weight(.bold)).foregroundStyle(.white)
+                        .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(.green))
+                }
+                Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .multilineTextAlignment(.leading)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(gaps.isEmpty ? Color(.tertiarySystemFill) : Color.green.opacity(0.14)))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(PressScale(scale: 0.98))
+        .accessibilityLabel("Fri sammen. Tryk for at vælge hvem der er med")
+    }
+
+    private func row(_ f: Friend, groupGap: (Date, Date)?) -> some View {
+        let (text, free) = state.friendStatus(f, now: now)
+        let expired = state.friendExpired.contains(f.id)
+        let gap = expired ? nil : state.freeTogether(with: state.friendEvents[f.id] ?? [], now: now).first
+        // Already said at the top: leave it out here.
+        let sameAsGroup = gap != nil && groupGap != nil && gap!.0 == groupGap!.0 && gap!.1 == groupGap!.1
+        return NavigationLink(value: Found.person(f.viggoID)) {
+            HStack(spacing: 12) {
+                Avatar(url: f.image, size: 36, name: f.name).opacity(expired ? 0.4 : 1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(f.firstName).font(.body.weight(.medium))
+                    Text(expired ? "Skal logge ind" : text).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                if let g = gap, !sameAsGroup {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("Fri sammen").font(.caption2.weight(.semibold)).foregroundStyle(.green)
+                        Text(span(g)).font(.footnote.monospacedDigit().weight(.semibold))
+                    }
+                } else if !expired {
+                    Circle().fill(free ? Color.green : Color.orange).frame(width: 9, height: 9)
+                }
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -1,3 +1,4 @@
+import ImageIO
 import SwiftUI
 
 /// A post from the bulletin board, read in the app: the whole text, its pictures and links.
@@ -101,17 +102,23 @@ struct ZoomImage: View {
 struct ViggoImage<Shown: View>: View {
     let url: URL
     var zoom = false
+    /// Corner radius for a moving GIF, which `shown` can't style since it is not a SwiftUI Image.
+    var corner: CGFloat = 0
     var shown: (Image) -> Shown
     @State private var image: UIImage?
     @State private var failed = false
 
-    init(url: URL, zoom: Bool = false, @ViewBuilder shown: @escaping (Image) -> Shown) {
-        self.url = url; self.zoom = zoom; self.shown = shown
+    init(url: URL, zoom: Bool = false, corner: CGFloat = 0, @ViewBuilder shown: @escaping (Image) -> Shown) {
+        self.url = url; self.zoom = zoom; self.corner = corner; self.shown = shown
     }
 
     var body: some View {
         Group {
-            if let image { shown(Image(uiImage: image)).transition(.opacity) }
+            if let image, image.images != nil {
+                AnimatedImage(image: image)
+                    .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+                    .transition(.opacity)
+            } else if let image { shown(Image(uiImage: image)).transition(.opacity) }
             else if failed {
                 Label("Billedet kunne ikke hentes", systemImage: "photo").foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 120)
@@ -124,7 +131,7 @@ struct ViggoImage<Shown: View>: View {
         }
         .task(id: url) {
             if let hit = ImageCache.shared.object(forKey: url as NSURL) { image = hit; return }
-            if let d = try? await AppState.shared.client.data(url), let img = UIImage(data: d) {
+            if let d = try? await AppState.shared.client.data(url), let img = AnimatedImage.decode(d) {
                 ImageCache.shared.setObject(img, forKey: url as NSURL)
                 withAnimation(.viggo) { image = img }
             } else { failed = true }
@@ -134,6 +141,57 @@ struct ViggoImage<Shown: View>: View {
 
 extension ViggoImage where Shown == AnyView {
     init(url: URL) { self.init(url: url) { AnyView($0.resizable().scaledToFit()) } }
+}
+
+/// A GIF that moves. SwiftUI's Image only shows the first frame, so this wraps a UIImageView.
+struct AnimatedImage: UIViewRepresentable {
+    let image: UIImage
+
+    /// A GIF with more than one frame becomes an animated UIImage; anything else a plain one.
+    static func decode(_ d: Data) -> UIImage? {
+        guard d.starts(with: [0x47, 0x49, 0x46]), let src = CGImageSourceCreateWithData(d as CFData, nil),
+              CGImageSourceGetCount(src) > 1 else { return UIImage(data: d) }
+        // Scaled down per frame: a long GIF at full size can take hundreds of MB.
+        let opts = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 900,
+                    kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary
+        var frames: [UIImage] = []
+        var total = 0.0
+        for i in 0..<min(CGImageSourceGetCount(src), 400) {
+            guard let cg = CGImageSourceCreateThumbnailAtIndex(src, i, opts) else { continue }
+            let gif = (CGImageSourceCopyPropertiesAtIndex(src, i, nil) as? [CFString: Any])?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+            let delay = (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double) ?? (gif?[kCGImagePropertyGIFDelayTime] as? Double) ?? 0.1
+            // Browsers treat a delay under 20 ms as 100 ms, so do the same.
+            total += delay < 0.02 ? 0.1 : delay
+            frames.append(UIImage(cgImage: cg))
+        }
+        guard frames.count > 1 else { return frames.first ?? UIImage(data: d) }
+        return UIImage.animatedImage(with: frames, duration: total)
+    }
+
+    func makeUIView(context: Context) -> UIImageView {
+        let v = UIImageView()
+        v.contentMode = .scaleAspectFit
+        v.clipsToBounds = true
+        for axis in [NSLayoutConstraint.Axis.horizontal, .vertical] {
+            v.setContentCompressionResistancePriority(.defaultLow, for: axis)
+            v.setContentHuggingPriority(.defaultLow, for: axis)
+        }
+        return v
+    }
+
+    func updateUIView(_ v: UIImageView, context: Context) {
+        if v.image !== image { v.image = image }
+    }
+
+    /// As big as the space allows, keeping the picture's shape.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIImageView, context: Context) -> CGSize? {
+        let s = image.size
+        guard s.width > 0, s.height > 0 else { return nil }
+        let w = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? s.width
+        let h = proposal.height.flatMap { $0.isFinite ? $0 : nil } ?? .greatestFiniteMagnitude
+        let k = min(w / s.width, h / s.height)
+        return CGSize(width: s.width * k, height: s.height * k)
+    }
 }
 
 /// Pictures stay in memory while the app runs, so reopening a thread or post does not fetch them again.

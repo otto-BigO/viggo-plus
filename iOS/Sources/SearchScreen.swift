@@ -481,8 +481,10 @@ struct PersonScreen: View {
                     if let c = w.now {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(c.title).font(.body.weight(.semibold))
-                                Text([c.room.isEmpty ? nil : c.room, "til \(DateUtil.hm(c.end))"].compactMap { $0 }.joined(separator: " · "))
+                                // A duty is named "09.00 - 09.00 Lørdagsvagt" and runs into the next day.
+                                Text(c.title.replacingOccurrences(of: "^\\d{1,2}[.:]\\d{2}\\s*-\\s*\\d{1,2}[.:]\\d{2}\\s+", with: "", options: .regularExpression))
+                                    .font(.body.weight(.semibold))
+                                Text([c.room.isEmpty ? nil : c.room, "til \(untilText(c.start, c.end))"].compactMap { $0 }.joined(separator: " · "))
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
                         } icon: { Image(systemName: "mappin.circle.fill").foregroundStyle(.orange) }
