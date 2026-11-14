@@ -37,6 +37,7 @@ struct ViggoPlusPhoneApp: App {
 
 struct RootView: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject private var lessons = LessonPresenter.shared
     @State private var tab = ProcessInfo.processInfo.environment["VIGGO_TAB"].flatMap(Int.init) ?? 0
     @State private var splash = true
     @State private var guide = false
@@ -80,7 +81,7 @@ struct RootView: View {
         .sheet(isPresented: Binding(get: { state.showSearch && !splash }, set: { state.showSearch = $0 })) {
             SearchScreen().environment(\.zoomSpace, zoomSearch)
         }
-        .sheet(item: $state.shownLesson) { e in LessonSheet(e: e).environment(\.zoomSpace, zoomNow) }
+        .sheet(item: $lessons.shown) { e in LessonSheet(e: e).environment(\.zoomSpace, zoomNow) }
     }
 
     /// Keep the launch screen up until the first sync is done (at least long enough for the
@@ -131,27 +132,37 @@ struct RootView: View {
 }
 
 /// A lesson or event as a sheet that is as tall as what it says, and can be pulled up to full height.
+/// The height is measured before the sheet opens: changing it while the zoom runs stalled the
+/// animation for over a second and sometimes dropped it.
 private struct LessonSheet: View {
     @EnvironmentObject var state: AppState
     let e: ViggoEvent
-    @State private var content: CGFloat = 0
-    @State private var detent: PresentationDetent = .medium
+    private let fitted: PresentationDetent
+    @State private var detent: PresentationDetent
 
-    /// Room for the grabber and the bar with Færdig above the content.
-    private var fitted: PresentationDetent { .height(content + 72) }
+    init(e: ViggoEvent) {
+        self.e = e
+        let fitted = PresentationDetent.height(Self.height(of: e) + 72)
+        self.fitted = fitted
+        _detent = State(initialValue: fitted)
+    }
+
+    /// The lesson page's height at the screen's width (plus room for the grabber and the bar with Færdig).
+    @MainActor private static func height(of e: ViggoEvent) -> CGFloat {
+        let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.size
+            ?? CGSize(width: 402, height: 874)
+        let host = UIHostingController(rootView: LessonDetailContent(e: e))
+        let h = host.sizeThatFits(in: CGSize(width: screen.width, height: .greatestFiniteMagnitude)).height
+        return min(h, screen.height * 0.8)
+    }
 
     var body: some View {
         NavigationStack {
-            LessonDetailView(e: e) { h in
-                guard abs(h - content) > 1 else { return }
-                let wasFitted = content == 0 || detent == fitted
-                content = h
-                if wasFitted { detent = fitted }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
+            LessonDetailView(e: e)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
         }
-        .presentationDetents(content == 0 ? [.medium, .large] : [fitted, .large], selection: $detent)
+        .presentationDetents([fitted, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .zoomsFrom(e.id)
         .onAppear { Haptic.soft() }

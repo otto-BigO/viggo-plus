@@ -53,7 +53,11 @@ final class AppState: ObservableObject {
     /// Food per day from the kitchen's meal plan posts.
     @Published var meals: [Date: MealDay] = [:]
     #if os(iOS)
-    @Published var shownLesson: ViggoEvent?
+    /// The lesson sheet. It lives outside AppState's published values, so opening it does not redraw every tab.
+    var shownLesson: ViggoEvent? {
+        get { LessonPresenter.shared.shown }
+        set { LessonPresenter.shared.shown = newValue }
+    }
     /// A thread to open in Beskeder, e.g. from a notification.
     @Published var openThread: Int?
     /// The Søg screen on the iPhone, opened from the magnifier on I dag and Beskeder.

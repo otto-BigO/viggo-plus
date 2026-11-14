@@ -61,10 +61,8 @@ struct WeekBrowser<Header: View>: View {
                 .padding(.horizontal, 16).padding(.top, 6).padding(.bottom, 28)
             }
             .clipped()
-            .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { g in
-                guard abs(g.translation.width) > abs(g.translation.height) * 1.5 else { return }
-                move(days: g.translation.width < 0 ? 1 : -1)
-            })
+            .gesture(DaySwipe(direction: .left) { move(days: 1) })
+            .gesture(DaySwipe(direction: .right) { move(days: -1) })
         }
         .background(Color(.systemGroupedBackground))
     }
@@ -227,6 +225,19 @@ struct WeekScreen: View {
             .refreshable { await finish { await state.sync(); Haptic.soft() } }
             .refreshIcon()
             .task { await Directory.shared.load() }
+            .task {
+                // Test hook: opens and closes Monday's first lesson three times, to check the zoom.
+                guard ProcessInfo.processInfo.environment["VIGGO_OPEN_DEMO"] != nil else { return }
+                try? await Task.sleep(for: .seconds(4))
+                day = DateUtil.mondayOf(Date())
+                for _ in 0..<3 {
+                    try? await Task.sleep(for: .seconds(3))
+                    guard let e = state.weekItems(day, person: nil).first(where: { $0.kind == .lesson }) else { return }
+                    state.openLesson(e)
+                    try? await Task.sleep(for: .seconds(3))
+                    state.shownLesson = nil
+                }
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button { jump(-7) } label: { Image(systemName: "chevron.left") }

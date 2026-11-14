@@ -423,3 +423,31 @@ private struct RefreshIconHook: UIViewRepresentable {
         }
     }
 }
+
+// MARK: - Swipe between days
+
+/// Swipe left or right to change day, as a UIKit swipe recogniser. SwiftUI's DragGesture on the
+/// scroll view held back the lesson sheet by two to three seconds after a tap on a lesson.
+struct DaySwipe: UIGestureRecognizerRepresentable {
+    let direction: UISwipeGestureRecognizer.Direction
+    let action: () -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    func makeUIGestureRecognizer(context: Context) -> UISwipeGestureRecognizer {
+        let g = UISwipeGestureRecognizer()
+        g.direction = direction
+        g.cancelsTouchesInView = false
+        g.delaysTouchesEnded = false
+        g.delegate = context.coordinator
+        return g
+    }
+
+    func handleUIGestureRecognizerAction(_ g: UISwipeGestureRecognizer, context: Context) {
+        if g.state == .ended { action() }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+    }
+}
