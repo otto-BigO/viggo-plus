@@ -672,9 +672,16 @@ struct NotificationsTab: View {
                     get: { DateUtil.cal.date(bySettingHour: p.homeworkReminderAt / 60, minute: p.homeworkReminderAt % 60, second: 0, of: Date()) ?? Date() },
                     set: { let c = DateUtil.cal.dateComponents([.hour, .minute], from: $0); p.homeworkReminderAt = (c.hour ?? 19) * 60 + (c.minute ?? 0) }),
                     displayedComponents: .hourAndMinute)
-                    .disabled(!p.homeworkReminder)
+                    .disabled(!p.homeworkReminder && !p.packReminder)
+                #if os(iOS)
+                Toggle("Pakkeliste til i morgen", isOn: $p.packReminder)
+                #endif
             } header: { Text("Påmindelse om aftenen") } footer: {
+                #if os(macOS)
                 Text("Fx \"Du har 2 lektier til i morgen\". Kommer kun når der er lektier.").font(.caption).foregroundStyle(.secondary)
+                #else
+                Text("Fx \"Du har 2 lektier til i morgen\" og \"Pak: lommeregner, idrætstøj\". Kommer kun når der er noget. Pakkelisten finder \"husk\" og \"medbring\" i lærerens info, beskeder og opslag.").font(.caption).foregroundStyle(.secondary)
+                #endif
             }
             Section {
                 Toggle("Find deadlines i beskeder og opslag", isOn: $p.deadlineRadar)
@@ -704,7 +711,7 @@ struct NotificationsTab: View {
         .formStyle(.grouped)
         #if os(iOS)
         // New settings take effect right away: the waiting reminders are made again.
-        .onChange(of: "\(p.lessonAlarmMinutes)\(p.briefs)\(p.morningHour)\(p.eveningHour)\(p.notifyBirthdays)\(p.homeworkReminder)\(p.homeworkReminderAt)") { state.scheduleAhead() }
+        .onChange(of: "\(p.lessonAlarmMinutes)\(p.briefs)\(p.morningHour)\(p.eveningHour)\(p.notifyBirthdays)\(p.homeworkReminder)\(p.homeworkReminderAt)\(p.packReminder)") { state.scheduleAhead() }
         #endif
     }
 }

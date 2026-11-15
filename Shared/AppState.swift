@@ -705,6 +705,10 @@ final class AppState: ObservableObject {
         // this the next person saw the old inbox, and got "Aflyst" for every lesson of the last one.
         Inbox.shared.clear()
         Deadlines.shared.clear()
+        PackStore.shared.clear()
+        #if os(iOS)
+        LessonNotes.shared.clear()
+        #endif
         snapshot = Snapshot()
         snapshot.save()
         webLogin.clearCookies()
@@ -1429,7 +1433,7 @@ final class AppState: ObservableObject {
             }
             if prefs.notifyMessages {
                 for m in messages where !snapshot.messageIDs.contains(m.id) {
-                    notes.append(("Ny besked fra \(m.sender)", m.subject, m.link))
+                    notes.append(("Ny besked fra \(m.sender)", m.subject, URL(string: "viggoplus://thread/\(m.id)")))
                 }
             }
             if prefs.notifyBulletin, let seen = snapshot.bulletinIDs {
@@ -1442,7 +1446,11 @@ final class AppState: ObservableObject {
         if notes.count > 5 {
             Notifier.shared.post("Viggo+: \(notes.count) ændringer", notes.prefix(6).map { "• \($0.0)" }.joined(separator: "\n"))
         } else {
-            for n in notes { Notifier.shared.post(n.0, n.1, url: n.2) }
+            for n in notes {
+                // A new message gets Svar and Marker som læst.
+                let thread = n.2.flatMap { $0.scheme == "viggoplus" && $0.host == "thread" ? Int($0.lastPathComponent) : nil }
+                Notifier.shared.post(n.0, n.1, url: n.2, thread: thread)
+            }
         }
         snapshot.events = newMap
         snapshot.homeworkIDs.formUnion(homework.map(\.id))

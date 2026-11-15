@@ -37,6 +37,19 @@ struct TodayScreen: View {
         }
     }
 
+    @ObservedObject private var pack = PackStore.shared
+
+    @ViewBuilder private var packCard: some View {
+        let hour = DateUtil.cal.component(.hour, from: now)
+        let today = DateUtil.startOfDay(now)
+        let tomorrow = DateUtil.add(.day, 1, today)
+        if hour < 12 {
+            if !pack.items(on: today).isEmpty { PackCard(day: today, title: "Pak til i dag") }
+        } else if !pack.items(on: tomorrow).isEmpty || hour >= 15 && !pack.subjects(on: tomorrow).isEmpty {
+            PackCard(day: tomorrow, title: "Pak til i morgen")
+        }
+    }
+
     var body: some View {
         let all = state.timeline(now)
         let current = all.first { $0.start <= now && $0.end > now && $0.kind != .pause }
@@ -118,6 +131,10 @@ struct TodayScreen: View {
                     if p.panelTomorrow, let (first, count) = state.tomorrowFirst(now) {
                         TomorrowCard(first: first, count: count, now: now)
                     }
+
+                    // Before noon what to bring today (when there is something); after that tomorrow,
+                    // with room to add your own once the school day is over.
+                    packCard
 
                     if p.panelDuty, !state.dutyTonight.isEmpty {
                         Banner(icon: "person.badge.shield.checkmark.fill", tint: .indigo,
@@ -576,6 +593,7 @@ struct PauseRow: View {
 
 struct DayRow: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject private var notes = LessonNotes.shared
     let e: ViggoEvent
     let now: Date
     @State private var open = false
@@ -623,6 +641,9 @@ struct DayRow: View {
                     .background(Capsule().fill(e.subjectColor))
                 } else if e.hasInfo && !isFood {
                     Image(systemName: open ? "chevron.up" : "text.alignleft").font(.footnote.weight(.bold)).foregroundStyle(.tint)
+                }
+                if notes.hasNote(e) {
+                    Image(systemName: "note.text").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                 }
             }
             if open && e.hasInfo && !isFood {

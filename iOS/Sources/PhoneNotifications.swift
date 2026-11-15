@@ -36,6 +36,14 @@ extension AppState {
                let at = DateUtil.cal.date(bySettingHour: prefs.homeworkReminderAt / 60, minute: prefs.homeworkReminderAt % 60, second: 0, of: day) {
                 list.append((at, "homework-\(key)", r.0, r.1))
             }
+            if prefs.packReminder,
+               let at = DateUtil.cal.date(bySettingHour: prefs.homeworkReminderAt / 60, minute: prefs.homeworkReminderAt % 60, second: 0, of: day)?.addingTimeInterval(60) {
+                let tomorrow = DateUtil.add(.day, 1, day)
+                let left = PackStore.shared.items(on: tomorrow).filter { !PackStore.shared.isTicked($0, on: tomorrow) }
+                if !left.isEmpty {
+                    list.append((at, "pack-\(key)", "🎒 Pak til i morgen", left.map(\.text).joined(separator: ", ")))
+                }
+            }
             if prefs.notifyBirthdays {
                 let names = events.filter { $0.kind == .birthday && DateUtil.cal.isDate($0.start, inSameDayAs: day) }.map(\.birthdayName)
                 if !names.isEmpty, let at = DateUtil.cal.date(bySettingHour: prefs.morningHour, minute: 1, second: 0, of: day) {
@@ -64,7 +72,10 @@ extension AppState {
             }
             // For checking from Terminal: VIGGO_DUMP_PENDING=1 prints what is waiting.
             if ProcessInfo.processInfo.environment["VIGGO_DUMP_PENDING"] != nil {
-                for (at, id, title, body) in upcoming { print("[venter] \(at.formatted(date: .abbreviated, time: .shortened)) \(id) | \(title) | \(body)") }
+                for (at, id, title, body) in upcoming { NSLog("[venter] %@ %@ | %@ | %@", at.formatted(date: .abbreviated, time: .shortened), id, title, body) }
+                c.getNotificationCategories { cats in
+                    for cat in cats { NSLog("[venter] kategori %@: %@", cat.identifier, cat.actions.map { "\($0.identifier)=\($0.title)\($0 is UNTextInputNotificationAction ? " (tekstfelt)" : "")" }.joined(separator: ", ")) }
+                }
             }
         }
     }

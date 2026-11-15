@@ -130,6 +130,10 @@ struct WeekBrowser<Header: View>: View {
                     VStack(spacing: 0) { ForEach(hw) { HomeworkRow(h: $0) } }
                 }
             }
+            if person == nil, day >= DateUtil.startOfDay(Date()),
+               !PackStore.shared.items(on: day).isEmpty || !PackStore.shared.subjects(on: day).isEmpty {
+                PackCard(day: day)
+            }
             if !duties.isEmpty { dutyCard(duties) }
         }
     }

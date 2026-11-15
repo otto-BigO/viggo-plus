@@ -511,6 +511,45 @@ final class Inbox: ObservableObject {
         Receipts.clear()
     }
 
+    /// Svar or Marker som læst on a message notification, often with the app in the background.
+    /// Both fetch the thread, which is what marks it read on Viggo. A reply goes to the same people
+    /// the app's own field would pick: everyone when you are the only one it was sent to, otherwise
+    /// only the sender. If it can not be sent, a notification says so with your text, so it is not lost.
+    func fromNotification(_ action: String, thread id: Int, text: String?) async {
+        CookieJar.restore()
+        let words = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if action == "reply", words.isEmpty { return }
+        // For checking from Terminal without touching Viggo: VIGGO_NOTIFY_DRYRUN=1 prints what would happen.
+        if ProcessInfo.processInfo.environment["VIGGO_NOTIFY_DRYRUN"] != nil {
+            NSLog("[notifikation] %@ tråd %d %@", action, id, words)
+            return
+        }
+        func run() async throws {
+            let d = try await client.fetchThread(id)
+            if let i = threads.firstIndex(where: { $0.id == id }), threads[i].unread { threads[i].unread = false }
+            keep(d)
+            if action == "reply" {
+                let kind: ReplyKind = d.canReplyAll && d.to.count <= 1 ? .all : .sender
+                try await client.reply(to: id, kind: kind, text: words)
+            }
+        }
+        do {
+            do { try await run() } catch ViggoError.notLoggedIn {
+                guard await AppState.shared.tryAutoLogin() else { throw ViggoError.notLoggedIn }
+                try await run()
+            }
+            AppState.shared.unreadCount = threads.filter(\.unread).count
+            #if os(iOS)
+            AppState.shared.pushWidget()
+            #endif
+            if action == "reply" { await load() }
+        } catch {
+            if action == "reply" {
+                Notifier.shared.post("Dit svar blev ikke sendt", words, thread: id)
+            }
+        }
+    }
+
     func reply(_ id: Int, kind: ReplyKind, text: String, files: [Attachment] = []) async throws {
         do { try await client.reply(to: id, kind: kind, text: text, files: files) }
         catch where AppState.isOffline(error) { throw ViggoError.offline }

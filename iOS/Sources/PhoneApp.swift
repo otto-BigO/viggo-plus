@@ -151,14 +151,19 @@ private struct LessonSheet: View {
     @MainActor private static func height(of e: ViggoEvent) -> CGFloat {
         let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.size
             ?? CGSize(width: 402, height: 874)
-        let host = UIHostingController(rootView: LessonDetailContent(e: e))
+        let host = UIHostingController(rootView: LessonSheetContent(e: e))
         let h = host.sizeThatFits(in: CGSize(width: screen.width, height: .greatestFiniteMagnitude)).height
         return min(h, screen.height * 0.8)
     }
 
     var body: some View {
         NavigationStack {
-            LessonDetailView(e: e)
+            ScrollView {
+                LessonSheetContent(e: e) { editing in
+                    if editing { withAnimation(.viggo) { detent = .large } }
+                }
+            }
+                .scrollDismissesKeyboard(.interactively)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { state.shownLesson = nil } } }
         }
@@ -166,6 +171,21 @@ private struct LessonSheet: View {
         .presentationDragIndicator(.visible)
         .zoomsFrom(e.id)
         .onAppear { Haptic.soft() }
+    }
+}
+
+/// The lesson page and, for lessons and events, your own notes and board photos under it.
+private struct LessonSheetContent: View {
+    let e: ViggoEvent
+    var onEditing: (Bool) -> Void = { _ in }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            LessonDetailContent(e: e)
+            if e.kind == .lesson || e.kind == .event {
+                LessonNotesSection(e: e, onEditing: onEditing)
+                    .padding(.horizontal, 20).padding(.bottom, 18)
+            }
+        }
     }
 }
 

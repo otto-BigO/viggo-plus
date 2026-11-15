@@ -1,5 +1,12 @@
 # Ændringer
 
+## 1.22.0 og iPhone-app 1.13.0 (2026-11-15)
+
+- **Pakkeliste**: appen finder det du skal have med i noterne til timerne og i beskeder og opslag ("Husk lommeregner", "Medbring idrætstøj") og samler det i et Pak-kort. Om morgenen viser I dag hvad du skal have med i dag, om eftermiddagen hvad du skal pakke til i morgen, og Uge viser det for hver dag. Sæt flueben, tilføj dine egne ting, og hold fingeren på en ting for at få den med "hver gang der er" det fag. Om aftenen kommer en notifikation med det du mangler at pakke (kan slås fra under Påmindelse om aftenen). Kun på iPhone.
+- **Noter og tavlebilleder til timen**: åbn en time og skriv dine egne noter, tag et billede af tavlen eller vælg billeder fra telefonen. Næste gang du har samme fag, står det du skrev sidst nederst. En time med noter har et lille ikon i listen. Noterne bliver på telefonen og sendes ikke til Viggo. Kun på iPhone.
+- **Svar fra notifikationen**: hold fingeren på en notifikation om en ny besked for at svare direkte eller markere den som læst uden at åbne appen. Kan svaret ikke sendes, får du en notifikation med din tekst, så den ikke går tabt.
+- I Uge kom arket med en time nogle gange først efter et sekund, eller slet ikke. Nu åbner det med det samme og vokser ud af rækken.
+
 ## 1.21.4 og iPhone-app 1.12.0 (2026-11-14)
 
 - **Sider vokser ud af det du trykker på**: en profil vokser ud af personens billede (venner, vagter, søgning og toppen af en tråd), en lektion ud af sin række og et opslag ud af sin linje på I dag. Træk siden ned for at lukke den igen.

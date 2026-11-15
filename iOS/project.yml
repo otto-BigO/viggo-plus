@@ -11,7 +11,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: minimal
-    MARKETING_VERSION: "1.12.0"
+    MARKETING_VERSION: "1.13.0"
     CURRENT_PROJECT_VERSION: "1"
     "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
 targets:
@@ -47,6 +47,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Viggo+ kan lægge dit skema i Kalender.
+        INFOPLIST_KEY_NSCameraUsageDescription: Viggo+ bruger kameraet til at tage billeder af tavlen, som gemmes ved timen.
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.education
   ViggoWidget:
     type: app-extension

@@ -17,17 +17,35 @@ enum Keychain {
 
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     static let shared = Notifier()
+    /// A new message: answer it or mark it read right from the notification.
+    static let messageCategory = "message"
+
     func setup() {
         let c = UNUserNotificationCenter.current()
         c.delegate = self
         c.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        let reply = UNTextInputNotificationAction(identifier: "reply", title: "Svar", options: [],
+                                                  textInputButtonTitle: "Send", textInputPlaceholder: "Skriv et svar")
+        let read = UNNotificationAction(identifier: "read", title: "Marker som læst", options: [])
+        c.setNotificationCategories([UNNotificationCategory(identifier: Self.messageCategory, actions: [reply, read],
+                                                            intentIdentifiers: [], options: [])])
     }
-    func post(_ title: String, _ body: String, url: URL? = nil) {
+    /// `thread` makes it a message notification with Svar and Marker som læst, and a tap opens the thread.
+    func post(_ title: String, _ body: String, url: URL? = nil, thread: Int? = nil) {
         let c = UNMutableNotificationContent()
         c.title = title
         c.body = body
         c.sound = .default
-        if let url { c.userInfo = ["url": url.absoluteString] }
+        var info: [String: Any] = [:]
+        if let thread {
+            info["thread"] = thread
+            info["url"] = "viggoplus://thread/\(thread)"
+            c.categoryIdentifier = Self.messageCategory
+            c.threadIdentifier = "thread-\(thread)"
+        } else if let url {
+            info["url"] = url.absoluteString
+        }
+        c.userInfo = info
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
@@ -36,7 +54,18 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
-        if let s = response.notification.request.content.userInfo["url"] as? String, let u = URL(string: s) {
+        let info = response.notification.request.content.userInfo
+        // Svar and Marker som læst run in the background; iOS waits for completionHandler.
+        if let thread = info["thread"] as? Int, ["reply", "read"].contains(response.actionIdentifier) {
+            let text = (response as? UNTextInputNotificationResponse)?.userText
+            let action = response.actionIdentifier
+            Task { @MainActor in
+                await Inbox.shared.fromNotification(action, thread: thread, text: text)
+                completionHandler()
+            }
+            return
+        }
+        if let s = info["url"] as? String, let u = URL(string: s) {
             Task { @MainActor in AppState.shared.handle(u) }
         }
         completionHandler()
