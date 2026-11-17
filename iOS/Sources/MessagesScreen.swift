@@ -388,6 +388,12 @@ struct ThreadScreen: View {
         .onChange(of: detail, initial: true) { _, d in if let d { mentions = Mentions(thread: d, state: state) } }
         .onChange(of: dir.members.count) { if let d = detail { mentions = Mentions(thread: d, state: state) } }
         .environment(\.openURL, OpenURLAction { u in
+            // A time or day in a message: show that day in Uge.
+            if u.scheme == Mentions.dayScheme, let t = Double(u.host ?? "") {
+                Haptic.tap()
+                state.showDay = Date(timeIntervalSince1970: t)
+                return .handled
+            }
             guard u.scheme == Mentions.scheme, let id = Int(u.host ?? "") else { return .systemAction }
             Haptic.tap()
             mentioned = id
@@ -539,7 +545,7 @@ private struct Bubble: View {
                 if !m.text.isEmpty || !m.links.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     if !m.text.isEmpty {
-                        Text(mentions.linked(m.text, author: m.authorID))
+                        Text(mentions.linked(m.text, author: m.authorID, posted: Deadlines.postedDate(m.date), onAccent: mine && !personal))
                             .font(.body)
                             .tint(mine && !personal ? .white : .accentColor)
                     }
@@ -709,7 +715,25 @@ struct Mentions {
     }
 
     /// The text with each name found turned into a link to that person.
-    func linked(_ text: String, author: Int) -> AttributedString {
+    static let dayScheme = "viggoplus-day"
+
+    /// The text with each name turned into a link to that person, and each time or day
+    /// ("fredag kl. 10", "20/11") marked and linked to that day in Uge.
+    @MainActor func linked(_ text: String, author: Int, posted: Date? = nil, onAccent: Bool = false) -> AttributedString {
+        var out = names(text, author: author)
+        for s in Deadlines.spots(in: text, posted: posted ?? Date()) {
+            guard let range = Range(s.range, in: text),
+                  let lo = AttributedString.Index(range.lowerBound, within: out),
+                  let hi = AttributedString.Index(range.upperBound, within: out) else { continue }
+            if out[lo..<hi].runs.contains(where: { $0.link != nil }) { continue }
+            out[lo..<hi].inlinePresentationIntent = .stronglyEmphasized
+            out[lo..<hi].backgroundColor = onAccent ? Color.white.opacity(0.22) : Color.accentColor.opacity(0.14)
+            if let d = s.day { out[lo..<hi].link = URL(string: "\(Self.dayScheme)://\(Int(d.timeIntervalSince1970))") }
+        }
+        return out
+    }
+
+    private func names(_ text: String, author: Int) -> AttributedString {
         var out = AttributedString(text)
         guard !full.isEmpty || !first.isEmpty else { return out }
         // Words with their ranges; a name starts with a capital letter.

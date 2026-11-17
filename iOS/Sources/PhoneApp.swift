@@ -107,6 +107,11 @@ struct RootView: View {
         guide = true
     }
 
+    /// Unread threads on the Beskeder tab. VIGGO_FAKE_UNREAD=3 shows a made-up count, for testing.
+    private var unreadBadge: Int {
+        Int(ProcessInfo.processInfo.environment["VIGGO_FAKE_UNREAD"] ?? "") ?? state.unreadCount
+    }
+
     @ViewBuilder private var main: some View {
         Group {
             if state.needsLogin && state.events.isEmpty {
@@ -120,12 +125,13 @@ struct RootView: View {
                     Tab("I dag", systemImage: "sun.max.fill", value: 0) { TodayScreen().environment(\.zoomSpace, zoom0) }
                     Tab("Uge", systemImage: "calendar", value: 1) { WeekScreen().environment(\.zoomSpace, zoom1) }
                     Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill", value: 2) { MessagesScreen().environment(\.zoomSpace, zoom2) }
-                        .badge(state.unreadCount)
+                        .badge(unreadBadge)
                     Tab("Venner", systemImage: "person.2.fill", value: 3) { FriendsScreen().environment(\.zoomSpace, zoom3) }
                     Tab("Indstillinger", systemImage: "gearshape.fill", value: 4) { SettingsScreen() }
                 }
                 .onChange(of: tab) { Haptic.select() }
                 .onChange(of: state.openThread) { if state.openThread != nil { tab = 2 } }
+                .onChange(of: state.showDay) { if state.showDay != nil { tab = 1 } }
             }
         }
     }

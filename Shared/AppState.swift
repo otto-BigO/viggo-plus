@@ -60,6 +60,8 @@ final class AppState: ObservableObject {
     }
     /// A thread to open in Beskeder, e.g. from a notification.
     @Published var openThread: Int?
+    /// A day to show in Uge, from tapping a time or day in a message.
+    @Published var showDay: Date?
     /// The Søg screen on the iPhone, opened from the magnifier on I dag and Beskeder.
     @Published var showSearch = ProcessInfo.processInfo.environment["VIGGO_SEARCH"] != nil
     #endif

@@ -268,6 +268,15 @@ struct WeekScreen: View {
             .onChange(of: person) {
                 if !range.contains(weekOffset) { day = DateUtil.startOfDay(Date()) }
             }
+            // A time or day tapped in a message.
+            .onChange(of: state.showDay, initial: true) {
+                guard let d = state.showDay else { return }
+                state.showDay = nil
+                person = nil
+                let target = DateUtil.startOfDay(d)
+                guard (-Config.weeksBack...Config.weeksAhead).contains(WeekBrowser<EmptyView>.weekOffset(target)) else { Haptic.warning(); return }
+                withAnimation(.viggo) { day = target }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .viggoTabAgain)) { n in
                 guard n.object as? Int == 1, !DateUtil.cal.isDateInToday(day) else { return }
                 Haptic.select()

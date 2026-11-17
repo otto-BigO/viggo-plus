@@ -453,3 +453,84 @@ extension String {
 extension String {
     func ifEmpty(_ s: String) -> String { isEmpty ? s : self }
 }
+
+// MARK: - times and days in a message
+
+extension Deadlines {
+    /// A time or day written in a message ("fredag kl. 10", "20/11", "i morgen", "13:15"), with the
+    /// day it points at when one can be worked out.
+    struct Spot { let range: NSRange; let day: Date? }
+
+    private static let monthWords = "januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|okt|nov|dec"
+    private static let spotPatterns: [NSRegularExpression] = [
+        // Days by name or counted from today.
+        "\\b(?:næste\\s+)?(?:man|tirs|ons|tors|fre|lør|søn)dag(?:en)?\\b",
+        "\\bi\\s+(?:overmorgen|morgen|dag|aften|eftermiddag|formiddag)\\b",
+        // "20. november", "d. 3 dec 2026".
+        "\\b(?:d\\.\\s*|den\\s+)?\\d{1,2}\\.?\\s*(?:\(monthWords))\\b\\.?(?:\\s*\\d{4})?",
+        // "20/11", "d. 20/11-26", "den 20.11", "20.11.2026".
+        "\\b(?:d\\.\\s*|den\\s+)?\\d{1,2}/\\d{1,2}(?:[/-]\\d{2,4})?\\b",
+        "\\b(?:d\\.|den)\\s*\\d{1,2}\\.\\d{1,2}\\b\\.?(?:\\d{2,4}\\b)?",
+        "\\b\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\b",
+        // "kl. 13", "kl 9.55", "kl. 10-12", "13:00", "13:00-14:30".
+        "\\bkl\\.?\\s*\\d{1,2}(?:[.:]\\d{2})?(?:\\s*(?:-|–|til)\\s*\\d{1,2}(?:[.:]\\d{2})?)?\\b",
+        "\\b\\d{1,2}:\\d{2}(?:\\s*(?:-|–)\\s*\\d{1,2}[.:]\\d{2})?\\b",
+        // "13.00" and "8.15-9.45" without "kl.": only a likely hour and minutes in steps of five,
+        // so "opgave 3.12" and "12.50 kr" stay plain.
+        "(?<!opgave |opg\\. |side |s\\. |kapitel |kap\\. |afsnit |nr\\. |øvelse )\\b(?:[7-9]|1\\d|2[0-3])\\.[0-5][05]\\b(?!\\.\\d|\\s*(?:kr|%|,-))(?:\\s*(?:-|–)\\s*\\d{1,2}\\.[0-5]\\d\\b)?",
+    ].map { try! NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
+
+    static func spots(in text: String, posted: Date) -> [Spot] {
+        let ns = text as NSString
+        let all = NSRange(location: 0, length: ns.length)
+        var found: [NSRange] = []
+        for re in spotPatterns { found += re.matches(in: text, range: all).map(\.range) }
+        // Drop numbers that are not a real clock time or date ("kl. 27", "40/13").
+        found = found.filter { r in
+            let s = ns.substring(with: r).lowercased()
+            if s.hasPrefix("kl"), let h = s.firstMatch("(\\d{1,2})").flatMap({ Int($0[1]) }), h > 23 { return false }
+            if let m = s.firstMatch("^(\\d{1,2}):(\\d{2})"), (Int(m[1]) ?? 99) > 23 || (Int(m[2]) ?? 99) > 59 { return false }
+            if let m = s.firstMatch("^(\\d{1,2})/(\\d{1,2})$"), let d = Int(m[1]), let mo = Int(m[2]) {
+                // "1/2" and "3/4" alone are more likely halves and quarters than a date.
+                if !(1...31).contains(d) || !(1...12).contains(mo) || d < mo && mo <= 4 { return false }
+            }
+            if let m = s.firstMatch("(\\d{1,2})/(\\d{1,2})"), !(1...31).contains(Int(m[1]) ?? 0) || !(1...12).contains(Int(m[2]) ?? 0) { return false }
+            return true
+        }
+        // Longest first, then glue together what is only a space apart: "fredag d. 20/11 kl. 10".
+        found.sort { $0.location != $1.location ? $0.location < $1.location : $0.length > $1.length }
+        var merged: [NSRange] = []
+        for r in found {
+            if let last = merged.last {
+                let end = NSMaxRange(last)
+                if r.location < end { merged[merged.count - 1] = NSUnionRange(last, r); continue }
+                if ns.substring(with: NSRange(location: end, length: r.location - end)).allSatisfy({ $0 == " " }) {
+                    merged[merged.count - 1] = NSUnionRange(last, r); continue
+                }
+            }
+            merged.append(r)
+        }
+        // The day each one points at. A time alone takes its day from the sentence, else the day it was written.
+        let sentences = sentenceRanges(text)
+        return merged.map { r in
+            // "torsdagen" reads as "torsdag".
+            let s = ns.substring(with: r).replacingOccurrences(of: "dagen", with: "dag")
+            if let d = day(in: s, posted: posted) { return Spot(range: r, day: d) }
+            let sentence = sentences.first { NSLocationInRange(r.location, $0) }.map { ns.substring(with: $0) } ?? s
+            return Spot(range: r, day: day(in: sentence, posted: posted) ?? DateUtil.startOfDay(posted))
+        }
+    }
+
+    private static func sentenceRanges(_ text: String) -> [NSRange] {
+        let ns = text as NSString
+        var out: [NSRange] = []
+        var start = 0
+        let re = try! NSRegularExpression(pattern: "[.!?]\\s+(?=\\p{Lu})|\\n")
+        for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            out.append(NSRange(location: start, length: NSMaxRange(m.range) - start))
+            start = NSMaxRange(m.range)
+        }
+        out.append(NSRange(location: start, length: ns.length - start))
+        return out
+    }
+}

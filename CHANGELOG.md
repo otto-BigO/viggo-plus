@@ -1,5 +1,9 @@
 # Ændringer
 
+## 1.22.1 og iPhone-app 1.14.0 (2026-11-17)
+
+- **Tider og dage i beskeder er fremhævet**: skriver nogen "fredag d. 20/11 kl. 10", "i morgen kl. 13.00" eller "13:15", står det med fed skrift på en farvet baggrund. Et tryk åbner den dag i Uge, så du kan se hvad du ellers har. En tid uden dag hører til den dag, der står i samme sætning, ellers den dag beskeden blev skrevet. "Opgave 3.15", "12.50 kr" og "1/2" bliver ikke fremhævet. Kun på iPhone.
+
 ## 1.22.0 og iPhone-app 1.13.0 (2026-11-15)
 
 - **Pakkeliste**: appen finder det du skal have med i noterne til timerne og i beskeder og opslag ("Husk lommeregner", "Medbring idrætstøj") og samler det i et Pak-kort. Om morgenen viser I dag hvad du skal have med i dag, om eftermiddagen hvad du skal pakke til i morgen, og Uge viser det for hver dag. Sæt flueben, tilføj dine egne ting, og hold fingeren på en ting for at få den med "hver gang der er" det fag. Om aftenen kommer en notifikation med det du mangler at pakke (kan slås fra under Påmindelse om aftenen). Kun på iPhone.
