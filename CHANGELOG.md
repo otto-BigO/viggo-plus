@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.26.0 og iPhone-app 1.16.0 (2026-11-18)
+
+- **Dit navn i vedhæftede lister**: åbner du en besked med en PDF, fx en køkkenholdsliste, læser Viggo+ den og leder efter dit navn. Står du på listen, kommer et kort øverst i tråden: "Du står på listen: Køkkenhold" med hvornår, og en knap der sætter alle gangene i skemaet på én gang. Viggo+ forstår både lister med uger ("Uge 49 + 52", "Uge 1 + weekenden", hvor dage og mødetid kommer fra beskeden) og lister med en overskrift over navnene ("Onsdag d. 11. november kl. 16.45"). Er alle gangene ovre, vises kortet ikke.
+- **Mandag til fredag**: står der "kl. 6.30 mandag til fredag" i en besked, er det nu én tid over fem dage. Boksen siger "5 dage i træk" og sætter én ting i skemaet for hver dag. Siger beskeden "fra uge 48", er det den uge.
+- **"I morgen" regnes fra da beskeden blev sendt**: Viggo skriver "I går 14:02" om nye beskeder, og det passede ikke længere dagen efter. Nu gemmes det rigtige tidspunkt når beskeden hentes.
+
 ## 1.25.0 og iPhone-app 1.15.1 (2026-11-18)
 
 - **Søg inde i panelet** (en prøve): forstørrelsesglasset (eller ⌘F) gør panelet til en søgning i samme udseende. Dagen glider ud, og et søgefelt og resultaterne glider ind. Før du skriver, står dine seneste søgninger og dem der har fødselsdag. Klik på en person for et lille kort med billede, hvor personen er lige nu, klasse, linje, værelse, fødselsdag og knapper til besked, opkald og SMS. Grupper, flere resultater og hele profilen åbner i det store søgevindue. Esc eller Færdig går tilbage til dagen, og panelet starter altid på dagen igen næste gang du åbner det.

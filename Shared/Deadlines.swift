@@ -213,7 +213,7 @@ final class Deadlines: ObservableObject {
         let me = AppState.shared.profile?.id
         return d.messages.enumerated().flatMap { i, m -> [Deadline] in
             guard m.authorID != me else { return [] }
-            return find(in: m.text, subject: d.subject, posted: postedDate(m.date, now: now) ?? now,
+            return find(in: m.text, subject: d.subject, posted: m.posted ?? postedDate(m.date, now: now) ?? now,
                         source: "tråd:\(d.id)", from: m.author, now: now, readSubject: i == 0)
         }
     }
@@ -338,7 +338,7 @@ final class Deadlines: ObservableObject {
     }
 
     /// "10. nov 2026 12:49", "6 timer siden", "i går 14:02", "12:49".
-    static func postedDate(_ when: String, now: Date = Date()) -> Date? {
+    nonisolated static func postedDate(_ when: String, now: Date = Date()) -> Date? {
         let w = when.lowercased()
         let months = ["jan": 1, "feb": 2, "mar": 3, "apr": 4, "maj": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dec": 12]
         if let m = w.firstMatch("(\\d{1,2})\\.\\s*(\\w{3})\\w*\\.?\\s*(\\d{4})(?:\\s+(\\d{1,2})[:.](\\d{2}))?"), let d = Int(m[1]), let mo = months[m[2]], let y = Int(m[3]) {
@@ -466,6 +466,17 @@ extension Deadlines {
         /// day alone, elsewhere in the same sentence. `end` only when a range is written.
         var start: Date? = nil
         var end: Date? = nil
+        /// "mandag til fredag": how many days in a row, from `day`.
+        var days = 1
+    }
+
+    /// "mandag til fredag" → 5, "fredag til søndag" → 3; nil without a span of days.
+    static func dayCount(in s: String) -> Int? {
+        guard let m = s.lowercased().firstMatch("(mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag)\\s*(?:til|-|–)\\s*(mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag)"),
+              let a = weekdays[m[1]], let b = weekdays[m[2]] else { return nil }
+        // Calendar weekdays start on Sunday; count Monday as the first.
+        let x = (a + 5) % 7, y = (b + 5) % 7
+        return (y - x + 7) % 7 + 1
     }
 
     /// "kl. 10", "kl 9.55-11", "13:00-14:30", "8.15-9.45", "kl. 10 til 12" as minutes after midnight.
@@ -534,7 +545,13 @@ extension Deadlines {
             if let last = merged.last {
                 let end = NSMaxRange(last)
                 if r.location < end { merged[merged.count - 1] = NSUnionRange(last, r); continue }
-                if ns.substring(with: NSRange(location: end, length: r.location - end)).allSatisfy({ $0 == " " }) {
+                let gap = ns.substring(with: NSRange(location: end, length: r.location - end))
+                if gap.allSatisfy({ $0 == " " }) {
+                    merged[merged.count - 1] = NSUnionRange(last, r); continue
+                }
+                // "mandag til fredag": two days with "til" or a dash between are one span of days.
+                if gap.range(of: "^\\s*(til|-|–)\\s*$", options: .regularExpression) != nil,
+                   ns.substring(with: r).range(of: "^(?i)(man|tirs|ons|tors|fre|lør|søn)dag", options: .regularExpression) != nil {
                     merged[merged.count - 1] = NSUnionRange(last, r); continue
                 }
             }
@@ -546,11 +563,17 @@ extension Deadlines {
             // "torsdagen" reads as "torsdag".
             let s = ns.substring(with: r).replacingOccurrences(of: "dagen", with: "dag")
             let sentence = sentences.first { NSLocationInRange(r.location, $0) }.map { ns.substring(with: $0) } ?? s
-            let d = day(in: s, posted: posted) ?? day(in: sentence, posted: posted) ?? DateUtil.startOfDay(posted)
+            var d = day(in: s, posted: posted) ?? day(in: sentence, posted: posted) ?? DateUtil.startOfDay(posted)
+            let days = dayCount(in: s) ?? 1
+            // "mandag til fredag" in a message that says "fra uge 48": that week, not the next one.
+            if days > 1, let w = (sentence.lowercased().firstMatch("\\buge\\s*(\\d{1,2})\\b") ?? text.lowercased().firstMatch("\\buge\\s*(\\d{1,2})\\b")).flatMap({ Int($0[1]) }),
+               let monday = Roster.monday(ofWeek: w, near: posted) {
+                d = DateUtil.add(.day, (DateUtil.cal.component(.weekday, from: d) + 5) % 7, monday)
+            }
             // A day alone ("fredag") can still have its time elsewhere in the sentence.
             let c = clock(in: s, bare: true) ?? clock(in: sentence)
             let at = { (m: Int) in DateUtil.startOfDay(d).addingTimeInterval(Double(m * 60)) }
-            return Spot(range: r, day: d, start: c.map { at($0.start) }, end: c?.end.map(at))
+            return Spot(range: r, day: d, start: c.map { at($0.start) }, end: c?.end.map(at), days: days)
         }
     }
 

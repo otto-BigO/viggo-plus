@@ -130,6 +130,19 @@ final class AppState: ObservableObject {
                 if case .failure(let why) = r { print("[autologin] \(why)") }
                 exit(0)
             }
+        } else if let i = CommandLine.arguments.firstIndex(of: "--fetch-file"), CommandLine.arguments.count > i + 2,
+                  let url = URL(string: CommandLine.arguments[i + 1]) {
+            // For checking from Terminal: download a Viggo file (an attachment) with your login.
+            let out = CommandLine.arguments[i + 2]
+            Task { @MainActor in
+                CookieJar.restore()
+                do {
+                    let d = try await client.data(url)
+                    try d.write(to: URL(fileURLWithPath: out))
+                    print("[fil] \(d.count) bytes -> \(out)")
+                } catch { print("[fil] fejl: \(error)") }
+                exit(0)
+            }
         } else if CommandLine.arguments.contains("--dump-day") {
             // For checking from Terminal: fetch your real schedule and print today's timeline and the menubar text.
             Task { @MainActor in

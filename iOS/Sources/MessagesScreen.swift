@@ -340,7 +340,14 @@ struct ThreadScreen: View {
             .safeAreaInset(edge: .bottom) { if detail != nil { replyBar } }
             // A deadline found in the thread stays in view at the top however long it is.
             .safeAreaInset(edge: .top) {
-                if detail != nil { DeadlineSuggestion(source: "tråd:\(id)").padding(.horizontal, 12).padding(.top, 14) }
+                if let d = detail {
+                    VStack(spacing: 8) {
+                        DeadlineSuggestion(source: "tråd:\(id)")
+                        RosterCard(detail: d)
+                    }
+                    .padding(.horizontal, 12).padding(.top, 14)
+                    .task(id: d.id) { await RosterStore.shared.check(d) }
+                }
             }
             .onChange(of: detail?.messages.count) { _, _ in
                 if let last = detail?.messages.last { withAnimation(.viggo) { proxy.scrollTo(last.id, anchor: .bottom) } }
@@ -555,7 +562,7 @@ private struct Bubble: View {
                 if !m.text.isEmpty || !m.links.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     if !m.text.isEmpty {
-                        Text(mentions.linked(m.text, author: m.authorID, posted: Deadlines.postedDate(m.date), onAccent: mine && !personal))
+                        Text(mentions.linked(m.text, author: m.authorID, posted: m.sentAt, onAccent: mine && !personal))
                             .font(.body)
                             .tint(mine && !personal ? .white : .accentColor)
                     }
@@ -1029,11 +1036,22 @@ struct PlanDemoScreen: View {
     let close: () -> Void
     @State private var plan: PlanDraft?
     private var mentions: Mentions { var m = Mentions.none; m.subject = "Idrætsdag"; return m }
+    /// A made-up list with your name on it, for the card at the top.
+    static let demoThread: ThreadDetail = {
+        let start = DateUtil.cal.date(bySettingHour: 6, minute: 30, second: 0, of: DateUtil.add(.day, 7, Date()))!
+        RosterStore.shared.hits[-1] = [RosterHit(file: -1, thread: -1, title: "Køkkenhold", summary: "uge 49 og 52, man til fre kl. 6.30",
+            slots: (0..<5).map { .init(start: DateUtil.add(.day, $0, start), end: DateUtil.add(.day, $0, start).addingTimeInterval(3600)) }, from: "Demo")]
+        return ThreadDetail(id: -1, subject: "Demo", from: [], to: [], messages: [], canReplyAll: false)
+    }()
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 10) {
+                    RosterCard(detail: Self.demoThread)
+                    Bubble(m: ThreadMessage(id: 3, authorID: -5, author: "Lærer Test", image: nil, date: "17. nov 2026 15:22",
+                                            text: "Her er listen. Mødetid er kl. 6.30 mandag til fredag, og det starter fra uge 48.", links: []),
+                           mine: false, showName: true, mentions: mentions)
                     Bubble(m: ThreadMessage(id: 1, authorID: -5, author: "Lærer Test", image: nil, date: "18. nov 2026 09:00",
                                             text: "Hej alle. Vi mødes fredag d. 20/11 kl. 10-12 i hallen, så tag praktisk tøj med.", links: []),
                            mine: false, showName: true, mentions: mentions)

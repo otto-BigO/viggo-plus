@@ -46,6 +46,9 @@ struct ThreadMessage: Identifiable, Hashable, Codable {
     var answers: String? = nil
     /// Pictures and files attached to it.
     var files: [MessageFile] = []
+    /// When it was sent, worked out when it was fetched: "I går 14:02" only means something on the day it is read.
+    var posted: Date? = nil
+    var sentAt: Date? { posted ?? Deadlines.postedDate(date) }
 }
 
 /// A picture or file attached to a message on Viggo. Both need your Viggo session to download.
@@ -200,7 +203,8 @@ extension Parser {
                 .replacingOccurrences(of: "([.!?]|\\p{Ll})(\\p{Lu})", with: "$1 $2", options: .regularExpression)
             return ThreadMessage(id: mid, authorID: author.flatMap { Int($0[1]) } ?? 0, author: author?[2].strippedHTML ?? "",
                                  image: img.flatMap(URL.init(string:)), date: author?[3].strippedHTML ?? "", text: text, links: links,
-                                 readBy: readers, privateWith: personal, answers: answers, files: files)
+                                 readBy: readers, privateWith: personal, answers: answers, files: files,
+                                 posted: Deadlines.postedDate(author?[3].strippedHTML ?? ""))
         }
         return ThreadDetail(id: id, subject: subject, from: names(fromBlock), to: names(toBlock), messages: messages,
                             canReplyAll: html.contains("type=AnswerThreadToAll"))

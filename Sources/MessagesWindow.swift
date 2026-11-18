@@ -104,6 +104,9 @@ private struct MacThreadView: View {
             if let d = detail {
                 DeadlineSuggestion(source: "tråd:\(d.id)")
                     .frame(maxWidth: 720).padding(.horizontal, 20).padding(.top, 10)
+                RosterCard(detail: d, padding: EdgeInsets(top: 8, leading: 20, bottom: 0, trailing: 20), maxWidth: 720)
+                // Reads the thread's PDFs for your name (the stack has no spacing, so this takes no room).
+                Color.clear.frame(height: 0).task(id: d.id) { await RosterStore.shared.check(d) }
             }
             ScrollViewReader { proxy in
                 ScrollView {
@@ -223,7 +226,7 @@ struct MacBubble: View {
                 if !m.text.isEmpty || !m.links.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     if !m.text.isEmpty {
-                        MacMessageText(text: m.text, posted: Deadlines.postedDate(m.date), subject: subject, onAccent: onAccent) { plan = $0 }
+                        MacMessageText(text: m.text, posted: m.sentAt, subject: subject, onAccent: onAccent) { plan = $0 }
                             .popover(item: $plan, arrowEdge: .bottom) { d in PlanSheet(draft: d) { plan = nil } }
                     }
                     ForEach(m.links, id: \.self) { u in

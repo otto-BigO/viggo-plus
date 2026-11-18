@@ -1,3 +1,4 @@
+import PDFKit
 import AppKit
 import Combine
 import SwiftUI
@@ -373,6 +374,69 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NotificationCenter.default.post(name: .panelSearchTest, object: "state")
                 try? await Task.sleep(for: .seconds(0.5))
                 print("[panelsøg] færdig"); fflush(stdout)
+                exit(0)
+            }
+        }
+        // --roster-test [pdf ...]: day spans in made-up messages, your name in the given PDFs, and then the
+        // real path on cached threads with PDFs (download with your login, read, the card's slots).
+        if let i = CommandLine.arguments.firstIndex(of: "--roster-test") {
+            Task { @MainActor in
+                let f = DateFormatter(); f.locale = Locale(identifier: "da_DK"); f.dateFormat = "EEE d/M HH:mm"
+                let posted = DateUtil.cal.date(from: DateComponents(year: 2026, month: 11, day: 17, hour: 15, minute: 22))!
+                for c in ["Mødetid er kl. 6.30 mandag til fredag, og det starter fra uge 48.", "Vi er der mandag til fredag kl. 8-9",
+                          "I morgen kl. 13.00 er der fællesmøde.", "Turen er fredag til søndag"] {
+                    let sp = Deadlines.spots(in: c, posted: posted).map { sp in
+                        "\"\((c as NSString).substring(with: sp.range))\" -> \(sp.start.map { f.string(from: $0) } ?? sp.day.map { "dag " + f.string(from: $0) } ?? "-") x\(sp.days)"
+                    }
+                    print("[vagt] \(c)  =>  \(sp.joined(separator: ", "))")
+                    if let s0 = Deadlines.spots(in: c, posted: posted).first, let u = PlanDraft.link(for: s0, title: "T", subject: "T"), let d = PlanDraft(url: u) {
+                        print("[vagt]   boks: \(d.slots.map { f.string(from: $0.0) }.joined(separator: ", "))")
+                    }
+                }
+                print("[vagt] uge 1 i nov -> \(f.string(from: Roster.monday(ofWeek: 1, near: posted)!)), uge 49 -> \(f.string(from: Roster.monday(ofWeek: 49, near: posted)!))")
+                let name = ProcessInfo.processInfo.environment["VIGGO_ROSTER_NAME"] ?? AppState.shared.profile?.name ?? ""
+                let message = "Mødetid er kl. 6.30 mandag til fredag"
+                for path in CommandLine.arguments[(i + 1)...] where path.hasSuffix(".pdf") {
+                    guard let doc = PDFDocument(url: URL(fileURLWithPath: path)) else { print("[vagt] kan ikke læse \(path)"); continue }
+                    let lines = Roster.lines(doc)
+                    let hit = Roster.find(name: name, lines: lines, message: message, subject: "Køkkenhold fra november til marts", posted: posted,
+                                          file: 0, thread: 0, fileName: "x.pdf", from: "")
+                    print("[vagt] \((path as NSString).lastPathComponent): \(lines.count) linjer, \(hit.map { "\($0.title): \($0.summary), \($0.slots.count) gange: " + $0.slots.map { f.string(from: $0.start) + "-" + DateUtil.hm($0.end) }.joined(separator: ", ") } ?? "ikke på listen")")
+                }
+                CookieJar.restore()
+                for d in Inbox.shared.details.values where d.messages.contains(where: { $0.files.contains { $0.name.lowercased().hasSuffix(".pdf") } }) {
+                    await RosterStore.shared.check(d)
+                    let hits = RosterStore.shared.hits[d.id] ?? []
+                    print("[vagt] tråd \(d.id) \"\(d.subject)\": \(hits.isEmpty ? "ikke på listen" : hits.map { "\($0.title): \($0.summary), \($0.slots.count) gange, \($0.upcoming().count) kommende" }.joined(separator: "; "))")
+                }
+                // The card with a made-up hit, before and after "Sæt i skema" (only made-up names and days).
+                if let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] {
+                    let start = DateUtil.cal.date(bySettingHour: 6, minute: 30, second: 0, of: DateUtil.add(.day, 7, Date()))!
+                    let hit = RosterHit(file: -1, thread: -1, title: "Køkkenhold", summary: "uge 49 og 52, man til fre kl. 6.30",
+                                        slots: (0..<5).map { .init(start: DateUtil.add(.day, $0, start), end: DateUtil.add(.day, $0, start).addingTimeInterval(3600)) }, from: "Test")
+                    RosterStore.shared.hits[-1] = [hit]
+                    let d = ThreadDetail(id: -1, subject: "Test", from: [], to: [], messages: [], canReplyAll: false)
+                    let span = Deadlines.spots(in: "Mødetid er kl. 6.30 mandag til fredag fra uge 48", posted: posted).first!
+                    let draft = PlanDraft(url: PlanDraft.link(for: span, title: "Køkkenhold", subject: "Køkkenhold")!)!
+                    for name in ["roster-card", "roster-card-added", "roster-box"] {
+                        let view = name == "roster-box" ? AnyView(PlanSheet(draft: draft) {}) : AnyView(RosterCard(detail: d).padding(20).frame(width: 560))
+                        let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
+                        host.frame = NSRect(x: 0, y: 0, width: name == "roster-box" ? 330 : 560, height: name == "roster-box" ? 250 : 100)
+                        let w = NSWindow(contentRect: NSRect(origin: CGPoint(x: 80, y: 80), size: host.frame.size), styleMask: [.titled], backing: .buffered, defer: false)
+                        w.contentView = host; w.isReleasedWhenClosed = false; w.orderFrontRegardless()
+                        try? await Task.sleep(for: .seconds(1))
+                        if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                            host.cacheDisplay(in: host.bounds, to: rep)
+                            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
+                        }
+                        w.orderOut(nil)
+                        if name == "roster-card" { for s in hit.slots { Prefs.shared.planned.append(PlannedItem(title: hit.title, start: s.start, end: s.end, from: "Test")) } }
+                    }
+                    let inDay = AppState.shared.customEvents(on: start).contains { $0.title == "Køkkenhold" }
+                    Prefs.shared.planned.removeAll { $0.from == "Test" }
+                    print("[vagt] kort tegnet, i skemaet den dag: \(inDay), fjernet igen: \(!Prefs.shared.planned.contains { $0.from == "Test" })")
+                }
+                fflush(stdout)
                 exit(0)
             }
         }

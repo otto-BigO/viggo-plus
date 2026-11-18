@@ -10,6 +10,8 @@ struct PlanDraft: Identifiable, Hashable {
     /// False when the message gave a day but no time; the time is then a guess to change.
     var timed: Bool
     var from: String
+    /// Days in a row ("mandag til fredag" is 5): one item in the schedule for each.
+    var days = 1
 
     static let scheme = "viggoplus-day"
 
@@ -22,6 +24,7 @@ struct PlanDraft: Identifiable, Hashable {
         c.queryItems = [URLQueryItem(name: "t", value: title), URLQueryItem(name: "f", value: subject)]
             + (s.start.map { [URLQueryItem(name: "s", value: "\(Int($0.timeIntervalSince1970))")] } ?? [])
             + (s.end.map { [URLQueryItem(name: "e", value: "\(Int($0.timeIntervalSince1970))")] } ?? [])
+            + (s.days > 1 ? [URLQueryItem(name: "n", value: "\(s.days)")] : [])
         return c.url
     }
 
@@ -39,11 +42,17 @@ struct PlanDraft: Identifiable, Hashable {
         // No time in the message: a guess at 10:00, marked so the box says to pick one.
         let s = start ?? DateUtil.startOfDay(day).addingTimeInterval(10 * 3600)
         let e = v("e").flatMap(Double.init).map(Date.init(timeIntervalSince1970:)) ?? s.addingTimeInterval(3600)
-        self.init(title: v("t") ?? "", start: s, end: max(e, s.addingTimeInterval(15 * 60)), timed: start != nil, from: v("f") ?? "")
+        self.init(title: v("t") ?? "", start: s, end: max(e, s.addingTimeInterval(15 * 60)), timed: start != nil, from: v("f") ?? "",
+                  days: min(14, max(1, v("n").flatMap(Int.init) ?? 1)))
     }
 
-    init(title: String, start: Date, end: Date, timed: Bool, from: String) {
-        self.title = title; self.start = start; self.end = end; self.timed = timed; self.from = from
+    init(title: String, start: Date, end: Date, timed: Bool, from: String, days: Int = 1) {
+        self.title = title; self.start = start; self.end = end; self.timed = timed; self.from = from; self.days = days
+    }
+
+    /// Each day's start and end, for a span of days.
+    var slots: [(Date, Date)] {
+        (0..<days).map { (DateUtil.add(.day, $0, start), DateUtil.add(.day, $0, end)) }
     }
 }
 
@@ -96,7 +105,11 @@ struct PlanSheet: View {
             TextField("Hvad", text: $draft.title)
                 .textFieldStyle(.roundedBorder)
                 .focused($titleFocused)
-            DatePicker("Dag", selection: day, displayedComponents: .date)
+            DatePicker(draft.days > 1 ? "Første dag" : "Dag", selection: day, displayedComponents: .date)
+            if draft.days > 1, let last = draft.slots.last {
+                Text("\(draft.days) dage i træk, til og med \(last.0.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "da_DK"))))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             HStack {
                 DatePicker("Fra", selection: startTime, displayedComponents: .hourAndMinute)
                 DatePicker("til", selection: endTime, displayedComponents: .hourAndMinute)
@@ -112,7 +125,10 @@ struct PlanSheet: View {
                 Spacer()
                 if let e = existing {
                     Button("Fjern fra skema", role: .destructive) {
-                        withAnimation(.viggo) { p.planned.removeAll { $0.id == e.id } }
+                        let starts = Set(draft.slots.map { Int($0.0.timeIntervalSince1970 / 60) })
+                        withAnimation(.viggo) {
+                            p.planned.removeAll { $0.id == e.id || $0.title == e.title && starts.contains(Int($0.start.timeIntervalSince1970 / 60)) }
+                        }
                         close()
                     }
                     .foregroundStyle(.red)
@@ -133,7 +149,9 @@ struct PlanSheet: View {
     private func add() {
         let t = draft.title.trimmingCharacters(in: .whitespaces)
         withAnimation(.viggo) {
-            p.planned.append(PlannedItem(title: t, start: draft.start, end: max(draft.end, draft.start.addingTimeInterval(15 * 60)), from: draft.from))
+            for (s, e) in draft.slots {
+                p.planned.append(PlannedItem(title: t, start: s, end: max(e, s.addingTimeInterval(15 * 60)), from: draft.from))
+            }
         }
         added = true
         Task { try? await Task.sleep(for: .milliseconds(450)); close() }
