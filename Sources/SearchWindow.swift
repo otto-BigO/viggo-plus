@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Søg on the Mac: one search for people (name, class, room, house, line, initials), groups,
 /// messages (Viggo searches the text of them too), the week's lessons, homework and posts. The
@@ -10,7 +11,16 @@ struct SearchWindow: View {
     @StateObject private var inbox = Inbox.shared
     @State private var query = ProcessInfo.processInfo.environment["VIGGO_SEARCH"] ?? ""
     @State private var selection: Found?
-    @State private var path: [Found] = []
+    @State private var nav = BrowseHistory()
+    /// Links on a page ask the stack to push; the page is swapped in place instead (like a browser),
+    /// so the split view resetting the stack when the list selection changes can't undo a step.
+    private var path: Binding<[Found]> {
+        Binding(get: { [] }, set: { if let f = $0.last { nav.go(to: f) } })
+    }
+    private func back() { nav.back() }
+    private func forward() { nav.forward() }
+    /// Keep the sidebar highlight on the page you are on.
+    private func syncSelection() { if selection != nav.current { selection = nav.current } }
     @State private var found: [MessageThread] = []
     @State private var searchingViggo = false
     @State private var allPeople = false
@@ -84,9 +94,9 @@ struct SearchWindow: View {
             .onChange(of: inbox.threads.count) { compute() }
             .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 460)
         } detail: {
-            NavigationStack(path: $path) {
+            NavigationStack(path: path) {
                 Group {
-                    if let s = selection { MacFoundView(found: s).id(s) }
+                    if let s = nav.current { MacFoundView(found: s).id(s) }
                     else {
                         ContentUnavailableView("Søg i Viggo", systemImage: "magnifyingglass",
                                                description: Text("Find elever, lærere, klasser, værelser, beskeder og timer."))
@@ -95,11 +105,29 @@ struct SearchWindow: View {
                 .navigationDestination(for: Found.self) { MacFoundView(found: $0) }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .searchTest)) { n in
+            // --feature-test: move around like a user would, so the hook can read the window title.
+            switch n.object as? String {
+            case "back": back()
+            case "forward": forward()
+            case "link": if let f = n.userInfo?["found"] as? Found { path.wrappedValue = [f] }
+            default: if let f = n.userInfo?["found"] as? Found { selection = f }
+            }
+            print("[nav] \(nav.pos + 1)/\(nav.items.count), tilbage \(nav.canBack), frem \(nav.canForward)"); fflush(stdout)
+        }
+        .onChange(of: nav.current) { syncSelection() }
         .onChange(of: selection) {
-            path = []
-            if case .thread(let id) = selection { state.openMessages(thread: id) }
+            guard let s = selection else { return }
+            if case .thread(let id) = s { state.openMessages(thread: id); return }
+            nav.go(to: s)
         }
         .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                Button(action: back) { Image(systemName: "chevron.left") }
+                    .disabled(!nav.canBack).help("Tilbage (⌘[)").keyboardShortcut("[", modifiers: .command)
+                Button(action: forward) { Image(systemName: "chevron.right") }
+                    .disabled(!nav.canForward).help("Frem (⌘])").keyboardShortcut("]", modifiers: .command)
+            }
             ToolbarItem {
                 Button { Task { await dir.load(force: true); compute() } } label: { Image(systemName: "arrow.clockwise") }
                     .help("Hent adressebogen igen")
@@ -238,6 +266,50 @@ struct SearchWindow: View {
     }
 }
 
+extension Notification.Name { static let searchTest = Notification.Name("ViggoSearchTest") }
+
+/// Every page you have looked at in Søg, like a browser. `pos` is the one on screen. Back and
+/// forward move `pos`; opening something new (from the list or a link on a page) cuts off what
+/// was ahead of it.
+struct BrowseHistory: Equatable {
+    private(set) var items: [Found] = []
+    private(set) var pos = 0
+    static let limit = 60
+
+    var current: Found? { items.indices.contains(pos) ? items[pos] : nil }
+    var canBack: Bool { pos > 0 }
+    var canForward: Bool { pos < items.count - 1 }
+
+    mutating func go(to f: Found) {
+        if f == current { return }
+        items = Array((items.prefix(pos + 1) + [f]).suffix(Self.limit))
+        pos = items.count - 1
+    }
+    @discardableResult mutating func back() -> Bool { guard canBack else { return false }; pos -= 1; return true }
+    @discardableResult mutating func forward() -> Bool { guard canForward else { return false }; pos += 1; return true }
+
+    /// Checks the browser rules on fake pages. Run by --feature-test.
+    static func selfTest() -> [String] {
+        var bad: [String] = []
+        var h = BrowseHistory()
+        func want(_ ok: Bool, _ what: String) { if !ok { bad.append(what) } }
+        want(!h.back() && !h.forward() && h.current == nil, "tom historik")
+        h.go(to: .person(1)); h.go(to: .person(2)); h.go(to: .group(3))
+        want(h.current == .group(3) && h.items.count == 3, "tre sider")
+        want(h.back() && h.current == .person(2) && h.canForward, "tilbage")
+        want(h.forward() && h.current == .group(3) && !h.canForward, "frem")
+        h.back(); h.back()
+        want(h.current == .person(1) && !h.canBack, "tilbage til start")
+        h.go(to: .house("A"))
+        want(h.items == [.person(1), .house("A")] && !h.canForward, "ny side fjerner frem")
+        h.go(to: .house("A"))
+        want(h.items.count == 2, "samme side igen tæller ikke")
+        for i in 0..<100 { h.go(to: .person(100 + i)) }
+        want(h.items.count == limit && h.current == .person(199), "loft på historikken")
+        return bad
+    }
+}
+
 // MARK: - what a result shows
 
 struct MacFoundView: View {
@@ -372,6 +444,7 @@ struct MacPersonView: View {
     @State private var details: MemberDetails?
     @State private var threads: [MessageThread] = []
     @State private var showAllGroups = false
+    @State private var zoom = false
 
     private var me: Int? { state.profile?.id }
 
@@ -381,6 +454,15 @@ struct MacPersonView: View {
             else if dir.loading { ProgressView() }
             else { ContentUnavailableView("Ikke fundet", systemImage: "person.slash", description: Text("Personen er ikke i Viggos adressebog.")) }
         }
+        .overlay {
+            if zoom, let m = dir.member(id) {
+                MacPhotoViewer(url: m.imageBig ?? m.image, fallback: m.image, name: m.name) {
+                    withAnimation(.easeOut(duration: 0.2)) { zoom = false }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            }
+        }
+        .onChange(of: id) { zoom = false }
         .navigationTitle(dir.member(id)?.name ?? "")
         .task { await dir.load(); await premises.load() }
         .task(id: id) {
@@ -475,8 +557,8 @@ struct MacPersonView: View {
             VStack(spacing: 8) {
                 Avatar(url: m.imageBig ?? m.image, size: 96, name: m.name)
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
-                    .onTapGesture { if let u = m.imageBig ?? m.image { NSWorkspace.shared.open(u) } }
-                    .help("Åbn billedet")
+                    .onTapGesture { if m.imageBig ?? m.image != nil { withAnimation(.spring(duration: 0.3)) { zoom = true } } }
+                    .help(m.imageBig ?? m.image == nil ? "" : "Vis billedet stort")
                 Text(m.name).font(.system(size: 20, weight: .bold)).multilineTextAlignment(.center).textSelection(.enabled)
                 Text(dir.summary(m)).font(.system(size: 12)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 if m.id != me {
@@ -722,5 +804,88 @@ struct MacBulletinView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle(b.title)
+    }
+}
+
+// MARK: - profile picture, big
+
+/// The profile picture filling the page, like a lightbox. The full-size picture is fetched
+/// (the cache keeps small copies only), with the small one shown until it arrives. Click
+/// anywhere or press Esc to close it.
+struct MacPhotoViewer: View {
+    let url: URL?
+    let fallback: URL?
+    let name: String
+    let close: () -> Void
+    @State private var image: NSImage?
+    @State private var failed = false
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(.black.opacity(0.78)).ignoresSafeArea()
+            Group {
+                if let image {
+                    Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+                } else if let small = (fallback ?? url).flatMap(AvatarCache.image) {
+                    small.resizable().scaledToFit().blur(radius: failed ? 0 : 6).overlay { if !failed { ProgressView().controlSize(.large) } }
+                } else if !failed {
+                    ProgressView().controlSize(.large)
+                } else {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 60)).foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .frame(maxWidth: 560, maxHeight: 560)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.5), radius: 24, y: 8)
+            .padding(.horizontal, 36).padding(.top, 36).padding(.bottom, 56)
+            .contextMenu {
+                if let image {
+                    Button("Kopiér billede") { NSPasteboard.general.clearContents(); NSPasteboard.general.writeObjects([image]) }
+                    Button("Gem billede…") { save(image) }
+                }
+                if let url { Button("Åbn i browser") { NSWorkspace.shared.open(url) } }
+            }
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: close) {
+                        Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+                            .frame(width: 28, height: 28).background(.white.opacity(0.18), in: Circle())
+                    }
+                    .buttonStyle(.plain).keyboardShortcut(.cancelAction).help("Luk (Esc)")
+                }
+                Spacer()
+                Text(name).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white.opacity(0.9))
+            }
+            .padding(16)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: close)
+        .task(id: url) { await load() }
+    }
+
+    private func load() async {
+        guard let url else { failed = true; return }
+        let data = await DownloadGate.shared.run { try? await URLSession.shared.data(from: url).0 }
+        if let data, let img = NSImage(data: data) {
+            image = img
+            if CommandLine.arguments.contains("--feature-test") {
+                let px = img.representations.first.map { "\($0.pixelsWide)x\($0.pixelsHigh)" } ?? "?"
+                print("[photo] stort billede hentet: \(px) px"); fflush(stdout)
+            }
+            return
+        }
+        if let fallback, fallback != url, let d = try? await URLSession.shared.data(from: fallback).0, let img = NSImage(data: d) { image = img; return }
+        failed = true
+    }
+
+    private func save(_ image: NSImage) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(name).jpg"
+        panel.allowedContentTypes = [.jpeg]
+        guard panel.runModal() == .OK, let dest = panel.url,
+              let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let jpg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.92]) else { return }
+        try? jpg.write(to: dest)
     }
 }

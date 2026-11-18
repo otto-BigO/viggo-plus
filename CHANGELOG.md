@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.23.1 (2026-11-18)
+
+- **Tilbage og frem i Søg**: pilene øverst i søgevinduet (eller ⌘[ og ⌘]) går tilbage og frem mellem de profiler, klasser og værelser du har kigget på, ligesom i en browser. Det virker både når du klikker i listen og når du går videre fra en profil, fx til personens klasse.
+- **Profilbilledet bliver stort**: klik på billedet på en profil, så vises det stort inde i vinduet i stedet for at åbne browseren. Klik et vilkårligt sted eller tryk Esc for at lukke det. Højreklik for at kopiere eller gemme billedet.
+
 ## 1.23.0 (2026-11-18)
 
 - **Pakkeliste på Mac**: panelet viser hvad du skal have med, ligesom I dag på iPhone. Om morgenen det du skal have med i dag, om eftermiddagen det du skal pakke til i morgen. Sæt flueben, skriv dine egne ting, og højreklik på en ting for at få den med hver gang der er det fag. Uge-overblikket viser det for hver dag, og om aftenen kommer en notifikation med det du mangler at pakke. Kan slås fra under Panelet i Indstillinger.

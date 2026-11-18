@@ -391,11 +391,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     notes.setText("", for: e)
                     print("[feature] note fjernet igen: \(!notes.hasNote(e))")
                 }
+                let bad = BrowseHistory.selfTest()
+                print("[nav] historik-test: \(bad.isEmpty ? "ok" : "fejl i " + bad.joined(separator: ", "))")
                 s.openSearch()
                 try? await Task.sleep(for: .seconds(6))
-                if let w = NSApp.windows.first(where: { $0.title == "Søg" }) {
-                    capture(w, "search")
-                }
+                let search = NSApp.windows.first(where: { $0.title == "Søg" })
+                if let w = search { capture(w, "search") }
+                // Walk the real window: a person, a link on their page, back, back, forward.
+                let dirx = Directory.shared
+                if let w = search, let me = s.profile?.id, let m = dirx.member(me) ?? dirx.members.first,
+                   let g = dirx.groups(of: m.id).first {
+                    @MainActor func send(_ what: String, _ f: Found? = nil) async {
+                        NotificationCenter.default.post(name: .searchTest, object: what, userInfo: f.map { ["found": $0] })
+                        try? await Task.sleep(for: .seconds(1.5))
+                        print("[nav] \(what): vinduet viser \"\(w.title == m.name ? "personen" : w.title == g.name ? "gruppen" : w.title)\"")
+                    }
+                    await send("select", .person(m.id))
+                    await send("link", .group(g.id))
+                    await send("back")
+                    await send("forward")
+                    if let other = dirx.members.first(where: { $0.id != m.id && $0.kind == .student }) {
+                        await send("select", .person(other.id))
+                        print("[nav] efter klik i listen: \(w.title == other.name ? "den anden person" : w.title)")
+                        await send("back")
+                    }
+                    await send("back")
+                    // The big picture: load it the way the viewer does.
+                    if m.imageBig ?? m.image != nil {
+                        let host = NSHostingView(rootView: MacPhotoViewer(url: m.imageBig ?? m.image, fallback: m.image, name: m.name) {})
+                        host.frame = NSRect(x: 0, y: 0, width: 700, height: 600)
+                        let pw = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+                        pw.contentView = host
+                        try? await Task.sleep(for: .seconds(4))
+                        shot(pw, "photo")
+                        pw.close()
+                    } else { print("[photo] personen har intet billede") }
+                } else { print("[nav] ingen person med en gruppe at gå til") }
                 print("[feature] færdig"); fflush(stdout)
                 exit(0)
             }
