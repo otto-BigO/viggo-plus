@@ -53,6 +53,12 @@ struct WeekView: View {
 
     private func notes(_ d: Date) -> [(icon: String, text: String, help: String)] {
         var out: [(icon: String, text: String, help: String)] = state.birthdayNames(on: d, person: person).map { ("gift.fill", $0, "Fødselsdag") }
+        if person == nil {
+            let pack = PackStore.shared.items(on: d)
+            if !pack.isEmpty {
+                out.append(("backpack.fill", "Pak \(pack.count)", pack.map { "\($0.text) (\($0.from))" }.joined(separator: "\n")))
+            }
+        }
         let duty = state.duties(on: d, person: person)
         if !duty.isEmpty {
             out.append(("person.badge.shield.checkmark", "\(duty.count) vagt\(duty.count == 1 ? "" : "er")",

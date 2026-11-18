@@ -141,3 +141,11 @@ extension String {
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+/// "23:00", "24:00" for midnight, and "lør. 09:00" when it runs into the next day.
+func untilText(_ start: Date, _ end: Date) -> String {
+    let cal = DateUtil.cal
+    if cal.isDate(end, inSameDayAs: start) { return DateUtil.hm(end) }
+    if end == cal.startOfDay(for: end), cal.isDate(end.addingTimeInterval(-60), inSameDayAs: start) { return "24:00" }
+    return "\(DateUtil.weekdayF.string(from: end)) \(DateUtil.hm(end))"
+}

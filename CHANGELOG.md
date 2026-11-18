@@ -1,5 +1,12 @@
 # Ændringer
 
+## 1.23.0 (2026-11-18)
+
+- **Pakkeliste på Mac**: panelet viser hvad du skal have med, ligesom I dag på iPhone. Om morgenen det du skal have med i dag, om eftermiddagen det du skal pakke til i morgen. Sæt flueben, skriv dine egne ting, og højreklik på en ting for at få den med hver gang der er det fag. Uge-overblikket viser det for hver dag, og om aftenen kommer en notifikation med det du mangler at pakke. Kan slås fra under Panelet i Indstillinger.
+- **Noter og tavlebilleder på Mac**: åbn en time og skriv dine egne noter. Træk billeder ind i vinduet, vælg dem fra Macen, eller tag et billede af tavlen med iPhonens kamera. Klik på et billede for at åbne det. Næste gang du har samme fag, står det du skrev sidst nederst, og en time med noter har et lille ikon i panelet. Noterne bliver på Macen og sendes ikke til Viggo.
+- **Søg på Mac**: et nyt søgevindue (forstørrelsesglasset i panelet, eller ⌘F) finder elever, lærere, klasser, værelser, huse, linjer, beskeder, timer, lektier og opslag. En profil viser hvor personen er lige nu, klasse, værelse, fødselsdag, telefon, hvem de bor med, kontaktlærer, familie og fælles grupper med dig, og du kan skrive en besked, ringe eller sende en SMS derfra.
+- Vinduet med en time passer nu til det der står i det og scroller, hvis det bliver for langt.
+
 ## 1.22.2 (2026-11-18)
 
 - Med mange venner eller en lang dag blev panelet højere end skærmen, så knapperne i bunden (blandt andet Indstillinger) forsvandt under kanten. Nu scroller dagen inde i panelet, og knapperne bliver altid stående i bunden.

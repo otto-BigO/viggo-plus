@@ -285,6 +285,9 @@ struct TimelineRow: View {
                         .contentTransition(.symbolEffect(.replace))
                         .help(expanded ? "Skjul info" : "Der er info fra læreren")
                 }
+                if LessonNotes.shared.hasNote(e) {
+                    Image(systemName: "note.text").font(Sz.f(10, .semibold)).foregroundStyle(.secondary).help("Du har noter til timen")
+                }
                 if !e.room.isEmpty {
                     Text(e.room).font(Sz.f(11)).foregroundStyle(.tertiary).lineLimit(1).fixedSize()
                 }
@@ -443,6 +446,8 @@ struct DayPanel: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var p = Prefs.shared
     @ObservedObject private var deadlines = Deadlines.shared
+    /// So the pack list shows up as soon as there is something to pack.
+    @ObservedObject private var packStore = PackStore.shared
     let name: String?
     let events: [ViggoEvent]
     let homework: [Homework]
@@ -488,6 +493,11 @@ struct DayPanel: View {
                 }
             }
 
+            let pack = isMe && p.panelPacking ? MacPackSection.day(now: now) : nil
+            if let (d, title) = pack, DateUtil.cal.component(.hour, from: now) < 12 {
+                MacPackSection(day: d, title: title)
+            }
+
             if p.panelTimeline, !shown.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     SectionHeader(title: name.map { "\($0)s dag" } ?? "Resten af dagen")
@@ -495,6 +505,10 @@ struct DayPanel: View {
                         TimelineRow(e: e, now: now, dividerAbove: hasSchool && e.id == firstEvening, tappable: isMe)
                     }
                 }
+            }
+
+            if let (d, title) = pack, DateUtil.cal.component(.hour, from: now) >= 12 {
+                MacPackSection(day: d, title: title)
             }
 
             if p.panelTomorrow, let (first, count) = state.tomorrowFirst(now, from: isMe ? nil : events) {
@@ -623,13 +637,29 @@ struct DayPanel: View {
 
 struct LessonDetailView: View {
     let e: ViggoEvent
+    #if os(macOS)
+    /// How tall the page is, so the window fits it (up to 640 pt, then it scrolls).
+    @State private var height: CGFloat = 420
+    #endif
 
     var body: some View {
-        ScrollView { LessonDetailContent(e: e) }
         #if os(macOS)
-        .frame(width: 420)
-        .frame(minHeight: 240, maxHeight: 640)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                LessonDetailContent(e: e)
+                if e.kind == .lesson || e.kind == .event {
+                    MacLessonNotes(e: e).padding(.horizontal, 22).padding(.bottom, 18)
+                }
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in
+                if abs(h - height) > 0.5 { height = h }
+            }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(width: 420, height: min(max(height, 240), 640))
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        #else
+        ScrollView { LessonDetailContent(e: e) }
         #endif
     }
 }

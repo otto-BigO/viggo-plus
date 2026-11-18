@@ -136,6 +136,8 @@ struct MenuView: View {
                 }
                 Spacer()
                 Button { Task { await state.sync() } } label: { SyncIcon(spinning: state.syncing) }.help("Synk nu")
+                Button { state.openSearch() } label: { Image(systemName: "magnifyingglass") }
+                    .help("Søg (⌘F)").keyboardShortcut("f")
                 Button { state.openWeek() } label: { Image(systemName: "calendar") }.help("Uge-overblik")
                 Button { state.openMessages() } label: {
                     Image(systemName: "bubble.left.and.bubble.right")

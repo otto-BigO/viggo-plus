@@ -70,6 +70,9 @@ final class AppState: ObservableObject {
     private var messagesWindow: NSWindow?
     private var lessonWindow: NSWindow?
     private var settingsWindow: NSWindow?
+    private var searchWindow: NSWindow?
+    /// People to start a new message to, from a profile in Søg. Beskeder opens the compose sheet.
+    @Published var composeTo: [Person]?
     #endif
     private var focusActive: Bool?
     private var focusTimer: Timer?
@@ -708,9 +711,7 @@ final class AppState: ObservableObject {
         Inbox.shared.clear()
         Deadlines.shared.clear()
         PackStore.shared.clear()
-        #if os(iOS)
         LessonNotes.shared.clear()
-        #endif
         snapshot = Snapshot()
         snapshot.save()
         webLogin.clearCookies()
@@ -1487,6 +1488,14 @@ final class AppState: ObservableObject {
             snapshot.save()
             if let r = homeworkReminder(for: now) { Notifier.shared.post(r.0, r.1) }
         }
+        // What is left to pack for tomorrow, a minute after the homework reminder (like on the iPhone).
+        if prefs.packReminder, minute >= prefs.homeworkReminderAt + 1, snapshot.lastPackReminder != today, lastSync != nil {
+            snapshot.lastPackReminder = today
+            snapshot.save()
+            let tomorrow = DateUtil.add(.day, 1, DateUtil.startOfDay(now))
+            let left = PackStore.shared.items(on: tomorrow).filter { !PackStore.shared.isTicked($0, on: tomorrow) }
+            if !left.isEmpty { Notifier.shared.post("🎒 Pak til i morgen", left.map(\.text).joined(separator: ", ")) }
+        }
         guard prefs.briefs, !events.isEmpty else { return }
         if hour >= prefs.morningHour, hour < 12, snapshot.lastMorningBrief != today {
             snapshot.lastMorningBrief = today
@@ -1606,6 +1615,26 @@ final class AppState: ObservableObject {
             messagesWindow = w
         }
         if let w = messagesWindow { showBesidePanel(w) }
+    }
+
+    /// Søg, like the iPhone's: people, groups, messages, lessons, homework and posts.
+    func openSearch() {
+        if searchWindow == nil {
+            let w = NSWindow(contentViewController: NSHostingController(rootView: SearchWindow().environmentObject(self)))
+            w.title = "Søg"
+            w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
+            w.isReleasedWhenClosed = false
+            w.setContentSize(NSSize(width: 920, height: 640))
+            w.setFrameAutosaveName("ViggoSearch")
+            searchWindow = w
+        }
+        if let w = searchWindow { showBesidePanel(w) }
+    }
+
+    /// Opens Beskeder with a new message to these people.
+    func compose(to people: [Person]) {
+        openMessages()
+        composeTo = people
     }
 
     func setupHotKey() {

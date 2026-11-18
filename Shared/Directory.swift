@@ -458,3 +458,13 @@ final class Directory: ObservableObject {
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
     }
 }
+
+/// Where a search result leads.
+enum Found: Hashable {
+    case person(Int)
+    case group(Int)
+    case thread(Int)
+    case bulletin(Bulletin)
+    /// Everyone living in a house (boområde), by room.
+    case house(String)
+}

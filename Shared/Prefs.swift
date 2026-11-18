@@ -34,6 +34,7 @@ final class Prefs: ObservableObject {
     @Published var panelFriendsNow: Bool { didSet { d.set(panelFriendsNow, forKey: "panelFriendsNow") } }
     @Published var notifyBulletin: Bool { didSet { d.set(notifyBulletin, forKey: "notifyBulletin") } }
     @Published var panelBulletin: Bool { didSet { d.set(panelBulletin, forKey: "panelBulletin") } }
+    @Published var panelPacking: Bool { didSet { d.set(panelPacking, forKey: "panelPacking") } }
     @Published var autoUpdate: Bool { didSet { d.set(autoUpdate, forKey: "autoUpdate") } }
     /// Install new versions by itself when the Mac is idle, instead of asking.
     @Published var autoInstall: Bool { didSet { d.set(autoInstall, forKey: "autoInstall") } }
@@ -78,7 +79,7 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "panelBirthdays": true, "panelLunch": true, "panelBreaks": true, "panelMeals": true, "menubarBreaks": false, "liveActivity": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "autoUpdate": true, "autoInstall": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
+            "panelBirthdays": true, "panelLunch": true, "panelBreaks": true, "panelMeals": true, "menubarBreaks": false, "liveActivity": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "panelPacking": true, "autoUpdate": true, "autoInstall": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "notifySeen": true, "briefs": true,
@@ -108,6 +109,7 @@ final class Prefs: ObservableObject {
         panelFriendsNow = d.bool(forKey: "panelFriendsNow")
         notifyBulletin = d.bool(forKey: "notifyBulletin")
         panelBulletin = d.bool(forKey: "panelBulletin")
+        panelPacking = d.bool(forKey: "panelPacking")
         autoUpdate = d.bool(forKey: "autoUpdate")
         autoInstall = d.bool(forKey: "autoInstall")
         hotkeyChoice = d.integer(forKey: "hotkeyChoice")

@@ -339,6 +339,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 exit(0)
             }
         }
+        // --feature-test: opens Søg (VIGGO_SEARCH) and the next lesson with a test note and photo,
+        // saves pictures of the panel and both windows in VIGGO_PANEL_SHOT, then removes the note.
+        if CommandLine.arguments.contains("--feature-test") {
+            Task { @MainActor in
+                let s = AppState.shared, c = PanelController.shared
+                let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] ?? NSTemporaryDirectory()
+                func shot(_ w: NSWindow?, _ name: String) {
+                    guard let v = w?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { print("[feature] ingen \(name)"); return }
+                    v.cacheDisplay(in: v.bounds, to: rep)
+                    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
+                }
+                // A real screen picture of a window (lists don't draw into cacheDisplay).
+                func capture(_ w: NSWindow, _ name: String) {
+                    let p = Process()
+                    p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                    p.arguments = ["-x", "-o", "-l", "\(w.windowNumber)", dir + "/" + name + ".png"]
+                    try? p.run(); p.waitUntilExit()
+                }
+                try? await Task.sleep(for: .seconds(8))
+                c.show()
+                try? await Task.sleep(for: .seconds(2))
+                var pack = MacPackSection.day(now: Date())
+                var added: [PackItem] = []
+                if pack == nil {
+                    // Nothing to pack: add one test thing for the day the panel would show, and remove it after.
+                    let d = DateUtil.cal.component(.hour, from: Date()) < 12 ? DateUtil.startOfDay(Date()) : DateUtil.add(.day, 1, DateUtil.startOfDay(Date()))
+                    PackStore.shared.add("Testting fra --feature-test", on: d)
+                    added = PackStore.shared.items(on: d).filter { $0.text == "Testting fra --feature-test" }
+                    pack = MacPackSection.day(now: Date())
+                    try? await Task.sleep(for: .seconds(1))
+                }
+                print("[feature] pakkeliste: \(pack.map { "\($0.1), \(PackStore.shared.items(on: $0.0).count) ting" } ?? "ingen dag")")
+                c.snapshot(to: dir)
+                for i in added { PackStore.shared.remove(i) }
+                print("[feature] pakkeliste ryddet: \(added.count) testting fjernet")
+                let notes = LessonNotes.shared
+                if let e = s.events.filter({ $0.kind == .lesson && $0.end > Date() && !notes.hasNote($0) }).min(by: { $0.start < $1.start }) {
+                    notes.setText("Testnote fra --feature-test", for: e)
+                    let img = NSImage(size: NSSize(width: 400, height: 300), flipped: false) { r in
+                        NSColor.systemTeal.setFill(); r.fill(); return true
+                    }
+                    notes.add(img, for: e)
+                    let n = notes.note(for: e)
+                    print("[feature] note på \(e.title): \(n?.text ?? "-"), \(n?.photos.count ?? 0) billede(r), fil findes: \(n?.photos.first.map { FileManager.default.fileExists(atPath: notes.url(of: $0).path) } ?? false)")
+                    s.openLesson(e)
+                    try? await Task.sleep(for: .seconds(2))
+                    shot(NSApp.windows.first { $0.title == e.title }, "lesson")
+                    if let w = NSApp.windows.first(where: { $0.title == e.title }) { capture(w, "lesson-screen") }
+                    for p in n?.photos ?? [] { notes.remove(photo: p, from: e) }
+                    notes.setText("", for: e)
+                    print("[feature] note fjernet igen: \(!notes.hasNote(e))")
+                }
+                s.openSearch()
+                try? await Task.sleep(for: .seconds(6))
+                if let w = NSApp.windows.first(where: { $0.title == "Søg" }) {
+                    capture(w, "search")
+                }
+                print("[feature] færdig"); fflush(stdout)
+                exit(0)
+            }
+        }
+        // --open-search opens Søg at start (VIGGO_SEARCH fills in the search).
+        if CommandLine.arguments.contains("--open-search") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { AppState.shared.openSearch() } }
+        }
         // For checking from Terminal: --open-messages opens the messages window at start.
         if CommandLine.arguments.contains("--open-messages") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { AppState.shared.openMessages(thread: ProcessInfo.processInfo.environment["VIGGO_THREAD"].flatMap(Int.init)) } }

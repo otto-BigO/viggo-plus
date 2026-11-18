@@ -6,6 +6,7 @@ struct MessagesWindow: View {
     @StateObject private var inbox = Inbox.shared
     @State private var search = ""
     @State private var composing = false
+    @State private var composeTo: [Person] = []
 
     private var shown: [MessageThread] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -41,12 +42,18 @@ struct MessagesWindow: View {
                     .help("Hent beskeder")
             }
             ToolbarItem {
-                Button { composing = true } label: { Image(systemName: "square.and.pencil") }
+                Button { composeTo = []; composing = true } label: { Image(systemName: "square.and.pencil") }
                     .help("Ny besked")
                     .keyboardShortcut("n")
             }
         }
-        .sheet(isPresented: $composing) { MacCompose() }
+        .sheet(isPresented: $composing) { MacCompose(to: composeTo) }
+        .onReceive(state.$composeTo) { p in
+            guard let p else { return }
+            composeTo = p
+            composing = true
+            state.composeTo = nil
+        }
         .task { await inbox.load() }
         .frame(minWidth: 760, minHeight: 480)
     }
@@ -299,12 +306,14 @@ private struct MacFileChip: View {
 private struct MacCompose: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var inbox = Inbox.shared
-    @State private var to: [Person] = []
+    @State private var to: [Person]
     @State private var query = ""
     @State private var subject = ""
     @State private var text = ""
     @State private var sending = false
     @State private var sendError: String?
+
+    init(to: [Person] = []) { _to = State(initialValue: to) }
 
     private var matches: [Person] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
