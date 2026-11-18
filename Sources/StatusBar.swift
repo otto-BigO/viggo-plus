@@ -17,6 +17,24 @@ final class PanelController: NSObject {
     private var top: CGFloat = 0
 
     var isShown: Bool { panel?.isVisible == true }
+    /// How tall the panel window is: from just under the menu bar to the bottom of the screen
+    /// the menu bar item is on.
+    var room: CGFloat {
+        if let test = testHeight { return test }
+        return ((item?.button?.window?.screen ?? NSScreen.main)?.visibleFrame.height ?? 900) - 4
+    }
+    /// A smaller screen, for --panel-test.
+    var testHeight: CGFloat?
+
+    /// The panel window's height, for the --panel-test hook.
+    var windowHeight: CGFloat? { panel?.frame.height }
+
+    /// Saves a picture of the panel window (for --panel-test with VIGGO_PANEL_SHOT=<dir>).
+    func snapshot(to dir: String) {
+        guard let v = panel?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
+        v.cacheDisplay(in: v.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("panel.png"))
+    }
     /// Room around the card for its shadow.
     static let pad: CGFloat = 24
     /// The size of the visible card (the window around it is taller and see-through).
@@ -66,11 +84,12 @@ final class PanelController: NSObject {
         let anchor = bw.convertToScreen(button.convert(button.bounds, to: nil))
         let screen = (NSScreen.screens.first { $0.frame.intersects(anchor) } ?? NSScreen.main)?.visibleFrame ?? .zero
         top = screen.maxY - 4
+        let bottom = testHeight.map { top - $0 } ?? screen.minY
         // The window reaches from the menu bar to the bottom of the screen; the card inside grows
         // and shrinks with SwiftUI's own animation, so nothing jumps when a note folds out.
         let width = MenuView.width + 2 * Self.pad
         let x = min(max(screen.minX + 8, anchor.minX), screen.maxX - 8 - MenuView.width) - Self.pad
-        p.setFrame(NSRect(x: x, y: screen.minY, width: width, height: top - screen.minY), display: true)
+        p.setFrame(NSRect(x: x, y: bottom, width: width, height: top - bottom), display: true)
         NSApp.activate(ignoringOtherApps: true)
         p.alphaValue = 0
         p.makeKeyAndOrderFront(nil)
@@ -92,6 +111,10 @@ final class PanelController: NSObject {
     private func makePanel() -> KeyPanel {
         let root = PanelCard()
         let h = PanelHost(rootView: AnyView(root))
+        // The window is sized by show(), from the menu bar to the bottom of the screen. Left to
+        // itself SwiftUI resized it to fit the card, and a card taller than the screen made AppKit
+        // resize, re-measure and resize again until it gave up and the app crashed.
+        h.sizingOptions = []
         host = h
         let p = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: 320, height: 600),
                          styleMask: [.borderless, .fullSizeContentView], backing: .buffered, defer: false)
@@ -138,6 +161,7 @@ struct PanelCard: View {
     var body: some View {
         VStack(spacing: 0) {
             MenuView().environmentObject(AppState.shared)
+                .layoutPriority(1)
                 .background(VisualEffect())
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
@@ -285,6 +309,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     print("[phone] ok=\(ok) error=\(p.error ?? "-") login=\(p.loginSent ?? "-")")
                     for (k, r) in p.records { print("[phone] record \(k) \(r.version) expires=\(r.expires) trusted=\(r.trusted.map(String.init) ?? "-")") }
                 }
+                exit(0)
+            }
+        }
+        // --panel-test: opens the panel and switches between you and every friend a few times, the
+        // way the account switcher does, and prints whether the card stays inside the screen. The
+        // card used to grow past the screen and crash the app.
+        if CommandLine.arguments.contains("--panel-test") {
+            Task { @MainActor in
+                let s = AppState.shared, c = PanelController.shared
+                try? await Task.sleep(for: .seconds(8))
+                // VIGGO_PANEL_HEIGHT=600 makes the window that tall, like a small screen.
+                c.testHeight = ProcessInfo.processInfo.environment["VIGGO_PANEL_HEIGHT"].flatMap(Double.init).map { CGFloat($0) }
+                c.show()
+                let ids: [UUID?] = [nil] + s.friends.map { Optional($0.id) }
+                for round in 0..<3 {
+                    for id in ids {
+                        withAnimation(.viggo) { s.selectedFriend = id }
+                        try? await Task.sleep(for: .milliseconds(round == 0 ? 1500 : 400))
+                        let name = id.flatMap { i in s.friends.first { $0.id == i }?.firstName } ?? "Mig"
+                        let room = (c.windowHeight ?? 0) - PanelController.pad
+                        print("[panel] \(name): kort \(Int(c.cardSize.height)) af \(Int(room)) pt \(c.cardSize.height <= room + 0.5 ? "ok" : "FOR HØJT")")
+                        fflush(stdout)
+                    }
+                }
+                s.selectedFriend = nil
+                if let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] { c.snapshot(to: dir) }
+                print("[panel] færdig uden nedbrud"); fflush(stdout)
                 exit(0)
             }
         }

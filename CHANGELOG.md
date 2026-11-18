@@ -1,5 +1,10 @@
 # Ændringer
 
+## 1.22.2 (2026-11-18)
+
+- Med mange venner eller en lang dag blev panelet højere end skærmen, så knapperne i bunden (blandt andet Indstillinger) forsvandt under kanten. Nu scroller dagen inde i panelet, og knapperne bliver altid stående i bunden.
+- Appen kunne lukke ned af sig selv, især når du skiftede mellem dig og en ven øverst i panelet. Det skete når panelet blev højere end skærmen: macOS gjorde vinduet mindre, panelet målte sig selv igen og voksede, og til sidst gav macOS op og lukkede appen. Vinduet har nu en fast størrelse, så det ikke kan ske.
+
 ## 1.22.1 og iPhone-app 1.14.0 (2026-11-17)
 
 - **Tider og dage i beskeder er fremhævet**: skriver nogen "fredag d. 20/11 kl. 10", "i morgen kl. 13.00" eller "13:15", står det med fed skrift på en farvet baggrund. Et tryk åbner den dag i Uge, så du kan se hvad du ellers har. En tid uden dag hører til den dag, der står i samme sætning, ellers den dag beskeden blev skrevet. "Opgave 3.15", "12.50 kr" og "1/2" bliver ikke fremhævet. Kun på iPhone.

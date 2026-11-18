@@ -21,6 +21,14 @@ struct MenuView: View {
     @ObservedObject var p = Prefs.shared
     @ObservedObject var updater = Updater.shared
     @Namespace private var ring
+    /// The height of the day under the header, for sizing the scroll view around it.
+    @State private var dayHeight: CGFloat = 0
+    /// Everything in the card but the day: header, banners, buttons and padding.
+    @State private var chrome: CGFloat = 0
+    /// The day's height on screen: all of it, or what is left of the screen under the header.
+    private var dayFrame: CGFloat {
+        max(0, min(dayHeight, PanelController.shared.room - PanelController.pad - chrome))
+    }
 
     private var headerTitle: String {
         if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) { return f.name }
@@ -90,23 +98,36 @@ struct MenuView: View {
                 }
             }
 
-            if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) {
-                if state.friendExpired.contains(f.id) {
-                    HStack {
-                        Text("\(f.firstName) skal logge ind igen").font(Sz.f(11)).foregroundStyle(.orange)
-                        Spacer()
-                        Button("Log ind igen") { state.addFriend(relogin: f) }.controlSize(.small)
+            // The day scrolls when it is taller than the screen (many friends, a long day), so the
+            // buttons at the bottom stay in reach.
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) {
+                        if state.friendExpired.contains(f.id) {
+                            HStack {
+                                Text("\(f.firstName) skal logge ind igen").font(Sz.f(11)).foregroundStyle(.orange)
+                                Spacer()
+                                Button("Log ind igen") { state.addFriend(relogin: f) }.controlSize(.small)
+                            }
+                        }
+                        DayPanel(name: f.firstName, events: state.friendEvents[f.id] ?? [],
+                                 homework: state.friendHomework[f.id] ?? [], now: now)
+                            .id(f.id)
+                            .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
+                    } else {
+                        DayPanel(name: nil, events: state.events, homework: state.homework, now: now)
+                            .id("me")
+                            .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
                     }
                 }
-                DayPanel(name: f.firstName, events: state.friendEvents[f.id] ?? [],
-                         homework: state.friendHomework[f.id] ?? [], now: now)
-                    .id(f.id)
-                    .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
-            } else {
-                DayPanel(name: nil, events: state.events, homework: state.homework, now: now)
-                    .id("me")
-                    .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in
+                    if dayHeight == 0 { dayHeight = h } else { withAnimation(.viggo) { dayHeight = h } }
+                }
             }
+            .scrollBounceBehavior(.basedOnSize)
+            // A fixed height, worked out here: a scroll view left to size itself in the panel sent
+            // AppKit into the same endless layout loop that crashed the app.
+            .frame(height: dayFrame)
 
             HStack(spacing: 14) {
                 if let s = state.syncedText {
@@ -139,6 +160,10 @@ struct MenuView: View {
         .animation(.viggo, value: updater.available?.version)
         .animation(.viggo, value: state.lastSync)
         .padding(.horizontal, 14).padding(.vertical, 12)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in
+            let c = h - dayFrame
+            if abs(c - chrome) > 0.5 { chrome = c }
+        }
         .frame(width: MenuView.width)
         .overlay(alignment: .bottomTrailing) { QuietLoginBadges(compact: true).padding(.trailing, 12).padding(.bottom, 38) }
     }
