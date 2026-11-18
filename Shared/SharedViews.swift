@@ -547,6 +547,7 @@ struct CustomItemsTab: View {
 
     var body: some View {
         Form {
+            PlannedSection()
             if !p.customItems.isEmpty {
                 Section {
                     ForEach($p.customItems) { $item in

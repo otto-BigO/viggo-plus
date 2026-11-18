@@ -339,6 +339,97 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 exit(0)
             }
         }
+        // --plan-test: times in a made-up message, the box filled from one, adding it to the
+        // schedule and taking it out again, plus pictures of the bubble and the box (VIGGO_PANEL_SHOT).
+        if CommandLine.arguments.contains("--plan-test") {
+            Task { @MainActor in
+                let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] ?? NSTemporaryDirectory()
+                let posted = DateUtil.cal.date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 9))!
+                let f = DateFormatter(); f.locale = Locale(identifier: "da_DK"); f.dateFormat = "EEE d/M HH:mm"
+                let cases = ["Vi mødes fredag d. 20/11 kl. 10-12 i hallen.", "I morgen kl. 13.00 er der fællesmøde.",
+                             "Husk fredag. Vi starter kl. 9 i kantinen.", "Turen er d. 3. dec og vi tager afsted 8.15-9.45",
+                             "Lav opgave 3.15 og 12.50 kr", "Mødet er 13:15 til 14:00", "den 20.11 er sidste frist"]
+                for c in cases {
+                    let sp = Deadlines.spots(in: c, posted: posted).map { sp in
+                        "\"\((c as NSString).substring(with: sp.range))\" -> \(sp.start.map { f.string(from: $0) } ?? sp.day.map { "dag " + f.string(from: $0) } ?? "-")\(sp.end.map { "-" + DateUtil.hm($0) } ?? "")"
+                    }
+                    print("[plan] \(c)  =>  \(sp.isEmpty ? "intet" : sp.joined(separator: ", "))")
+                }
+                let text = "Hej alle. Vi mødes fredag d. 20/11 kl. 10-12 i hallen, så tag praktisk tøj med."
+                let s0 = Deadlines.spots(in: text, posted: Date()).first!
+                let title = Deadlines.title(subject: "Idrætsdag", sentence: text)
+                guard let url = PlanDraft.link(for: s0, title: title, subject: "Idrætsdag"), let d = PlanDraft(url: url) else { print("[plan] intet link"); exit(1) }
+                print("[plan] boks: \(d.title), \(f.string(from: d.start))-\(DateUtil.hm(d.end)), tid fra beskeden: \(d.timed)")
+                let p = Prefs.shared, before = p.planned.count
+                p.planned.append(PlannedItem(title: d.title, start: d.start, end: d.end, from: d.from))
+                let inDay = AppState.shared.customEvents(on: d.start).contains { $0.title == d.title && $0.start == d.start }
+                let inWeek = AppState.shared.weekItems(d.start, person: nil).contains { $0.title == d.title && $0.start == d.start }
+                print("[plan] i skemaet den dag: \(inDay), i Uge-overblikket: \(inWeek)")
+                // The bubble and the box, drawn off screen.
+                @MainActor func draw<V: View>(_ v: V, _ size: NSSize, _ name: String) async {
+                    let host = NSHostingView(rootView: v.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor)).environmentObject(AppState.shared))
+                    host.frame = NSRect(origin: .zero, size: size)
+                    let w = NSWindow(contentRect: NSRect(x: 80, y: 80, width: size.width, height: size.height), styleMask: [.titled], backing: .buffered, defer: false)
+                    w.contentView = host; w.isReleasedWhenClosed = false
+                    w.orderFrontRegardless()
+                    try? await Task.sleep(for: .seconds(1.2))
+                    defer { w.orderOut(nil) }
+                    if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                        host.cacheDisplay(in: host.bounds, to: rep)
+                        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
+                    }
+                }
+                let msg = ThreadMessage(id: 1, authorID: -5, author: "Lærer Test", image: nil, date: "18. nov 2026 09:00", text: text, links: [])
+                let mine = ThreadMessage(id: 2, authorID: -6, author: "Mig", image: nil, date: "18. nov 2026 09:05", text: "Super, ses i morgen kl. 8.15", links: [])
+                await draw(VStack(spacing: 14) { MacBubble(m: msg, mine: false, subject: "Idrætsdag"); MacBubble(m: mine, mine: true, subject: "Idrætsdag") }.padding(20),
+                     NSSize(width: 560, height: 220), "plan-bubble")
+                await draw(PlanSheet(draft: d) {}, NSSize(width: 330, height: 220), "plan-box-added")
+                // A real click on the time in the bubble, sent into the app's own window: does the box open?
+                do {
+                    let host = NSHostingView(rootView: MacBubble(m: msg, mine: false, subject: "Idrætsdag").padding(20)
+                        .frame(width: 560, height: 160).background(Color(nsColor: .windowBackgroundColor)).environmentObject(AppState.shared))
+                    host.frame = NSRect(x: 0, y: 0, width: 560, height: 160)
+                    let w = NSWindow(contentRect: NSRect(x: 120, y: 200, width: 560, height: 160), styleMask: [.titled], backing: .buffered, defer: false)
+                    w.contentView = host; w.isReleasedWhenClosed = false
+                    NSApp.activate(ignoringOtherApps: true); w.makeKeyAndOrderFront(nil)
+                    try? await Task.sleep(for: .seconds(1.2))
+                    let before = NSApp.windows.count
+                    func textView(in v: NSView) -> NSTextView? { (v as? NSTextView) ?? v.subviews.lazy.compactMap(textView).first }
+                    var pops: [NSWindow] = []
+                    if let tv = textView(in: host), let lm = tv.layoutManager, let tc = tv.textContainer,
+                       let r = Deadlines.planLinks(text: text, posted: Deadlines.postedDate(msg.date), subject: "Idrætsdag").first?.range {
+                        let glyphs = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
+                        let rect = lm.boundingRect(forGlyphRange: glyphs, in: tc)
+                        let pt = tv.convert(NSPoint(x: rect.midX, y: rect.midY), to: nil)
+                        print("[plan] tiden står ved \(Int(pt.x)),\(Int(pt.y)) i vinduet")
+                        func ev(_ t: NSEvent.EventType) -> NSEvent? {
+                            NSEvent.mouseEvent(with: t, location: pt, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                               windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
+                        }
+                        // The text view tracks the mouse until it goes up, so the up waits in the queue first.
+                        if let up = ev(.leftMouseUp) { NSApp.postEvent(up, atStart: false) }
+                        let hit = w.contentView?.hitTest(w.contentView!.convert(pt, from: nil))
+                        print("[plan] træffer: \(hit.map { String(describing: type(of: $0)) } ?? "intet"), nøglevindue \(w.isKeyWindow), aktiv \(NSApp.isActive)")
+                        if let down = ev(.leftMouseDown) { w.sendEvent(down) }
+                        try? await Task.sleep(for: .seconds(1.2))
+                        pops = NSApp.windows.filter { $0.isVisible && String(describing: type(of: $0)).contains("Popover") }
+                        print("[plan] vinduer: \(NSApp.windows.filter(\.isVisible).map { String(describing: type(of: $0)) })")
+                    } else { print("[plan] fandt ikke teksten") }
+                    print("[plan] klik på tiden åbner boksen: \(!pops.isEmpty) (vinduer \(before) -> \(NSApp.windows.count))")
+                    if let pw = pops.first, let v = pw.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                        v.cacheDisplay(in: v.bounds, to: rep)
+                        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("plan-popover.png"))
+                    }
+                    pops.forEach { $0.orderOut(nil) }; w.orderOut(nil)
+                }
+                let undated = PlanDraft(url: PlanDraft.link(for: Deadlines.spots(in: "Husk fredag", posted: Date()).first!, title: "Husk", subject: "")!)!
+                await draw(PlanSheet(draft: undated) {}, NSSize(width: 330, height: 240), "plan-box-new")
+                p.planned.removeAll { $0.title == d.title && $0.start == d.start }
+                print("[plan] fjernet igen: \(p.planned.count == before), ikke i skemaet: \(!AppState.shared.customEvents(on: d.start).contains { $0.title == d.title })")
+                print("[plan] færdig"); fflush(stdout)
+                exit(0)
+            }
+        }
         // --feature-test: opens Søg (VIGGO_SEARCH) and the next lesson with a test note and photo,
         // saves pictures of the panel and both windows in VIGGO_PANEL_SHOT, then removes the note.
         if CommandLine.arguments.contains("--feature-test") {

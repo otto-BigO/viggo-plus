@@ -459,7 +459,37 @@ extension String {
 extension Deadlines {
     /// A time or day written in a message ("fredag kl. 10", "20/11", "i morgen", "13:15"), with the
     /// day it points at when one can be worked out.
-    struct Spot { let range: NSRange; let day: Date? }
+    struct Spot {
+        let range: NSRange
+        let day: Date?
+        /// The clock time, when the message gives one: in the spot itself ("kl. 10-12"), or for a
+        /// day alone, elsewhere in the same sentence. `end` only when a range is written.
+        var start: Date? = nil
+        var end: Date? = nil
+    }
+
+    /// "kl. 10", "kl 9.55-11", "13:00-14:30", "8.15-9.45", "kl. 10 til 12" as minutes after midnight.
+    /// `bare` also takes "13.00" without "kl." (only in a spot, where it was already checked).
+    static func clock(in s: String, bare: Bool = false) -> (start: Int, end: Int?)? {
+        let t = s.lowercased()
+        let hm = "(\\d{1,2})(?:[.:](\\d{2}))?"
+        let pats = ["\\bkl\\.?\\s*\(hm)(?:\\s*(?:-|–|til)\\s*(?:kl\\.?\\s*)?\(hm))?",
+                    "\\b(\\d{1,2}):(\\d{2})(?:\\s*(?:-|–|til)\\s*(\\d{1,2})(?:[.:](\\d{2}))?)?"]
+            // Same rule as the spot itself: a likely hour, minutes in fives, and not "d. 20.11".
+            + (bare ? ["(?<!d\\. |d\\.|den )\\b([7-9]|1\\d|2[0-3])\\.([0-5][05])\\b(?!\\.\\d)(?:\\s*(?:-|–|til)\\s*(\\d{1,2})(?:[.:](\\d{2}))?)?"] : [])
+        for p in pats {
+            guard let m = t.firstMatch(p), let h = Int(m[1]), h < 24 else { continue }
+            let mi = Int(m[2]) ?? 0
+            guard mi < 60 else { continue }
+            var end: Int?
+            if m.count > 3, let h2 = Int(m[3]), h2 < 24 {
+                let m2 = m.count > 4 ? Int(m[4]) ?? 0 : 0
+                if m2 < 60, h2 * 60 + m2 > h * 60 + mi { end = h2 * 60 + m2 }
+            }
+            return (h * 60 + mi, end)
+        }
+        return nil
+    }
 
     private static let monthWords = "januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|okt|nov|dec"
     private static let spotPatterns: [NSRegularExpression] = [
@@ -474,10 +504,10 @@ extension Deadlines {
         "\\b\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\b",
         // "kl. 13", "kl 9.55", "kl. 10-12", "13:00", "13:00-14:30".
         "\\bkl\\.?\\s*\\d{1,2}(?:[.:]\\d{2})?(?:\\s*(?:-|–|til)\\s*\\d{1,2}(?:[.:]\\d{2})?)?\\b",
-        "\\b\\d{1,2}:\\d{2}(?:\\s*(?:-|–)\\s*\\d{1,2}[.:]\\d{2})?\\b",
+        "\\b\\d{1,2}:\\d{2}(?:\\s*(?:-|–|til)\\s*\\d{1,2}[.:]\\d{2})?\\b",
         // "13.00" and "8.15-9.45" without "kl.": only a likely hour and minutes in steps of five,
         // so "opgave 3.12" and "12.50 kr" stay plain.
-        "(?<!opgave |opg\\. |side |s\\. |kapitel |kap\\. |afsnit |nr\\. |øvelse )\\b(?:[7-9]|1\\d|2[0-3])\\.[0-5][05]\\b(?!\\.\\d|\\s*(?:kr|%|,-))(?:\\s*(?:-|–)\\s*\\d{1,2}\\.[0-5]\\d\\b)?",
+        "(?<!opgave |opg\\. |side |s\\. |kapitel |kap\\. |afsnit |nr\\. |øvelse )\\b(?:[7-9]|1\\d|2[0-3])\\.[0-5][05]\\b(?!\\.\\d|\\s*(?:kr|%|,-))(?:\\s*(?:-|–|til)\\s*\\d{1,2}[.:][0-5]\\d\\b)?",
     ].map { try! NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
 
     static func spots(in text: String, posted: Date) -> [Spot] {
@@ -515,9 +545,12 @@ extension Deadlines {
         return merged.map { r in
             // "torsdagen" reads as "torsdag".
             let s = ns.substring(with: r).replacingOccurrences(of: "dagen", with: "dag")
-            if let d = day(in: s, posted: posted) { return Spot(range: r, day: d) }
             let sentence = sentences.first { NSLocationInRange(r.location, $0) }.map { ns.substring(with: $0) } ?? s
-            return Spot(range: r, day: day(in: sentence, posted: posted) ?? DateUtil.startOfDay(posted))
+            let d = day(in: s, posted: posted) ?? day(in: sentence, posted: posted) ?? DateUtil.startOfDay(posted)
+            // A day alone ("fredag") can still have its time elsewhere in the sentence.
+            let c = clock(in: s, bare: true) ?? clock(in: sentence)
+            let at = { (m: Int) in DateUtil.startOfDay(d).addingTimeInterval(Double(m * 60)) }
+            return Spot(range: r, day: d, start: c.map { at($0.start) }, end: c?.end.map(at))
         }
     }
 

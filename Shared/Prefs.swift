@@ -48,6 +48,8 @@ final class Prefs: ObservableObject {
     @Published var liveActivity: Bool { didSet { d.set(liveActivity, forKey: "liveActivity") } }
     @Published var panelLunch: Bool { didSet { d.set(panelLunch, forKey: "panelLunch") } }
     @Published var customItems: [CustomItem] { didSet { d.set(try? JSONEncoder().encode(customItems), forKey: "customItems") } }
+    /// Things added to the schedule from a time in a message ("fredag kl. 10-12").
+    @Published var planned: [PlannedItem] { didSet { d.set(try? JSONEncoder().encode(planned), forKey: "planned") } }
     @Published var dismissedVersion: String { didSet { d.set(dismissedVersion, forKey: "dismissedVersion") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
     @Published var importSchedule: Bool { didSet { d.set(importSchedule, forKey: "importSchedule") } }
@@ -121,6 +123,9 @@ final class Prefs: ObservableObject {
         menubarBreaks = d.bool(forKey: "menubarBreaks")
         liveActivity = d.bool(forKey: "liveActivity")
         customItems = d.data(forKey: "customItems").flatMap { try? JSONDecoder().decode([CustomItem].self, from: $0) } ?? []
+        // Old ones go after two weeks, so the list doesn't grow forever.
+        planned = (d.data(forKey: "planned").flatMap { try? JSONDecoder().decode([PlannedItem].self, from: $0) } ?? [])
+            .filter { $0.end > Date().addingTimeInterval(-14 * 86400) }
         dismissedVersion = d.string(forKey: "dismissedVersion") ?? ""
         imported = d.bool(forKey: "imported")
         importSchedule = d.bool(forKey: "importSchedule")

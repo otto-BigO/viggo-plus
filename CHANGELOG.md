@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.24.0 og iPhone-app 1.15.0 (2026-11-18)
+
+- **Tider i beskeder på Mac**: står der "fredag d. 20/11 kl. 10-12", "i morgen kl. 13.00" eller "13:15 til 14:00" i en besked, er det fremhævet med fed skrift på en farvet baggrund, ligesom på iPhone.
+- **Sæt en tid i skemaet med ét klik**: klik på en fremhævet tid (tryk på iPhone), så åbner en lille boks hvor alt er udfyldt: titlen fra emnet, dagen, og tiden fra beskeden, også sluttiden når der står fx "10-12". Tryk Tilføj til skema, så står den i panelet, i menubaren og i Uge-overblikket på den dag. Siger beskeden kun en dag, foreslår boksen kl. 10 og beder dig vælge en tid. Klikker du på en tid der allerede står i skemaet, kan du fjerne den igen. Under Egne punkter i Indstillinger står de kommende under Fra beskeder. På iPhone kan boksen også vise dagen i Uge.
+- "13:15 til 14:00" og "8.15 til 9.45" ses nu som én tid fra og til, ikke to.
+
 ## 1.23.1 (2026-11-18)
 
 - **Tilbage og frem i Søg**: pilene øverst i søgevinduet (eller ⌘[ og ⌘]) går tilbage og frem mellem de profiler, klasser og værelser du har kigget på, ligesom i en browser. Det virker både når du klikker i listen og når du går videre fra en profil, fx til personens klasse.

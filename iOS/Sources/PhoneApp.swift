@@ -39,6 +39,7 @@ struct RootView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject private var lessons = LessonPresenter.shared
     @State private var tab = ProcessInfo.processInfo.environment["VIGGO_TAB"].flatMap(Int.init) ?? 0
+    @State private var planDemo = ProcessInfo.processInfo.environment["VIGGO_PLAN_DEMO"] != nil
     @State private var splash = true
     @State private var guide = false
     @State private var intro = Intro.pick()
@@ -132,6 +133,8 @@ struct RootView: View {
                 .onChange(of: tab) { Haptic.select() }
                 .onChange(of: state.openThread) { if state.openThread != nil { tab = 2 } }
                 .onChange(of: state.showDay) { if state.showDay != nil { tab = 1 } }
+                // VIGGO_PLAN_DEMO=1: a made-up message to tap a time in, without real messages.
+                .fullScreenCover(isPresented: .constant(planDemo)) { PlanDemoScreen { planDemo = false } }
             }
         }
     }

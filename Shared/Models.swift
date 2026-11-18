@@ -30,6 +30,22 @@ struct CustomItem: Codable, Identifiable, Hashable {
     }
 }
 
+/// Something added to the schedule once, from a time in a message. Shown like your own items.
+struct PlannedItem: Codable, Identifiable, Hashable {
+    var id = UUID()
+    var title: String
+    var start: Date
+    var end: Date
+    /// The message thread it came from, for the note on it.
+    var from: String = ""
+
+    func event(on day: Date, index: Int) -> ViggoEvent? {
+        guard DateUtil.cal.isDate(start, inSameDayAs: day), end > start else { return nil }
+        return ViggoEvent(id: -(2_000_000_000 + index), rawName: title, start: start, end: end, room: "",
+                          notes: from.isEmpty ? "" : "Fra beskeden \"\(from)\"", kind: .custom, teachers: [], groups: [])
+    }
+}
+
 struct ViggoEvent: Codable, Hashable, Identifiable {
     let id: Int
     let rawName: String

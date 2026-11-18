@@ -254,6 +254,8 @@ struct ThreadScreen: View {
     @State private var mentions = Mentions.none
     /// A name tapped in a message.
     @State private var mentioned: Int?
+    /// A time tapped in a message, on its way to the schedule.
+    @State private var plan: PlanDraft?
     @ObservedObject private var dir = Directory.shared
     @FocusState private var typing: Bool
 
@@ -388,10 +390,10 @@ struct ThreadScreen: View {
         .onChange(of: detail, initial: true) { _, d in if let d { mentions = Mentions(thread: d, state: state) } }
         .onChange(of: dir.members.count) { if let d = detail { mentions = Mentions(thread: d, state: state) } }
         .environment(\.openURL, OpenURLAction { u in
-            // A time or day in a message: show that day in Uge.
-            if u.scheme == Mentions.dayScheme, let t = Double(u.host ?? "") {
+            // A time or day in a message: put it in the schedule, all filled in.
+            if let d = PlanDraft(url: u) {
                 Haptic.tap()
-                state.showDay = Date(timeIntervalSince1970: t)
+                plan = d
                 return .handled
             }
             guard u.scheme == Mentions.scheme, let id = Int(u.host ?? "") else { return .systemAction }
@@ -400,6 +402,14 @@ struct ThreadScreen: View {
             return .handled
         })
         .navigationDestination(item: $mentioned) { PersonScreen(id: $0) }
+        .sheet(item: $plan) { d in
+            NavigationStack {
+                PlanSheet(draft: d, showDay: { state.showDay = $0 }) { plan = nil }
+                    .datePickerStyle(.compact)
+                    .navigationTitle("").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Luk") { plan = nil } } }
+            }
+            .presentationDetents([.height(330)])
+        }
         .alert("Beskeden blev ikke sendt", isPresented: .constant(sendError != nil)) {
             Button("OK") { sendError = nil }
         } message: { Text(sendError ?? "") }
@@ -677,12 +687,15 @@ struct Mentions {
     let full: [String: Int?]
     let first: [String: Int?]
     let me: Int
+    /// The thread's subject, for the title when a time goes in the schedule.
+    var subject = ""
 
     init(full: [String: Int?], first: [String: Int?], me: Int) { self.full = full; self.first = first; self.me = me }
 
     @MainActor init(thread d: ThreadDetail, state: AppState) {
         let dir = Directory.shared
         me = state.profile?.id ?? -1
+        subject = d.subject
         full = Self.fullIndex(dir.members)
         var first: [String: Int?] = [:]
         func add(_ name: String, _ id: Int) {
@@ -714,22 +727,11 @@ struct Mentions {
         return idx
     }
 
-    /// The text with each name found turned into a link to that person.
-    static let dayScheme = "viggoplus-day"
-
     /// The text with each name turned into a link to that person, and each time or day
-    /// ("fredag kl. 10", "20/11") marked and linked to that day in Uge.
+    /// ("fredag kl. 10", "20/11") marked; a tap puts it in the schedule (PlanSheet).
     @MainActor func linked(_ text: String, author: Int, posted: Date? = nil, onAccent: Bool = false) -> AttributedString {
         var out = names(text, author: author)
-        for s in Deadlines.spots(in: text, posted: posted ?? Date()) {
-            guard let range = Range(s.range, in: text),
-                  let lo = AttributedString.Index(range.lowerBound, within: out),
-                  let hi = AttributedString.Index(range.upperBound, within: out) else { continue }
-            if out[lo..<hi].runs.contains(where: { $0.link != nil }) { continue }
-            out[lo..<hi].inlinePresentationIntent = .stronglyEmphasized
-            out[lo..<hi].backgroundColor = onAccent ? Color.white.opacity(0.22) : Color.accentColor.opacity(0.14)
-            if let d = s.day { out[lo..<hi].link = URL(string: "\(Self.dayScheme)://\(Int(d.timeIntervalSince1970))") }
-        }
+        Deadlines.markTimes(&out, text: text, posted: posted, subject: subject, onAccent: onAccent)
         return out
     }
 
@@ -1017,5 +1019,44 @@ private struct ReadReceipt: View {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.trailing, 6).padding(.top, 2)
+    }
+}
+
+/// VIGGO_PLAN_DEMO=1: two made-up messages with times in them, to try tapping a time and putting
+/// it in the schedule in the simulator without opening (and so marking read) a real thread.
+struct PlanDemoScreen: View {
+    @EnvironmentObject var state: AppState
+    let close: () -> Void
+    @State private var plan: PlanDraft?
+    private var mentions: Mentions { var m = Mentions.none; m.subject = "Idrætsdag"; return m }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 10) {
+                    Bubble(m: ThreadMessage(id: 1, authorID: -5, author: "Lærer Test", image: nil, date: "18. nov 2026 09:00",
+                                            text: "Hej alle. Vi mødes fredag d. 20/11 kl. 10-12 i hallen, så tag praktisk tøj med.", links: []),
+                           mine: false, showName: true, mentions: mentions)
+                    Bubble(m: ThreadMessage(id: 2, authorID: -6, author: "Mig", image: nil, date: "18. nov 2026 09:05",
+                                            text: "Super, ses i morgen kl. 8.15", links: []),
+                           mine: true, mentions: mentions)
+                }
+                .padding()
+            }
+            .navigationTitle("Idrætsdag (demo)")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Luk", action: close) } }
+            .environment(\.openURL, OpenURLAction { u in
+                guard let d = PlanDraft(url: u) else { return .systemAction }
+                plan = d
+                return .handled
+            })
+            .sheet(item: $plan) { d in
+                NavigationStack {
+                    PlanSheet(draft: d, showDay: { state.showDay = $0; close() }) { plan = nil }
+                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Luk") { plan = nil } } }
+                }
+                .presentationDetents([.height(330)])
+            }
+        }
     }
 }

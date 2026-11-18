@@ -117,7 +117,7 @@ private struct MacThreadView: View {
                                 }
                             }
                             .padding(.bottom, 4)
-                            ForEach(d.messages) { m in MacBubble(m: m, mine: m.authorID == me).id(m.id) }
+                            ForEach(d.messages) { m in MacBubble(m: m, mine: m.authorID == me, subject: d.subject).id(m.id) }
                         }
                         .padding(20)
                         .frame(maxWidth: 760, alignment: .leading)
@@ -200,10 +200,15 @@ private struct MacThreadView: View {
     }
 }
 
-private struct MacBubble: View {
+struct MacBubble: View {
     let m: ThreadMessage
     let mine: Bool
+    var subject = ""
+    /// A time clicked in the message, on its way to the schedule.
+    @State private var plan: PlanDraft?
     private var personal: Bool { m.privateWith != nil }
+    private var onAccent: Bool { mine && !personal }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if mine { Spacer(minLength: 80) } else { Avatar(url: m.image, size: 28, name: m.author) }
@@ -217,7 +222,10 @@ private struct MacBubble: View {
                 ForEach(m.files.filter { !$0.isImage }) { f in MacFileChip(f: f) }
                 if !m.text.isEmpty || !m.links.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    if !m.text.isEmpty { Text(m.text).font(.system(size: 13)).textSelection(.enabled) }
+                    if !m.text.isEmpty {
+                        MacMessageText(text: m.text, posted: Deadlines.postedDate(m.date), subject: subject, onAccent: onAccent) { plan = $0 }
+                            .popover(item: $plan, arrowEdge: .bottom) { d in PlanSheet(draft: d) { plan = nil } }
+                    }
                     ForEach(m.links, id: \.self) { u in
                         Link(destination: u) {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "arrow.up.right.square")
@@ -432,5 +440,73 @@ private struct MacCompose: View {
         } catch {
             sendError = (error as? LocalizedError)?.errorDescription ?? "Prøv igen."
         }
+    }
+}
+
+
+/// The text of a message, selectable, with times and days marked. AppKit draws it: a click on a
+/// marked time is a plain NSTextView link click, which (unlike a link in SwiftUI's Text) is
+/// reliable and can be tested, and it opens PlanSheet instead of a browser.
+struct MacMessageText: NSViewRepresentable {
+    let text: String
+    let posted: Date?
+    let subject: String
+    let onAccent: Bool
+    let onPlan: (PlanDraft) -> Void
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var onPlan: (PlanDraft) -> Void = { _ in }
+        func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+            guard let u = link as? URL, let d = PlanDraft(url: u) else { return false }
+            if CommandLine.arguments.contains("--plan-test") { print("[plan] link klikket: \(d.title)") }
+            onPlan(d)
+            return true
+        }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    /// A click on a time works even when the window is in the background, like a button.
+    final class LinkTextView: NSTextView {
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    }
+
+    func makeNSView(context: Context) -> NSTextView {
+        let tv = LinkTextView()
+        tv.isEditable = false
+        tv.isSelectable = true
+        tv.drawsBackground = false
+        tv.textContainerInset = .zero
+        tv.textContainer?.lineFragmentPadding = 0
+        tv.textContainer?.widthTracksTextView = true
+        tv.isHorizontallyResizable = false
+        tv.delegate = context.coordinator
+        tv.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        return tv
+    }
+
+    func updateNSView(_ tv: NSTextView, context: Context) {
+        context.coordinator.onPlan = onPlan
+        let s = attributed()
+        if tv.attributedString() != s { tv.textStorage?.setAttributedString(s) }
+        tv.linkTextAttributes = [.foregroundColor: onAccent ? NSColor.white : NSColor.controlAccentColor,
+                                 .cursor: NSCursor.pointingHand]
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView tv: NSTextView, context: Context) -> CGSize? {
+        let maxW = min(proposal.width ?? 520, 520)
+        let r = attributed().boundingRect(with: NSSize(width: maxW, height: .greatestFiniteMagnitude),
+                                          options: [.usesLineFragmentOrigin, .usesFontLeading])
+        return CGSize(width: ceil(min(r.width, maxW)) + 1, height: ceil(r.height))
+    }
+
+    private func attributed() -> NSAttributedString {
+        let font = NSFont.systemFont(ofSize: 13)
+        let out = NSMutableAttributedString(string: text, attributes: [.font: font, .foregroundColor: onAccent ? NSColor.white : NSColor.labelColor])
+        for (r, url) in Deadlines.planLinks(text: text, posted: posted, subject: subject) {
+            out.addAttributes([.font: NSFont.boldSystemFont(ofSize: 13),
+                               .backgroundColor: onAccent ? NSColor.white.withAlphaComponent(0.22) : NSColor.controlAccentColor.withAlphaComponent(0.16)], range: r)
+            if let url { out.addAttribute(.link, value: url, range: r) }
+        }
+        return out
     }
 }

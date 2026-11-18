@@ -1148,6 +1148,7 @@ final class AppState: ObservableObject {
 
     func customEvents(on day: Date) -> [ViggoEvent] {
         prefs.customItems.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
+            + prefs.planned.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
     }
 
     /// Today's lessons/events plus the everyday items after school, as one list.
