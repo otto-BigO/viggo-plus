@@ -44,9 +44,9 @@ struct TodayScreen: View {
         let today = DateUtil.startOfDay(now)
         let tomorrow = DateUtil.add(.day, 1, today)
         if hour < 12 {
-            if !pack.items(on: today).isEmpty { PackCard(day: today, title: "Pak til i dag") }
+            if !pack.items(on: today).isEmpty { PackCard(day: today, title: "Husk i dag") }
         } else if !pack.items(on: tomorrow).isEmpty || hour >= 15 && !pack.subjects(on: tomorrow).isEmpty {
-            PackCard(day: tomorrow, title: "Pak til i morgen")
+            PackCard(day: tomorrow, title: "Husk til i morgen")
         }
     }
 

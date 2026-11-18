@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.25.0 og iPhone-app 1.15.1 (2026-11-18)
+
+- **Søg inde i panelet** (en prøve): forstørrelsesglasset (eller ⌘F) gør panelet til en søgning i samme udseende. Dagen glider ud, og et søgefelt og resultaterne glider ind. Før du skriver, står dine seneste søgninger og dem der har fødselsdag. Klik på en person for et lille kort med billede, hvor personen er lige nu, klasse, linje, værelse, fødselsdag og knapper til besked, opkald og SMS. Grupper, flere resultater og hele profilen åbner i det store søgevindue. Esc eller Færdig går tilbage til dagen, og panelet starter altid på dagen igen næste gang du åbner det.
+- **Ingen rullebjælke i panelet**: den kom frem hver gang panelet åbnede og tog plads. Er dagen længere end panelet, toner bunden blødt ud i stedet.
+- **Huskeliste**: "Pak til i morgen" hedder nu "Husk til i morgen" (og "Husk i dag"), og du tilføjer "noget at huske". Også på iPhone og i notifikationen.
+
 ## 1.24.0 og iPhone-app 1.15.0 (2026-11-18)
 
 - **Tider i beskeder på Mac**: står der "fredag d. 20/11 kl. 10-12", "i morgen kl. 13.00" eller "13:15 til 14:00" i en besked, er det fremhævet med fed skrift på en farvet baggrund, ligesom på iPhone.

@@ -380,7 +380,7 @@ struct PanelTab: View {
                 Toggle("Dagens mad fra madplanen under Middag og Aftensmad", isOn: $p.panelMeals)
                 Toggle("I morgen", isOn: $p.panelTomorrow)
                 Toggle("Lektier", isOn: $p.panelHomework)
-                Toggle("Pakkeliste (husk og medbring)", isOn: $p.panelPacking)
+                Toggle("Huskeliste (husk og medbring)", isOn: $p.panelPacking)
                 if p.panelHomework {
                     Toggle("Afkryds lektier direkte i panelet", isOn: $p.panelHomeworkTick)
                 }
@@ -675,9 +675,9 @@ struct NotificationsTab: View {
                     set: { let c = DateUtil.cal.dateComponents([.hour, .minute], from: $0); p.homeworkReminderAt = (c.hour ?? 19) * 60 + (c.minute ?? 0) }),
                     displayedComponents: .hourAndMinute)
                     .disabled(!p.homeworkReminder && !p.packReminder)
-                Toggle("Pakkeliste til i morgen", isOn: $p.packReminder)
+                Toggle("Huskeliste til i morgen", isOn: $p.packReminder)
             } header: { Text("Påmindelse om aftenen") } footer: {
-                Text("Fx \"Du har 2 lektier til i morgen\" og \"Pak: lommeregner, idrætstøj\". Kommer kun når der er noget. Pakkelisten finder \"husk\" og \"medbring\" i lærerens info, beskeder og opslag.").font(.caption).foregroundStyle(.secondary)
+                Text("Fx \"Du har 2 lektier til i morgen\" og \"Husk: lommeregner, idrætstøj\". Kommer kun når der er noget. Huskelisten finder \"husk\" og \"medbring\" i lærerens info, beskeder og opslag.").font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 Toggle("Find deadlines i beskeder og opslag", isOn: $p.deadlineRadar)

@@ -104,7 +104,11 @@ final class PanelController: NSObject {
         monitors = []
         item?.button?.highlight(false)
         NSAnimationContext.runAnimationGroup({ $0.duration = 0.1; p.animator().alphaValue = 0 }) {
-            MainActor.assumeIsolated { p.orderOut(nil); p.alphaValue = 1 }
+            MainActor.assumeIsolated {
+                p.orderOut(nil); p.alphaValue = 1
+                // Next time the panel opens it shows the day, not an old search.
+                NotificationCenter.default.post(name: .panelClosed, object: nil)
+            }
         }
     }
 
@@ -336,6 +340,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 s.selectedFriend = nil
                 if let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] { c.snapshot(to: dir) }
                 print("[panel] færdig uden nedbrud"); fflush(stdout)
+                exit(0)
+            }
+        }
+        // --panel-search-test: the panel's own search with VIGGO_SEARCH (default "musik"): the
+        // results, a person's card and back to the day, saved as pictures in VIGGO_PANEL_SHOT.
+        if CommandLine.arguments.contains("--panel-search-test") {
+            Task { @MainActor in
+                let c = PanelController.shared
+                let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] ?? NSTemporaryDirectory()
+                let q = ProcessInfo.processInfo.environment["VIGGO_SEARCH"] ?? "musik"
+                try? await Task.sleep(for: .seconds(8))
+                c.show()
+                try? await Task.sleep(for: .seconds(2))
+                func step(_ what: String, _ wait: Double = 1.5) async {
+                    NotificationCenter.default.post(name: .panelSearchTest, object: what)
+                    try? await Task.sleep(for: .seconds(wait))
+                }
+                let h0 = c.cardSize.height
+                await step("open")
+                c.snapshot(to: dir); try? FileManager.default.moveItem(atPath: dir + "/panel.png", toPath: dir + "/ps-empty.png")
+                await step("query:" + q)
+                c.snapshot(to: dir); try? FileManager.default.moveItem(atPath: dir + "/panel.png", toPath: dir + "/ps-results.png")
+                await step("person")
+                c.snapshot(to: dir); try? FileManager.default.moveItem(atPath: dir + "/panel.png", toPath: dir + "/ps-person.png")
+                await step("close")
+                c.snapshot(to: dir); try? FileManager.default.moveItem(atPath: dir + "/panel.png", toPath: dir + "/ps-day.png")
+                print("[panelsøg] kortets højde før \(Int(h0)), efter \(Int(c.cardSize.height))")
+                await step("open"); c.close()
+                try? await Task.sleep(for: .seconds(1)); c.show()
+                try? await Task.sleep(for: .seconds(1))
+                NotificationCenter.default.post(name: .panelSearchTest, object: "state")
+                try? await Task.sleep(for: .seconds(0.5))
+                print("[panelsøg] færdig"); fflush(stdout)
                 exit(0)
             }
         }

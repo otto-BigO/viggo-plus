@@ -105,6 +105,12 @@ struct SearchWindow: View {
                 .navigationDestination(for: Found.self) { MacFoundView(found: $0) }
             }
         }
+        // The panel's search asked for a search or a page in the big window.
+        .onReceive(SearchBridge.shared.$request) { r in
+            guard let r else { return }
+            if let q = r.query { query = q }
+            if let f = r.found { selection = f }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .searchTest)) { n in
             // --feature-test: move around like a user would, so the hook can read the window title.
             switch n.object as? String {

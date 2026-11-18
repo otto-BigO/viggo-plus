@@ -13,6 +13,12 @@ struct ViggoPlusApp: App {
 
 // MARK: - Small pieces
 
+extension Notification.Name {
+    static let panelClosed = Notification.Name("ViggoPanelClosed")
+    static let panelSearchTest = Notification.Name("ViggoPanelSearchTest")
+    static let panelSearchPerson = Notification.Name("ViggoPanelSearchPerson")
+}
+
 // MARK: - Menubar panel
 
 struct MenuView: View {
@@ -29,6 +35,44 @@ struct MenuView: View {
     private var dayFrame: CGFloat {
         max(0, min(dayHeight, PanelController.shared.room - PanelController.pad - chrome))
     }
+    /// Search in the panel: the magnifier turns the panel into a search, in the same look.
+    @State private var searching = false
+    @State private var query = ""
+    @FocusState private var searchFocused: Bool
+    /// At least as tall as the day (so the panel keeps its size when it is tall enough), and
+    /// room for a handful of results when the day is short.
+    private var searchFrame: CGFloat {
+        max(dayFrame, min(380, PanelController.shared.room - PanelController.pad - chrome))
+    }
+    private var middle: CGFloat { searching ? searchFrame : dayFrame }
+
+    private func toggleSearch() {
+        withAnimation(.viggo) { searching.toggle() }
+        if searching { query = ""; DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { searchFocused = true } }
+    }
+
+    private var searchHeader: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+            TextField("Søg i Viggo", text: $query)
+                .textFieldStyle(.plain).font(Sz.f(14, .medium))
+                .focused($searchFocused)
+                .onSubmit { SearchBridge.shared.open(query: query) }
+            if !query.isEmpty {
+                Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
+                    .buttonStyle(.plain).help("Ryd")
+            }
+            Button { SearchBridge.shared.open(query: query.isEmpty ? nil : query) } label: {
+                Image(systemName: "arrow.up.left.and.arrow.down.right").font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.plain).foregroundStyle(.secondary).help("Åbn i det store søgevindue (↩)")
+            Button("Færdig", action: toggleSearch)
+                .buttonStyle(.plain).font(Sz.f(12, .medium)).foregroundStyle(Color.accentColor)
+                .keyboardShortcut(.cancelAction)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
+    }
 
     private var headerTitle: String {
         if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) { return f.name }
@@ -38,6 +82,10 @@ struct MenuView: View {
     var body: some View {
         let now = state.tick
         VStack(alignment: .leading, spacing: 10) {
+            if searching {
+                searchHeader
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: -6)), removal: .opacity))
+            } else {
             HStack(spacing: 8) {
                 if state.friends.isEmpty, let prof = state.profile { Avatar(url: prof.image, size: 26, name: prof.name) }
                 VStack(alignment: .leading, spacing: 0) {
@@ -69,6 +117,8 @@ struct MenuView: View {
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
+            .transition(.opacity)
+            }
 
             if state.needsLogin {
                 HStack {
@@ -80,11 +130,11 @@ struct MenuView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             OfflineBanner(compact: true)
-            if !state.status.isEmpty {
+            if !state.status.isEmpty, !searching {
                 Text(state.status).font(Sz.f(11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
 
-            if !state.friends.isEmpty, updater.available != nil {
+            if !state.friends.isEmpty, updater.available != nil, !searching {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 2) {
                         PersonChip(ring: ring, url: state.profile?.image, label: "Mig", fullName: state.profile?.name, selected: state.selectedFriend == nil) {
@@ -98,6 +148,11 @@ struct MenuView: View {
                 }
             }
 
+            if searching {
+                PanelSearch(query: $query, height: searchFrame)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                            removal: .move(edge: .trailing).combined(with: .opacity)))
+            } else {
             // The day scrolls when it is taller than the screen (many friends, a long day), so the
             // buttons at the bottom stay in reach.
             ScrollView(.vertical) {
@@ -125,9 +180,23 @@ struct MenuView: View {
                 }
             }
             .scrollBounceBehavior(.basedOnSize)
+            // No scroll bar: it flashed up every time the panel opened and took a column of room.
+            // A soft fade at the bottom says there is more when the day is taller than the panel.
+            .scrollIndicators(.never)
+            .mask {
+                VStack(spacing: 0) {
+                    Color.black
+                    if dayHeight > dayFrame + 1 {
+                        LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .top, endPoint: .bottom).frame(height: 18)
+                    }
+                }
+            }
             // A fixed height, worked out here: a scroll view left to size itself in the panel sent
             // AppKit into the same endless layout loop that crashed the app.
             .frame(height: dayFrame)
+            .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)))
+            }
 
             HStack(spacing: 14) {
                 if let s = state.syncedText {
@@ -136,8 +205,10 @@ struct MenuView: View {
                 }
                 Spacer()
                 Button { Task { await state.sync() } } label: { SyncIcon(spinning: state.syncing) }.help("Synk nu")
-                Button { state.openSearch() } label: { Image(systemName: "magnifyingglass") }
-                    .help("Søg (⌘F)").keyboardShortcut("f")
+                Button(action: toggleSearch) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(searching ? Color.accentColor : Color.secondary)
+                }
+                .help(searching ? "Tilbage til dagen (Esc)" : "Søg (⌘F)").keyboardShortcut("f")
                 Button { state.openWeek() } label: { Image(systemName: "calendar") }.help("Uge-overblik")
                 Button { state.openMessages() } label: {
                     Image(systemName: "bubble.left.and.bubble.right")
@@ -163,8 +234,21 @@ struct MenuView: View {
         .animation(.viggo, value: state.lastSync)
         .padding(.horizontal, 14).padding(.vertical, 12)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in
+            guard !searching else { return }
             let c = h - dayFrame
             if abs(c - chrome) > 0.5 { chrome = c }
+        }
+        .clipped()
+        .onReceive(NotificationCenter.default.publisher(for: .panelClosed)) { _ in searching = false; query = "" }
+        .onReceive(NotificationCenter.default.publisher(for: .panelSearchTest)) { n in
+            // --panel-search-test drives the search the way clicks and typing would.
+            let s = n.object as? String ?? ""
+            if s == "open" { if !searching { toggleSearch() } }
+            else if s == "close" { if searching { toggleSearch() } }
+            else if s.hasPrefix("query:") { query = String(s.dropFirst(6)) }
+            else if s == "person" { NotificationCenter.default.post(name: .panelSearchPerson, object: nil) }
+            else if s == "state" { print("[panelsøg] efter luk og åbn: søger \(searching)"); fflush(stdout) }
+            print("[panelsøg] \(s): søger \(searching), mellemstykke \(Int(middle)) pt"); fflush(stdout)
         }
         .frame(width: MenuView.width)
         .overlay(alignment: .bottomTrailing) { QuietLoginBadges(compact: true).padding(.trailing, 12).padding(.bottom, 38) }

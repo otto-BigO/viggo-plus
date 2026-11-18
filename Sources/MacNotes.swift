@@ -31,7 +31,7 @@ struct MacPackSection: View {
             ForEach(items) { row($0) }
             HStack(spacing: 8) {
                 Image(systemName: "plus.circle").font(Sz.f(14)).foregroundStyle(.secondary)
-                TextField("Tilføj noget at pakke", text: $adding)
+                TextField("Tilføj noget at huske", text: $adding)
                     .textFieldStyle(.plain)
                     .font(Sz.f(12))
                     .focused($typing)
@@ -85,8 +85,8 @@ struct MacPackSection: View {
         let hour = DateUtil.cal.component(.hour, from: now)
         let today = DateUtil.startOfDay(now)
         let tomorrow = DateUtil.add(.day, 1, today)
-        if hour < 12 { return store.items(on: today).isEmpty ? nil : (today, "Pak til i dag") }
-        if !store.items(on: tomorrow).isEmpty || hour >= 15 && !store.subjects(on: tomorrow).isEmpty { return (tomorrow, "Pak til i morgen") }
+        if hour < 12 { return store.items(on: today).isEmpty ? nil : (today, "Husk i dag") }
+        if !store.items(on: tomorrow).isEmpty || hour >= 15 && !store.subjects(on: tomorrow).isEmpty { return (tomorrow, "Husk til i morgen") }
         return nil
     }
 }

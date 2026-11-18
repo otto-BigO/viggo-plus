@@ -41,7 +41,7 @@ extension AppState {
                 let tomorrow = DateUtil.add(.day, 1, day)
                 let left = PackStore.shared.items(on: tomorrow).filter { !PackStore.shared.isTicked($0, on: tomorrow) }
                 if !left.isEmpty {
-                    list.append((at, "pack-\(key)", "🎒 Pak til i morgen", left.map(\.text).joined(separator: ", ")))
+                    list.append((at, "pack-\(key)", "🎒 Husk til i morgen", left.map(\.text).joined(separator: ", ")))
                 }
             }
             if prefs.notifyBirthdays {

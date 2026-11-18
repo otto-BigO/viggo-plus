@@ -1495,7 +1495,7 @@ final class AppState: ObservableObject {
             snapshot.save()
             let tomorrow = DateUtil.add(.day, 1, DateUtil.startOfDay(now))
             let left = PackStore.shared.items(on: tomorrow).filter { !PackStore.shared.isTicked($0, on: tomorrow) }
-            if !left.isEmpty { Notifier.shared.post("🎒 Pak til i morgen", left.map(\.text).joined(separator: ", ")) }
+            if !left.isEmpty { Notifier.shared.post("🎒 Husk til i morgen", left.map(\.text).joined(separator: ", ")) }
         }
         guard prefs.briefs, !events.isEmpty else { return }
         if hour >= prefs.morningHour, hour < 12, snapshot.lastMorningBrief != today {

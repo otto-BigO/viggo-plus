@@ -229,7 +229,7 @@ struct PackCard: View {
                 ForEach(items) { row($0) }
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(.tint)
-                    TextField("Tilføj noget at pakke", text: $adding)
+                    TextField("Tilføj noget at huske", text: $adding)
                         .focused($typing)
                         .submitLabel(.done)
                         .onSubmit {
