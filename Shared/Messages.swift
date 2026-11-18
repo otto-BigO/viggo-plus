@@ -464,6 +464,8 @@ final class Inbox: ObservableObject {
         details[d.id] = d
         Receipts.track(d, notify: false)
         Deadlines.shared.scan(d)
+        // Lists in its PDFs with your name or room, and their text for search.
+        Task { await RosterStore.shared.check(d) }
         save()
     }
 
@@ -475,9 +477,11 @@ final class Inbox: ObservableObject {
         prefetching = true
         defer { prefetching = false }
         for t in threads.prefix(12) where !t.unread && details[t.id] == nil {
-            guard let d = try? await client.fetchThread(t.id) else { return }
+            guard let d = try? await client.fetchThread(t.id) else { break }
             keep(d)
         }
+        // Threads kept from before (read ones only) may have lists not looked through yet.
+        for d in Array(details.values) { await RosterStore.shared.check(d) }
     }
 
     struct Receipt: Equatable { let readers: [Reader]; let total: Int }

@@ -19,6 +19,7 @@ struct PanelSearch: View {
     @EnvironmentObject var state: AppState
     @ObservedObject private var dir = Directory.shared
     @ObservedObject private var inbox = Inbox.shared
+    @ObservedObject private var files = RosterStore.shared
     @Binding var query: String
     let height: CGFloat
     @State private var q = ""
@@ -31,6 +32,11 @@ struct PanelSearch: View {
     private var threads: [MessageThread] {
         guard q.count >= 2 else { return [] }
         return Array(inbox.threads.filter { "\($0.sender) \($0.subject) \($0.preview)".lowercased().contains(q) }.prefix(4))
+    }
+    /// Words inside read messages and their PDFs, leaving out threads already shown by their subject.
+    private var textHits: [RosterStore.TextHit] {
+        let shown = Set(threads.map(\.id))
+        return Array(files.search(q, limit: 12).filter { $0.file != nil || !shown.contains($0.thread) }.prefix(5))
     }
     private var lessons: [ViggoEvent] {
         guard q.count >= 2 else { return [] }
@@ -101,8 +107,8 @@ struct PanelSearch: View {
     // MARK: results
 
     @ViewBuilder private var results: some View {
-        let ps = people, gs = groups, ts = threads, ls = lessons
-        if ps.isEmpty && gs.isEmpty && ts.isEmpty && ls.isEmpty {
+        let ps = people, gs = groups, ts = threads, ls = lessons, xs = textHits
+        if ps.isEmpty && gs.isEmpty && ts.isEmpty && ls.isEmpty && xs.isEmpty {
             VStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").font(.system(size: 22)).foregroundStyle(.tertiary)
                 Text(dir.loading ? "Henter personer…" : "Intet fundet for \"\(query)\"").font(Sz.f(12)).foregroundStyle(.secondary)
@@ -141,6 +147,12 @@ struct PanelSearch: View {
                         Text("\(t.sender) · \(t.when.shortWhen)").font(Sz.f(10.5)).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
+            }
+        }
+        if !xs.isEmpty {
+            SectionHeader(title: "I beskeder og filer")
+            ForEach(xs) { h in
+                row { remember(); state.openMessages(thread: h.thread) } content: { TextHitRow(h: h, q: q, compact: true) }
             }
         }
         if !ls.isEmpty {
@@ -291,3 +303,38 @@ struct PanelPersonCard: View {
 
     private func open(_ s: String) { if let u = URL(string: s.replacingOccurrences(of: " ", with: "")) { NSWorkspace.shared.open(u) } }
 }
+
+/// A word found inside a message or one of its PDFs: where, and the words around it with the match in bold.
+struct TextHitRow: View {
+    let h: RosterStore.TextHit
+    let q: String
+    var compact = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: compact ? 10 : 8) {
+            Image(systemName: h.file == nil ? "text.bubble" : "doc.text")
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.accentColor)
+                .frame(width: compact ? 26 : 28, height: compact ? 26 : 28)
+                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(h.file.map { ($0 as NSString).deletingPathExtension } ?? h.subject)
+                    .font(compact ? Sz.f(13, .medium) : .system(size: 12, weight: .semibold)).lineLimit(1)
+                Text(marked).font(compact ? Sz.f(10.5) : .system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                if h.file != nil {
+                    Text("I \"\(h.subject)\"").font(compact ? Sz.f(10) : .system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var marked: AttributedString {
+        var a = AttributedString(h.snippet)
+        if let r = a.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) {
+            a[r].inlinePresentationIntent = .stronglyEmphasized
+            a[r].foregroundColor = .primary
+        }
+        return a
+    }
+}
+

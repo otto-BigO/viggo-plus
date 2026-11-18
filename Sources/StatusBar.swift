@@ -403,11 +403,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                           file: 0, thread: 0, fileName: "x.pdf", from: "")
                     print("[vagt] \((path as NSString).lastPathComponent): \(lines.count) linjer, \(hit.map { "\($0.title): \($0.summary), \($0.slots.count) gange: " + $0.slots.map { f.string(from: $0.start) + "-" + DateUtil.hm($0.end) }.joined(separator: ", ") } ?? "ikke på listen")")
                 }
+                // Rooms: VIGGO_ROSTER_ROOM="Buen/B8" reads the cached PDFs as if that were your room.
+                if let r = ProcessInfo.processInfo.environment["VIGGO_ROSTER_ROOM"]?.split(separator: "/").map(String.init), r.count == 2 {
+                    let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("ViggoPlus/Filer")
+                    for file in ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).sorted() where file.hasSuffix(".pdf") {
+                        guard let doc = PDFDocument(url: dir.appendingPathComponent(file)) else { continue }
+                        if let h = Roster.findRoom(house: r[0], room: r[1], lines: Roster.lines(doc), message: "", subject: "Nye rengøringsområder", posted: posted,
+                                                   file: 0, thread: 0, fileName: file) {
+                            print("[vagt] værelse \(r[1]) i \(file): \(h.title): \(h.summary), \(h.slots.count) gange: " + h.slots.prefix(6).map { f.string(from: $0.start) }.joined(separator: ", "))
+                        }
+                    }
+                }
                 CookieJar.restore()
                 for d in Inbox.shared.details.values where d.messages.contains(where: { $0.files.contains { $0.name.lowercased().hasSuffix(".pdf") } }) {
                     await RosterStore.shared.check(d)
                     let hits = RosterStore.shared.hits[d.id] ?? []
                     print("[vagt] tråd \(d.id) \"\(d.subject)\": \(hits.isEmpty ? "ikke på listen" : hits.map { "\($0.title): \($0.summary), \($0.slots.count) gange, \($0.upcoming().count) kommende" }.joined(separator: "; "))")
+                }
+                for q in [ProcessInfo.processInfo.environment["VIGGO_TEXT_QUERY"] ?? "støvsuge", "13.00"] {
+                    let r = RosterStore.shared.search(q)
+                    print("[vagt] søg \"\(q)\": \(r.count) fund: " + r.prefix(4).map { "\($0.file ?? "besked") i \"\($0.subject)\": \($0.snippet.prefix(70))" }.joined(separator: " | "))
                 }
                 // The card with a made-up hit, before and after "Sæt i skema" (only made-up names and days).
                 if let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] {

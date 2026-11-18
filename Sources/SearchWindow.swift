@@ -34,6 +34,8 @@ struct SearchWindow: View {
     @State private var lessons: [ViggoEvent] = []
     @State private var homework: [Homework] = []
     @State private var posts: [Bulletin] = []
+    /// Words inside read messages and their PDFs.
+    @State private var textHits: [RosterStore.TextHit] = []
     private var recent: [String] { recentRaw.split(separator: "\n").map(String.init) }
 
     private var threads: [MessageThread] {
@@ -41,14 +43,15 @@ struct SearchWindow: View {
         return localThreads + found.filter { seen.insert($0.id).inserted }
     }
     private var nothing: Bool {
-        people.isEmpty && groups.isEmpty && threads.isEmpty && lessons.isEmpty && homework.isEmpty && posts.isEmpty
+        people.isEmpty && groups.isEmpty && threads.isEmpty && lessons.isEmpty && homework.isEmpty && posts.isEmpty && textHits.isEmpty
     }
 
     private func compute() {
         people = dir.search(q)
         groups = Array(dir.searchGroups(q).prefix(6))
-        guard !q.isEmpty else { localThreads = []; lessons = []; homework = []; posts = []; return }
+        guard !q.isEmpty else { localThreads = []; lessons = []; homework = []; posts = []; textHits = []; return }
         localThreads = inbox.threads.filter { "\($0.sender) \($0.subject) \($0.preview)".lowercased().contains(q) }
+        textHits = RosterStore.shared.search(q, limit: 15)
         guard q.count >= 2 else { lessons = []; homework = []; posts = []; return }
         let now = Date()
         lessons = state.events.filter { e in
@@ -198,6 +201,13 @@ struct SearchWindow: View {
                 ForEach(threads.prefix(20)) { t in MacFoundThreadRow(t: t, q: q).tag(Found.thread(t.id)) }
             } header: {
                 HStack { Text("Beskeder"); if searchingViggo { ProgressView().controlSize(.mini) } }
+            }
+        }
+        if !textHits.isEmpty {
+            Section("I beskeder og filer") {
+                ForEach(textHits) { h in
+                    Button { state.openMessages(thread: h.thread) } label: { TextHitRow(h: h, q: q) }.buttonStyle(.plain)
+                }
             }
         }
         if !lessons.isEmpty {

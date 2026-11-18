@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.27.0 og iPhone-app 1.17.0 (2026-11-18)
+
+- **Søg i beskeder og filer**: søgningen i panelet og i Søg-vinduet finder nu også ord inde i teksten på de beskeder du har læst, og inde i deres PDF'er. Skriv fx "støvsuge" eller "13.00", så står fundene under "I beskeder og filer" med ordene omkring og det fundne ord med fed. Klik for at åbne tråden.
+- **Dit værelse i lister**: rengøringslister skriver tit værelset ("Buen 4 a", "B4a") i stedet for hele navnet. Viggo+ leder nu også efter dit hus og værelse og læser hvilke dage, hvilket klokkeslæt og om det er lige eller ulige uger. Kortet hedder fx "Rengøring: Store hal" og sætter de næste fire ugers gange i skemaet.
+- **Besked når du kommer på en liste**: finder Viggo+ dig på en ny liste, får du en notifikation med hvad og hvornår første gang er. Et tryk åbner tråden. Viggo+ læser kun tråde du allerede har læst (i Viggo+ eller på Viggo), fordi det at hente en ulæst tråd markerer den som læst.
+
 ## 1.26.0 og iPhone-app 1.16.0 (2026-11-18)
 
 - **Dit navn i vedhæftede lister**: åbner du en besked med en PDF, fx en køkkenholdsliste, læser Viggo+ den og leder efter dit navn. Står du på listen, kommer et kort øverst i tråden: "Du står på listen: Køkkenhold" med hvornår, og en knap der sætter alle gangene i skemaet på én gang. Viggo+ forstår både lister med uger ("Uge 49 + 52", "Uge 1 + weekenden", hvor dage og mødetid kommer fra beskeden) og lister med en overskrift over navnene ("Onsdag d. 11. november kl. 16.45"). Er alle gangene ovre, vises kortet ikke.
