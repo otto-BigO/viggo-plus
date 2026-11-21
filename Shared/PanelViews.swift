@@ -205,7 +205,7 @@ struct TimelineRow: View {
         let mins = Int(e.end.timeIntervalSince(e.start) / 60)
         return HStack(spacing: 10) {
             Text(DateUtil.hm(e.start)).font(Sz.mono(10.5))
-                .foregroundStyle(current ? Color.accentColor : Color.secondary.opacity(0.6))
+                .foregroundStyle(current ? Color.primary : Fomo.text2.opacity(0.7))
                 .frame(width: 42 * Sz.k, alignment: .leading)
             Text("Pause · \(mins) min").font(Sz.f(10.5, current ? .semibold : .regular)).foregroundStyle(current ? .secondary : .tertiary)
             Spacer()
@@ -235,8 +235,8 @@ struct TimelineRow: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(Capsule().fill(Color.accentColor.opacity(0.14)))
-                    .foregroundStyle(Color.accentColor)
+                    .background(Capsule().fill(Fomo.accent.opacity(0.16)))
+                    .foregroundStyle(Fomo.accent)
                 }
                 Spacer(minLength: 0)
                 Button("Detaljer") { AppState.shared.openLesson(e) }
@@ -245,7 +245,7 @@ struct TimelineRow: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.primary.opacity(0.05)))
+        .surface(10)
         .padding(.leading, 52 * Sz.k)
         .padding(.bottom, 2)
     }
@@ -281,7 +281,7 @@ struct TimelineRow: View {
                     .layoutPriority(1)
                 Spacer(minLength: 6)
                 if hasNote && !isFood {
-                    Image(systemName: expanded ? "chevron.up" : "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
+                    Image(systemName: expanded ? "chevron.up" : "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Fomo.accent)
                         .contentTransition(.symbolEffect(.replace))
                         .help(expanded ? "Skjul info" : "Der er info fra læreren")
                 }
@@ -330,52 +330,59 @@ struct NowCard: View {
     let now: Date
     let name: String?
 
-    private func mins(_ a: Date, _ b: Date) -> String {
+    /// The big number and the small word under it: "35" over "min tilbage", "1:05" over "timer tilbage".
+    private func count(_ a: Date, _ b: Date) -> (String, String) {
         let m = max(0, Int(b.timeIntervalSince(a) / 60.0 + 0.99))
-        return m >= 60 ? "\(m / 60) t \(m % 60) min" : "\(m) min"
+        return m >= 60 ? ("\(m / 60):" + String(format: "%02d", m % 60), "timer") : ("\(m)", "min")
+    }
+
+    private func bigNumber(_ v: (String, String), suffix: String) -> some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text(v.0).font(.system(size: 26 * Sz.k, weight: .semibold)).monospacedDigit()
+                .contentTransition(.numericText(countsDown: true))
+            Text("\(v.1) \(suffix)").font(Sz.f(10, .medium)).foregroundStyle(Fomo.text2)
+        }
+        .fixedSize()
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             if let c = current {
-                Text(name.map { "\($0) har nu" } ?? "Nu").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
-                HStack(alignment: .firstTextBaseline) {
-                    Text(c.shortTitle).font(Sz.f(17, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    Text("\(mins(now, c.end)) tilbage").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
-                        .contentTransition(.numericText(countsDown: true))
-                }
-                let frac = min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start))))
-                Capsule().fill(.primary.opacity(0.1)).frame(height: 4)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { g in Capsule().fill(c.subjectColor.gradient).frame(width: g.size.width * frac) }
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(name.map { "\($0) har nu" } ?? "Nu").font(Sz.f(10, .semibold)).foregroundStyle(Fomo.text2)
+                        Text(c.shortTitle).font(Sz.f(17, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                        if !c.room.isEmpty { Text(c.room).font(Sz.f(11)).foregroundStyle(Fomo.text2) }
                     }
-                    .clipShape(Capsule())
-                    .animation(.easeInOut(duration: 0.6), value: now)
+                    Spacer(minLength: 8)
+                    bigNumber(count(now, c.end), suffix: "tilbage")
+                }
+                GlideBar(start: c.start, end: c.end, now: now, color: c.subjectColor)
                 HStack {
-                    if !c.room.isEmpty { Label(c.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
-                    Spacer()
-                    Text("\(DateUtil.hm(c.start))–\(DateUtil.hm(c.end))").font(Sz.mono(11)).foregroundStyle(.secondary)
+                    Text(DateUtil.hm(c.start)); Spacer(); Text(DateUtil.hm(c.end))
                 }
+                .font(Sz.f(10, .medium)).monospacedDigit().foregroundStyle(Fomo.text2)
             } else if let n = next {
-                Text(name.map { "\($0) er fri" } ?? "Fri").font(Sz.f(10, .semibold)).foregroundStyle(.secondary)
-                HStack(alignment: .firstTextBaseline) {
-                    Text(n.shortTitle).font(Sz.f(17, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    Text("om \(mins(now, n.start))").font(Sz.f(12, .medium)).foregroundStyle(.secondary).fixedSize()
-                        .contentTransition(.numericText(countsDown: true))
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(name.map { "\($0) er fri" } ?? "Fri").font(Sz.f(10, .semibold)).foregroundStyle(Fomo.text2)
+                        Text(n.shortTitle).font(Sz.f(17, .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                        Text(n.room.isEmpty ? "kl. \(DateUtil.hm(n.start))" : "kl. \(DateUtil.hm(n.start)) · \(n.room)")
+                            .font(Sz.f(11)).monospacedDigit().foregroundStyle(Fomo.text2)
+                    }
+                    Spacer(minLength: 8)
+                    bigNumber(count(now, n.start), suffix: "til start")
                 }
-                if !n.room.isEmpty { Label(n.room, systemImage: "mappin").font(Sz.f(11)).foregroundStyle(.secondary) }
             } else {
-                Text(name.map { "\($0) har fri resten af dagen" } ?? "Fri resten af dagen 🎉").font(Sz.f(15, .semibold))
+                Text(name.map { "\($0) har fri resten af dagen" } ?? "Fri resten af dagen").font(Sz.f(15, .semibold))
             }
             if let info = (current ?? next).flatMap({ $0.hasInfo ? $0 : nil }) {
                 Button { AppState.shared.openLesson(info) } label: {
                     HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Color.accentColor)
+                        Image(systemName: "text.alignleft").font(Sz.f(10, .bold)).foregroundStyle(Fomo.accent)
                             .padding(.top, 2)
                         Text(info.notes.replacingOccurrences(of: "\n", with: " "))
-                            .font(Sz.f(11)).foregroundStyle(.secondary).lineLimit(1)
+                            .font(Sz.f(11)).foregroundStyle(Fomo.text2).lineLimit(1)
                             .multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
                     }
@@ -385,25 +392,17 @@ struct NowCard: View {
                 .help("Se info fra læreren")
             }
             if current != nil, let n = next {
-                Divider().opacity(0.5).padding(.vertical, 1)
                 HStack {
-                    Text("Næste").font(Sz.f(11)).foregroundStyle(.secondary)
+                    Text("Næste").font(Sz.f(11)).foregroundStyle(Fomo.text2)
                     Text(n.shortTitle).font(Sz.f(12, .medium)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     Spacer()
-                    Text(DateUtil.hm(n.start)).font(Sz.mono(12)).foregroundStyle(.secondary)
+                    Text(DateUtil.hm(n.start)).font(Sz.f(12, .medium)).monospacedDigit().foregroundStyle(Fomo.text2)
                 }
+                .padding(.top, 2)
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 10)
-        .background {
-            let tint = (current ?? next)?.subjectColor
-            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.primary.opacity(0.05))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).fill((tint ?? .clear).opacity(current != nil ? 0.10 : 0.05)))
-                .overlay(alignment: .leading) {
-                    if let tint { Capsule().fill(tint).frame(width: 3).padding(.vertical, 10).padding(.leading, 4) }
-                }
-        }
-        .animation(.viggo, value: now)
+        .padding(.horizontal, 13).padding(.vertical, 11)
+        .surface(12)
         .animation(.viggo, value: current?.id)
     }
 }
@@ -422,10 +421,10 @@ struct PersonChip: View {
                     .overlay {
                         if selected {
                             if let ring {
-                                Circle().stroke(Color.accentColor, lineWidth: 2).padding(-2.5)
+                                Circle().stroke(Fomo.accent, lineWidth: 2).padding(-2.5)
                                     .matchedGeometryEffect(id: "ring", in: ring)
                             } else {
-                                Circle().stroke(Color.accentColor, lineWidth: 2).padding(-2.5)
+                                Circle().stroke(Fomo.accent, lineWidth: 2).padding(-2.5)
                             }
                         }
                     }
@@ -452,6 +451,7 @@ struct DayPanel: View {
     let events: [ViggoEvent]
     let homework: [Homework]
     let now: Date
+    var friend: Friend? = nil
 
     var body: some View {
         let isMe = name == nil
@@ -471,18 +471,21 @@ struct DayPanel: View {
 
             if let name, p.friendsFreeTogether {
                 let gaps = state.freeTogether(with: events, now: now)
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "person.2.fill").foregroundStyle(.green)
+                HStack(alignment: .center, spacing: 10) {
+                    AvatarStack(faces: [state.profile.map { AvatarStack.Face(id: "me", url: $0.image, name: $0.name) },
+                                        friend.map { AvatarStack.Face(id: $0.id.uuidString, url: $0.image, name: $0.name) }].compactMap { $0 },
+                                size: 24)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Fri sammen med \(name)").font(Sz.f(12, .semibold))
                         Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen" : gapText(gaps))
-                            .font(Sz.mono(11)).foregroundStyle(.secondary)
+                            .font(Sz.f(11, gaps.isEmpty ? .regular : .medium)).monospacedDigit()
+                            .foregroundStyle(gaps.isEmpty ? Fomo.text2 : Fomo.green)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    Spacer(minLength: 0)
                 }
                 .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.green.opacity(0.08)))
+                .surface(12)
             }
 
             if isMe, p.panelBirthdays, !state.birthdaysToday.isEmpty {
@@ -537,7 +540,7 @@ struct DayPanel: View {
                                 if isMe && p.panelHomeworkTick { state.toggleHomework(h) }
                             } label: {
                                 Image(systemName: h.done ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(h.done ? .green : .secondary)
+                                    .foregroundStyle(h.done ? Fomo.green : Fomo.text2)
                                     .font(Sz.f(14))
                                     .contentTransition(.symbolEffect(.replace))
                                     .symbolEffect(.bounce, value: h.done)
@@ -547,7 +550,7 @@ struct DayPanel: View {
                             Text(h.title).font(Sz.f(13)).strikethrough(h.done).foregroundStyle(h.done ? .secondary : .primary).lineLimit(1)
                                 .onTapGesture { if isMe { Platform.open(h.link) } }
                             Spacer()
-                            Text(DateUtil.day(h.due)).font(Sz.f(11)).foregroundStyle(.tertiary)
+                            Text(DateUtil.day(h.due)).font(Sz.f(11)).monospacedDigit().foregroundStyle(Fomo.text2)
                         }
                         .animation(.viggo, value: h.done)
                     }
@@ -592,7 +595,7 @@ struct DayPanel: View {
             if isMe, state.questionnaireCount > 0 {
                 Button { state.openViggo(URL(string: "/Shared/Questionnaire/Questionnaires", relativeTo: Config.baseURL)!.absoluteURL) } label: {
                     HStack {
-                        Image(systemName: "list.clipboard.fill").foregroundStyle(.orange)
+                        Image(systemName: "list.clipboard.fill").foregroundStyle(Fomo.accent)
                         Text("\(state.questionnaireCount) spørgeskema\(state.questionnaireCount == 1 ? "" : "er") venter på dig").font(Sz.f(12))
                         Spacer()
                         Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(.tertiary)
@@ -757,10 +760,21 @@ struct FriendsNow: View {
     let now: Date
 
     private func status(_ f: Friend) -> (String, Bool) { state.friendStatus(f, now: now) }
+    private func face(_ f: Friend) -> AvatarStack.Face { .init(id: f.id.uuidString, url: f.image, name: f.name) }
 
     var body: some View {
+        let freeNow = state.friends.filter { !state.friendExpired.contains($0.id) && status($0).1 }
         VStack(alignment: .leading, spacing: 7) {
-            SectionHeader(title: "Venner nu")
+            HStack(alignment: .lastTextBaseline) {
+                SectionHeader(title: "Venner nu")
+                Spacer()
+                if !freeNow.isEmpty {
+                    HStack(spacing: 5) {
+                        Text("\(freeNow.count) fri").font(Sz.f(10, .semibold)).monospacedDigit().foregroundStyle(Fomo.green)
+                        AvatarStack(faces: freeNow.map(face), size: 16, ring: Fomo.bg)
+                    }
+                }
+            }
             ForEach(state.friends) { f in
                 let (text, free) = status(f)
                 let expired = state.friendExpired.contains(f.id)
@@ -768,8 +782,8 @@ struct FriendsNow: View {
                     Avatar(url: f.image, size: 20, name: f.name).opacity(expired ? 0.4 : 1)
                     Text(f.firstName).font(Sz.f(12, .medium))
                     Spacer()
-                    Circle().fill(free ? Color.green : Color.orange).frame(width: 6, height: 6)
-                    Text(expired ? "Skal logge ind" : text).font(Sz.f(11)).foregroundStyle(.secondary).lineLimit(1)
+                    Circle().fill(expired ? Fomo.red : free ? Fomo.green : Fomo.text2.opacity(0.5)).frame(width: 6, height: 6)
+                    Text(expired ? "Skal logge ind" : text).font(Sz.f(11)).foregroundStyle(Fomo.text2).lineLimit(1)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { withAnimation(.viggo) { state.selectedFriend = f.id } }
@@ -778,12 +792,13 @@ struct FriendsNow: View {
             if state.friends.count >= 2, Prefs.shared.friendsFreeTogether, DateUtil.cal.component(.hour, from: now) < 18 {
                 let group = state.freeGroup
                 let gaps = state.groupFree(now: now)
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "person.3.fill").foregroundStyle(.green).font(Sz.f(11))
+                HStack(alignment: .center, spacing: 10) {
+                    AvatarStack(faces: group.map(face), size: 22)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Alle fri: \(group.map(\.firstName).joined(separator: ", "))").font(Sz.f(11, .semibold)).lineLimit(1)
                         Text(gaps.isEmpty ? "Ingen fælles fritid resten af skoledagen" : gapText(gaps))
-                            .font(Sz.mono(10)).foregroundStyle(.secondary)
+                            .font(Sz.f(10.5, gaps.isEmpty ? .regular : .medium)).monospacedDigit()
+                            .foregroundStyle(gaps.isEmpty ? Fomo.text2 : Fomo.green)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
@@ -794,9 +809,10 @@ struct FriendsNow: View {
                         }
                     } label: { Image(systemName: "slider.horizontal.3") }
                         .menuStyle(.borderlessButton).fixedSize()
+                        .help("Vælg hvem der tæller med")
                 }
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.green.opacity(0.08)))
+                .padding(9)
+                .surface(12)
             }
         }
     }
@@ -820,9 +836,11 @@ struct SkoleITFields: View {
             #endif
         SecureField("Adgangskode", text: $pass)
             .onSubmit(save)
-        Button(button, action: save)
+        // When it can't be pressed, the button says what is missing.
+        let noUser = user.trimmingCharacters(in: .whitespaces).isEmpty
+        Button(noUser ? "Skriv dit brugernavn" : pass.isEmpty ? "Skriv din adgangskode" : button, action: save)
             .buttonStyle(.borderedProminent)
-            .disabled(user.trimmingCharacters(in: .whitespaces).isEmpty || pass.isEmpty)
+            .disabled(noUser || pass.isEmpty)
     }
 
     private func save() {

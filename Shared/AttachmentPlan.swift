@@ -397,16 +397,17 @@ struct RosterCard: View {
         return HStack(spacing: 10) {
             Image(systemName: on ? "calendar.badge.checkmark" : "person.text.rectangle")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(on ? Color.green : Color.accentColor)
+                .foregroundStyle(on ? Fomo.green : Fomo.accent)
                 .frame(width: 30, height: 30)
-                .background(Circle().fill((on ? Color.green : Color.accentColor).opacity(0.12)))
+                .background(Circle().fill(Fomo.surface2))
             VStack(alignment: .leading, spacing: 1) {
                 Text(on ? "\(h.title) står i dit skema" : "Du står på listen: \(h.title)")
                     .font(.subheadline.weight(.semibold))
-                Text(h.summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Text(h.summary).font(.caption).foregroundStyle(Fomo.text2).lineLimit(2)
             }
             Spacer(minLength: 4)
             Button(on ? "Fjern" : slots.count == 1 ? "Sæt i skema" : "Sæt i skema (\(slots.count))") {
+                let before = p.planned
                 withAnimation(.viggo) {
                     if on {
                         p.planned.removeAll { i in i.title == h.title && slots.contains { abs($0.start.timeIntervalSince(i.start)) < 60 } }
@@ -416,19 +417,19 @@ struct RosterCard: View {
                         }
                     }
                 }
+                Haptic.tap()
+                let n = slots.count
+                StatusPill.shared.done(on ? "Fjernet fra skemaet" : n == 1 ? "Sat i skema" : "\(n) gange sat i skema") {
+                    withAnimation(.viggo) { Prefs.shared.planned = before }
+                }
             }
             .font(.caption.weight(.semibold))
             .buttonStyle(.bordered)
-            .tint(on ? .secondary : .accentColor)
+            .tint(on ? .secondary : Fomo.accent)
             .controlSize(.small)
         }
         .padding(10)
-        .background {
-            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.background)
-            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.accentColor.opacity(0.07))
-        }
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.accentColor.opacity(0.2)))
+        .surface(14)
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }

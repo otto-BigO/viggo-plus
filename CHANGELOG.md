@@ -1,5 +1,18 @@
 # Ændringer
 
+## 1.28.0 og iPhone-app 1.18.0 (2026-11-21)
+
+- **Nyt udseende**: én mørk baggrund og flade kort uden kanter og skygger, i panelet, uge-overblikket, Beskeder og på iPhone. Farverne betyder noget: blå er noget du kan trykke på, grøn er klaret eller godt, rød er aflyst eller et problem. Resten er hvidt og gråt.
+- **Nu-kortet**: et stort tal med hvor mange minutter der er tilbage, og en bjælke der glider med uret i stedet for at hoppe hvert minut. Når timen ikke er begyndt, står der hvor længe der er til start.
+- **Statuspille øverst**: krydser du en lektie af, ses det med det samme, og en pille øverst skifter fra "Markerer..." til "Lektie klaret" med en Fortryd-knap. Det samme gælder synk, "Sæt i skema" og "Fjern fra skemaet". Siger Viggo nej, går fluebenet tilbage og pillen bliver rød.
+- **Pladsholdere i stedet for snurrende hjul**: Beskeder, Søg og personer viser grå rækker i den rigtige form, mens de henter.
+- **Knapper der siger hvorfor**: en knap der ikke kan trykkes på, skriver hvad der mangler, fx "Skriv en titel først", "Skriv din adgangskode" eller "iPhonen er ikke tilsluttet".
+- **Ansigter i stedet for ikoner**: "Fri sammen med" og "Alle fri" viser jeres billeder oven på hinanden, og "Venner nu" viser hvem der har fri lige nu.
+- **Uge-overblikket tegner sig selv ind**, kort og stille, dag for dag. Slået fra når Reducer bevægelse er slået til.
+- **Udseende og haptik**: en ny side i Indstillinger, hvor du kan slå haptik og animationer fra. På Mac mærkes et lille tryk i en Force Touch-trackpad, når du krydser en lektie af.
+- **iPhone spørger om notifikationer på et bedre tidspunkt**: ikke længere når appen starter første gang, men i introduktionen, hvor du vælger hvad du vil have besked om. De nyttige er slået til, morgen- og aftenbriefen er slået fra. Under Notifikationer står der, hvis de er slået fra, med én knap der ordner det.
+- **Rettet**: på macOS 27 kunne panelet få appen til at lukke, så snart det blev åbnet. SwiftUI blev ved med at regne vinduets størrelse om, til AppKit gav op.
+
 ## 1.27.0 og iPhone-app 1.17.0 (2026-11-18)
 
 - **Søg i beskeder og filer**: søgningen i panelet og i Søg-vinduet finder nu også ord inde i teksten på de beskeder du har læst, og inde i deres PDF'er. Skriv fx "støvsuge" eller "13.00", så står fundene under "I beskeder og filer" med ordene omkring og det fundne ord med fed. Klik for at åbne tråden.

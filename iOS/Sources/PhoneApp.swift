@@ -64,7 +64,9 @@ struct RootView: View {
                     .zIndex(1)
             }
         }
+        .tint(Fomo.accent)
         .modifier(LoginCardOverlay())
+        .overlay(alignment: .top) { StatusPillView().padding(.top, 2) }
         .overlay(alignment: .bottom) {
             // Logins the app runs by itself show here, small and centred just above the tabs,
             // instead of the sign-in card.

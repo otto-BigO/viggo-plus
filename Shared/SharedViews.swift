@@ -68,25 +68,30 @@ struct WeekGrid: View {
                         HStack(alignment: .firstTextBaseline, spacing: 5) {
                             Text(DateUtil.weekdayF.string(from: d).capitalized).font(.system(size: 13, weight: .semibold))
                             Text("\(DateUtil.cal.component(.day, from: d)).").font(.system(size: 13))
-                                .foregroundStyle(today ? Color.white : .secondary)
+                                .monospacedDigit()
+                                .foregroundStyle(today ? Color.white : Fomo.text2)
                                 .padding(.horizontal, today ? 6 : 0).padding(.vertical, today ? 1 : 0)
-                                .background(Capsule().fill(today ? Color.accentColor : .clear))
+                                .background(Capsule().fill(today ? Fomo.accent : .clear))
                         }
                         ForEach(Array(notes(d).enumerated()), id: \.offset) { _, n in
                             Label(n.text, systemImage: n.icon)
-                                .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                                .font(.system(size: 11)).foregroundStyle(Fomo.text2).lineLimit(2)
                                 .help(n.help)
                         }
                         ForEach(homework(d)) { hw in
-                            Label(hw.title, systemImage: hw.done ? "checkmark.circle.fill" : "book.closed")
-                                .font(.system(size: 11)).foregroundStyle(hw.done ? .secondary : .primary).lineLimit(2)
+                            Label {
+                                Text(hw.title).foregroundStyle(hw.done ? Fomo.text2 : .primary)
+                            } icon: {
+                                Image(systemName: hw.done ? "checkmark.circle.fill" : "book.closed")
+                                    .foregroundStyle(hw.done ? Fomo.green : Fomo.text2)
+                            }
+                            .font(.system(size: 11)).lineLimit(2)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 6).padding(.bottom, 6)
                 }
             }
-            Divider()
             ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 6) {
@@ -94,15 +99,15 @@ struct WeekGrid: View {
                     VStack(alignment: .trailing, spacing: 0) {
                         ForEach(Array(h), id: \.self) { hr in
                             Text(String(format: "%02d:00", hr)).font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Fomo.text2.opacity(0.7))
                                 .frame(height: hourHeight, alignment: .top)
                                 .offset(y: -6)
                                 .id(hr)
                         }
                     }
                     .frame(width: gutter, alignment: .trailing)
-                    ForEach(days, id: \.self) { d in
-                        DayGridColumn(day: d, items: items(d), hours: h, hourHeight: hourHeight)
+                    ForEach(Array(days.enumerated()), id: \.element) { i, d in
+                        DayGridColumn(day: d, items: items(d), hours: h, hourHeight: hourHeight, index: i)
                     }
                 }
                 .padding(.top, 8)
@@ -123,6 +128,8 @@ struct DayGridColumn: View {
     let items: [ViggoEvent]
     let hours: ClosedRange<Int>
     let hourHeight: CGFloat
+    /// Which day of the week, so the blocks draw in one day after the other.
+    var index = 0
 
     private var top: Date { DateUtil.cal.date(bySettingHour: hours.lowerBound, minute: 0, second: 0, of: day)! }
     private var bottom: Date {
@@ -163,14 +170,15 @@ struct DayGridColumn: View {
             ZStack(alignment: .topLeading) {
                 // Hour lines
                 ForEach(Array(hours), id: \.self) { hr in
-                    Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1)
+                    Rectangle().fill(Color.primary.opacity(0.05)).frame(height: 1)
                         .offset(y: CGFloat(hr - hours.lowerBound) * hourHeight)
                 }
-                ForEach(laid, id: \.e.id) { item in
+                ForEach(Array(laid.enumerated()), id: \.element.e.id) { n, item in
                     let s = max(item.e.start, top), en = min(item.e.end, bottom)
                     let w = (geo.size.width - CGFloat(item.lanes - 1) * 3) / CGFloat(item.lanes)
                     GridBlock(e: item.e, height: max(item.e.kind == .pause ? 6 : item.e.kind == .routine ? 13 : 20, y(en) - y(s) - 2))
                         .frame(width: w)
+                        .drawIn(delay: min(0.3, Double(index) * 0.035 + Double(n) * 0.012), y: 6)
                         .offset(x: CGFloat(item.lane) * (w + 3), y: y(s) + 1)
                 }
                 // Now line, moved every minute
@@ -178,9 +186,8 @@ struct DayGridColumn: View {
                     TimelineView(.everyMinute) { ctx in
                         if ctx.date > top, ctx.date < bottom {
                             HStack(spacing: 0) {
-                                Circle().fill(.red).frame(width: 8, height: 8)
-                                    .shadow(color: .red.opacity(0.5), radius: 3)
-                                Rectangle().fill(.red).frame(height: 1.5)
+                                Circle().fill(Fomo.accent).frame(width: 8, height: 8)
+                                Rectangle().fill(Fomo.accent).frame(height: 1.5)
                             }
                             .offset(x: -4, y: y(ctx.date) - 4)
                         }
@@ -190,8 +197,7 @@ struct DayGridColumn: View {
             }
         }
         .frame(height: height)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(today ? Color.accentColor.opacity(0.06) : Color.primary.opacity(0.025)))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Fomo.surface))
         .frame(maxWidth: .infinity)
     }
 }
@@ -335,7 +341,9 @@ struct AccountTab: View {
                         Label(SkoleITLogin.username ?? "", systemImage: "key.fill")
                             .symbolEffect(.bounce, value: saved)
                         Spacer()
-                        if state.autoLoginRunning { ProgressView().controlSize(.small) }
+                        if state.autoLoginRunning {
+                            HStack(spacing: 5) { SpinRing().frame(width: 11, height: 11); Text("Logger ind...").font(.caption).foregroundStyle(Fomo.text2) }
+                        }
                         if state.needsLogin {
                             Button("Log ind") { Task { if await state.tryAutoLogin(force: true) { await state.sync() } } }
                                 .buttonStyle(.borderedProminent).disabled(state.autoLoginRunning)
@@ -537,7 +545,7 @@ struct FriendPicker: View {
                 }
             }
         }
-        if dir.members.isEmpty, dir.loading { ProgressView().controlSize(.small) }
+        if dir.members.isEmpty, dir.loading { SkeletonRows(count: 3, avatar: 24) }
     }
 }
 
@@ -660,6 +668,9 @@ struct NotificationsTab: View {
     @ObservedObject var p = Prefs.shared
     var body: some View {
         Form {
+            #if os(iOS)
+            NotifyStatusRow()
+            #endif
             Section("Giv besked om") {
                 Toggle("Flyttede eller aflyste timer", isOn: $p.notifyChanges)
                 Toggle("Nye lektier", isOn: $p.notifyHomework)
@@ -731,7 +742,7 @@ struct OfflineBanner: View {
                         .font(compact ? .system(size: 10) : .caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
-                if state.syncing { ProgressView().controlSize(.small) }
+                if state.syncing { SpinRing().frame(width: 13, height: 13) }
                 else {
                     Button("Prøv igen") { Task { await state.sync() } }
                         .font(compact ? .system(size: 11, weight: .medium) : .caption.weight(.semibold))

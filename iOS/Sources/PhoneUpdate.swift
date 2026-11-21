@@ -139,10 +139,10 @@ struct UpdateCard: View {
 
     var body: some View {
         if let a = u.arrived {
-            card(icon: "sparkles", tint: .purple, title: "Nyt i Viggo+ \(a.version)", notes: a.notes,
+            card(icon: "sparkles", tint: Fomo.accent, title: "Nyt i Viggo+ \(a.version)", notes: a.notes,
                  footer: nil, close: { withAnimation(.viggo) { u.dismissArrived() } })
         } else if let w = u.waiting {
-            card(icon: "arrow.down.circle.fill", tint: .blue, title: "Viggo+ \(w.version) er på vej", notes: w.notes,
+            card(icon: "arrow.down.circle.fill", tint: Fomo.accent, title: "Viggo+ \(w.version) er på vej", notes: w.notes,
                  footer: "Din Mac lægger den på iPhonen, næste gang den er på samme wifi eller sat til med kabel.", close: nil)
         }
     }
@@ -167,7 +167,7 @@ struct UpdateCard: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(tint.opacity(0.1)))
+        .surface(18)
     }
 
     private struct NoteLabel: LabelStyle {
@@ -202,9 +202,9 @@ struct UpdateTab: View {
                     }
                 } label: {
                     HStack {
-                        Text("Tjek nu")
+                        Text(checking ? "Tjekker..." : "Tjek nu")
                         Spacer()
-                        if checking { ProgressView() }
+                        if checking { SpinRing().frame(width: 14, height: 14) }
                     }
                 }
                 .disabled(checking)

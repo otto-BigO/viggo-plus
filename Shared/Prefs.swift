@@ -78,6 +78,12 @@ final class Prefs: ObservableObject {
     @Published var deadlineRadar: Bool { didSet { d.set(deadlineRadar, forKey: "deadlineRadar") } }
     @Published var morningHour: Int { didSet { d.set(morningHour, forKey: "morningHour") } }
     @Published var eveningHour: Int { didSet { d.set(eveningHour, forKey: "eveningHour") } }
+    /// Small taps on the iPhone (and the trackpad on a Mac) when you tick off homework and the like.
+    @Published var haptics: Bool { didSet { d.set(haptics, forKey: "haptics") } }
+    /// Things that draw themselves in when a screen opens. Off also when Reduce Motion is on.
+    @Published var drawIn: Bool { didSet { d.set(drawIn, forKey: "drawIn") } }
+    /// iPhone: our own question about notifications has been shown (once, at a moment it makes sense).
+    @Published var askedNotifications: Bool { didSet { d.set(askedNotifications, forKey: "askedNotifications") } }
 
     private init() {
         d.register(defaults: [
@@ -86,7 +92,7 @@ final class Prefs: ObservableObject {
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "notifySeen": true, "briefs": true,
             "homeworkReminder": true, "packReminder": true, "deadlineRadar": true, "homeworkReminderAt": 19 * 60,
-            "morningHour": 7, "eveningHour": 20,
+            "morningHour": 7, "eveningHour": 20, "haptics": true, "drawIn": true, "askedNotifications": false,
         ])
         username = d.string(forKey: "username") ?? ""
         panelNow = d.bool(forKey: "panelNow")
@@ -149,5 +155,8 @@ final class Prefs: ObservableObject {
         deadlineRadar = d.bool(forKey: "deadlineRadar")
         morningHour = d.integer(forKey: "morningHour")
         eveningHour = d.integer(forKey: "eveningHour")
+        haptics = d.bool(forKey: "haptics")
+        drawIn = d.bool(forKey: "drawIn")
+        askedNotifications = d.bool(forKey: "askedNotifications")
     }
 }

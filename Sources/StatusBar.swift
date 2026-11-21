@@ -123,7 +123,14 @@ final class PanelController: NSObject {
         host = h
         let p = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: 320, height: 600),
                          styleMask: [.borderless, .fullSizeContentView], backing: .buffered, defer: false)
-        p.contentView = h
+        // The SwiftUI view sits inside a plain view instead of being the window's content view.
+        // As the content view, SwiftUI kept setting the window's min and max size on every layout
+        // pass, and with a tall day on macOS 27 that ran into AppKit's layout limit and crashed.
+        let box = NSView(frame: p.contentRect(forFrameRect: p.frame))
+        h.frame = box.bounds
+        h.autoresizingMask = [.width, .height]
+        box.addSubview(h)
+        p.contentView = box
         p.isFloatingPanel = true
         p.level = .statusBar
         p.backgroundColor = .clear
@@ -167,10 +174,10 @@ struct PanelCard: View {
         VStack(spacing: 0) {
             MenuView().environmentObject(AppState.shared)
                 .layoutPriority(1)
-                .background(VisualEffect())
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.22), radius: 14, y: 6)
+                .background(Fomo.bg)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                // The one shadow left: it lifts the panel off the desktop, like a menu.
+                .shadow(color: .black.opacity(0.28), radius: 16, y: 6)
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { PanelController.shared.cardSize = $0 }
             Spacer(minLength: 0)
         }

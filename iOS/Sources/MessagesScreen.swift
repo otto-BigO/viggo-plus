@@ -321,7 +321,7 @@ struct ThreadScreen: View {
                                 Text("Sender").font(.caption2).foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 10).padding(.vertical, 6)
-                            .background(Capsule().fill(Color(.tertiarySystemFill)))
+                            .background(Capsule().fill(Fomo.surface2))
                             .frame(maxWidth: .infinity, alignment: .trailing).padding(.top, 3)
                             .transition(.scale(scale: 0.5, anchor: .trailing).combined(with: .opacity))
                             .accessibilityLabel("Sender")
@@ -456,7 +456,7 @@ struct ThreadScreen: View {
                         .font(.system(size: 15, weight: .semibold))
                         .contentTransition(.symbolEffect(.replace))
                         .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color(.tertiarySystemFill)))
+                        .background(Circle().fill(Fomo.surface2))
                 }
                 .onChange(of: kind) { Haptic.select() }
             }
@@ -929,7 +929,7 @@ struct ComposeScreen: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuller") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    if sending { ProgressView() }
+                    if sending { Text("Sender...").foregroundStyle(Fomo.text2) }
                     else { Button("Send") { Task { await send() } }.disabled(!ready).fontWeight(.semibold) }
                 }
             }
@@ -1020,7 +1020,7 @@ private struct ReadReceipt: View {
                 }
                 .padding(12)
                 .frame(maxWidth: 280)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Fomo.surface))
                 .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
             }
         }

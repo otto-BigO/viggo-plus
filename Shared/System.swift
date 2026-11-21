@@ -23,7 +23,11 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     func setup() {
         let c = UNUserNotificationCenter.current()
         c.delegate = self
+        #if os(macOS)
         c.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        #endif
+        // The iPhone asks at a moment it makes sense (the guide's notification step, or when you turn
+        // a notification on), with its own explanation first. See NotifyAsk.
         let reply = UNTextInputNotificationAction(identifier: "reply", title: "Svar", options: [],
                                                   textInputButtonTitle: "Send", textInputPlaceholder: "Skriv et svar")
         let read = UNNotificationAction(identifier: "read", title: "Marker som læst", options: [])

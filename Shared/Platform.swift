@@ -30,15 +30,17 @@ extension Platform {
     }
 }
 
-/// Small taps from the Taptic Engine on the iPhone. Does nothing on the Mac.
+/// Small taps from the Taptic Engine on the iPhone. On the Mac only a tick and a success are felt,
+/// through a Force Touch trackpad, and only while you are clicking. Off under Udseende og haptik.
 @MainActor
 enum Haptic {
+    static var on: Bool { Prefs.shared.haptics }
     static func tap() { impact(.light) }
     static func soft() { impact(.soft) }
     static func firm() { impact(.medium) }
     static func select() {
         #if os(iOS)
-        UISelectionFeedbackGenerator().selectionChanged()
+        if on { UISelectionFeedbackGenerator().selectionChanged() }
         #endif
     }
     static func success() { notify(.success) }
@@ -46,12 +48,18 @@ enum Haptic {
     static func error() { notify(.error) }
 
     #if os(iOS)
-    private static func impact(_ s: UIImpactFeedbackGenerator.FeedbackStyle) { UIImpactFeedbackGenerator(style: s).impactOccurred() }
-    private static func notify(_ t: UINotificationFeedbackGenerator.FeedbackType) { UINotificationFeedbackGenerator().notificationOccurred(t) }
+    private static func impact(_ s: UIImpactFeedbackGenerator.FeedbackStyle) { if on { UIImpactFeedbackGenerator(style: s).impactOccurred() } }
+    private static func notify(_ t: UINotificationFeedbackGenerator.FeedbackType) { if on { UINotificationFeedbackGenerator().notificationOccurred(t) } }
     #else
     private enum Style { case light, soft, medium }
     private enum Kind { case success, warning, error }
-    private static func impact(_ s: Style) {}
-    private static func notify(_ t: Kind) {}
+    private static func impact(_ s: Style) {
+        guard on, s == .light else { return }
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+    }
+    private static func notify(_ t: Kind) {
+        guard on, t == .success else { return }
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+    }
     #endif
 }

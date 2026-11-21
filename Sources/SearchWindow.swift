@@ -75,7 +75,9 @@ struct SearchWindow: View {
             }
             .overlay {
                 if !q.isEmpty, nothing, !searchingViggo, !dir.loading { ContentUnavailableView.search(text: query) }
-                else if dir.members.isEmpty, dir.loading { ProgressView("Henter personer") }
+                else if dir.members.isEmpty, dir.loading {
+                    SkeletonRows(count: 8, avatar: 30).padding(.horizontal, 14).frame(maxHeight: .infinity, alignment: .top)
+                }
             }
             .searchable(text: $query, placement: .sidebar, prompt: "Navn, klasse, værelse, besked…")
             .autocorrectionDisabled()
@@ -467,7 +469,7 @@ struct MacPersonView: View {
     var body: some View {
         Group {
             if let m = dir.member(id) { content(m) }
-            else if dir.loading { ProgressView() }
+            else if dir.loading { SkeletonRows(count: 4, avatar: 64).padding(24).frame(maxHeight: .infinity, alignment: .top) }
             else { ContentUnavailableView("Ikke fundet", systemImage: "person.slash", description: Text("Personen er ikke i Viggos adressebog.")) }
         }
         .overlay {
@@ -736,7 +738,7 @@ struct MacGroupView: View {
 
     var body: some View {
         Group {
-            if let g = dir.group(id) { content(g) } else { ProgressView() }
+            if let g = dir.group(id) { content(g) } else { SkeletonRows(count: 6, avatar: 30).padding(24).frame(maxHeight: .infinity, alignment: .top) }
         }
         .task { await dir.load() }
     }

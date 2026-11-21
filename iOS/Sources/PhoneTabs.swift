@@ -64,7 +64,7 @@ struct WeekBrowser<Header: View>: View {
             .gesture(DaySwipe(direction: .left) { move(days: 1) })
             .gesture(DaySwipe(direction: .right) { move(days: -1) })
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Fomo.bg)
     }
 
     private var strip: some View {
@@ -318,7 +318,7 @@ struct FriendsScreen: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(f.name).font(.body.weight(.medium))
                                         HStack(spacing: 5) {
-                                            Circle().fill(expired ? Color.gray : free ? .green : .orange).frame(width: 7, height: 7)
+                                            Circle().fill(expired ? Fomo.red : free ? Fomo.green : Fomo.text2.opacity(0.5)).frame(width: 7, height: 7)
                                             Text(expired ? "Skal logge ind igen" : text)
                                                 .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                                         }
@@ -366,7 +366,7 @@ struct FriendDayScreen: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(friend.name).font(.headline).foregroundStyle(.primary)
                         HStack(spacing: 5) {
-                            Circle().fill(expired ? Color.gray : free ? .green : .orange).frame(width: 7, height: 7)
+                            Circle().fill(expired ? Fomo.red : free ? Fomo.green : Fomo.text2.opacity(0.5)).frame(width: 7, height: 7)
                             Text(expired ? "Skal logge ind igen" : text).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }
@@ -374,13 +374,13 @@ struct FriendDayScreen: View {
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                 }
                 .padding(12)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Fomo.surface))
             }
             .buttonStyle(PressScale(scale: 0.97))
             .zoomSource(Found.person(friend.viggoID))
             if expired {
                 HStack {
-                    Text("\(friend.firstName) skal logge ind igen").font(.subheadline).foregroundStyle(.orange)
+                    Text("\(friend.firstName) skal logge ind igen").font(.subheadline).foregroundStyle(Fomo.red)
                     Spacer()
                     Button("Log ind igen") { state.addFriend(relogin: friend) }.controlSize(.small)
                 }
@@ -437,6 +437,7 @@ struct SettingsScreen: View {
                     NavigationLink { LessonsTab().navigationTitle("Timer") } label: { row("Timer", "paintpalette.fill", .pink) }
                     NavigationLink { CustomItemsTab().navigationTitle("Egne punkter") } label: { row("Egne punkter", "checklist", .green) }
                     NavigationLink { FriendsTab().navigationTitle("Venner") } label: { row("Venner", "person.2.fill", .blue) }
+                    NavigationLink { AppearanceTab().navigationTitle("Udseende og haptik") } label: { row("Udseende og haptik", "hand.tap.fill", .purple) }
                 }
                 Section {
                     NavigationLink { IconPicker().navigationTitle("App-ikon") } label: {

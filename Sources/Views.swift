@@ -67,11 +67,11 @@ struct MenuView: View {
             }
             .buttonStyle(.plain).foregroundStyle(.secondary).help("Åbn i det store søgevindue (↩)")
             Button("Færdig", action: toggleSearch)
-                .buttonStyle(.plain).font(Sz.f(12, .medium)).foregroundStyle(Color.accentColor)
+                .buttonStyle(.plain).font(Sz.f(12, .medium)).foregroundStyle(Fomo.accent)
                 .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
+        .surface(10)
     }
 
     private var headerTitle: String {
@@ -122,16 +122,18 @@ struct MenuView: View {
 
             if state.needsLogin {
                 HStack {
-                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Fomo.red)
                     Text("Du er logget ud af Viggo").font(Sz.f(12))
                     Spacer()
-                    Button("Log ind") { state.loginWithBrowser() }.buttonStyle(.borderedProminent).controlSize(.small)
+                    Button("Log ind igen") { state.loginWithBrowser() }.buttonStyle(.borderedProminent).controlSize(.small)
                 }
+                .padding(.horizontal, 10).padding(.vertical, 8)
+                .surface(10)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             OfflineBanner(compact: true)
             if !state.status.isEmpty, !searching {
-                Text(state.status).font(Sz.f(11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                Text(state.status).font(Sz.f(11)).foregroundStyle(Fomo.red).fixedSize(horizontal: false, vertical: true)
             }
 
             if !state.friends.isEmpty, updater.available != nil, !searching {
@@ -160,13 +162,13 @@ struct MenuView: View {
                     if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) {
                         if state.friendExpired.contains(f.id) {
                             HStack {
-                                Text("\(f.firstName) skal logge ind igen").font(Sz.f(11)).foregroundStyle(.orange)
+                                Text("\(f.firstName) skal logge ind igen").font(Sz.f(11)).foregroundStyle(Fomo.red)
                                 Spacer()
                                 Button("Log ind igen") { state.addFriend(relogin: f) }.controlSize(.small)
                             }
                         }
                         DayPanel(name: f.firstName, events: state.friendEvents[f.id] ?? [],
-                                 homework: state.friendHomework[f.id] ?? [], now: now)
+                                 homework: state.friendHomework[f.id] ?? [], now: now, friend: f)
                             .id(f.id)
                             .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
                     } else {
@@ -198,15 +200,20 @@ struct MenuView: View {
                                     removal: .move(edge: .leading).combined(with: .opacity)))
             }
 
-            HStack(spacing: 14) {
-                if let s = state.syncedText {
-                    Text(s).font(.system(size: 10)).foregroundStyle(.tertiary)
+            HStack(spacing: 13) {
+                // Short, so it never breaks in two next to the buttons: "Synket 13:38".
+                if let s = state.lastSync {
+                    Text(DateUtil.cal.isDateInToday(s) ? "Synket \(DateUtil.hm(s))" : DateUtil.cal.isDateInYesterday(s) ? "Synket i går" : "Synket \(DateUtil.day(s))")
+                        .font(.system(size: 10)).monospacedDigit().foregroundStyle(Fomo.text2.opacity(0.8))
+                        .lineLimit(1).fixedSize()
                         .contentTransition(.numericText())
+                        .help(state.syncedText ?? "")
                 }
                 Spacer()
-                Button { Task { await state.sync() } } label: { SyncIcon(spinning: state.syncing) }.help("Synk nu")
+                Button { Task { await state.syncWithPill() } } label: { SyncIcon(spinning: state.syncing) }
+                    .help(state.needsLogin ? "Log ind igen for at synke" : "Synk nu")
                 Button(action: toggleSearch) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(searching ? Color.accentColor : Color.secondary)
+                    Image(systemName: "magnifyingglass").foregroundStyle(searching ? Fomo.accent : Fomo.text2)
                 }
                 .help(searching ? "Tilbage til dagen (Esc)" : "Søg (⌘F)").keyboardShortcut("f")
                 Button { state.openWeek() } label: { Image(systemName: "calendar") }.help("Uge-overblik")
@@ -216,7 +223,7 @@ struct MenuView: View {
                             if state.unreadCount > 0 {
                                 Text("\(state.unreadCount)").font(.system(size: 8, weight: .bold)).foregroundStyle(.white)
                                     .padding(.horizontal, 3).frame(minWidth: 12, minHeight: 12)
-                                    .background(Capsule().fill(.red)).offset(x: 7, y: -6)
+                                    .background(Capsule().fill(Fomo.red)).offset(x: 7, y: -6)
                             }
                         }
                 }.help("Beskeder")
@@ -225,7 +232,7 @@ struct MenuView: View {
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }.help("Afslut")
             }
             .buttonStyle(PressScale(scale: 0.82))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Fomo.text2)
             .font(.system(size: 12))
             .padding(.top, 2)
         }
@@ -251,6 +258,8 @@ struct MenuView: View {
             print("[panelsøg] \(s): søger \(searching), mellemstykke \(Int(middle)) pt"); fflush(stdout)
         }
         .frame(width: MenuView.width)
+        .tint(Fomo.accent)
+        .overlay(alignment: .top) { StatusPillView(compact: true).padding(.top, 8) }
         .overlay(alignment: .bottomTrailing) { QuietLoginBadges(compact: true).padding(.trailing, 12).padding(.bottom, 38) }
     }
 }
@@ -258,7 +267,7 @@ struct MenuView: View {
 // MARK: - Settings (tabs)
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", timer = "Timer", egne = "Egne punkter", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner", iphone = "iPhone-app"
+    case konto = "Konto", generelt = "Generelt", panel = "Panel", menubar = "Menubar", timer = "Timer", egne = "Egne punkter", kalender = "Kalender", notifikationer = "Notifikationer", venner = "Venner", udseende = "Udseende og haptik", iphone = "iPhone-app"
     var id: String { rawValue }
     var slug: String {
         rawValue.lowercased().replacingOccurrences(of: "ø", with: "o").replacingOccurrences(of: "æ", with: "ae").replacingOccurrences(of: " ", with: "-")
@@ -274,6 +283,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .kalender: return "calendar"
         case .notifikationer: return "bell.badge.fill"
         case .venner: return "person.2.fill"
+        case .udseende: return "hand.tap.fill"
         case .iphone: return "iphone"
         }
     }
@@ -288,6 +298,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .kalender: return .orange
         case .notifikationer: return .red
         case .venner: return .blue
+        case .udseende: return .purple
         case .iphone: return .mint
         }
     }
@@ -385,6 +396,7 @@ struct SettingsView: View {
                 case .kalender: CalendarTab()
                 case .notifikationer: NotificationsTab()
                 case .venner: FriendsTab()
+                case .udseende: AppearanceTab()
                 case .iphone: PhoneTab()
                 }
                 }

@@ -70,7 +70,7 @@ struct TodayScreen: View {
                     UpdateCard()
                     if !state.status.isEmpty {
                         Label(state.status, systemImage: "exclamationmark.triangle.fill")
-                            .font(.subheadline).foregroundStyle(.orange)
+                            .font(.subheadline).foregroundStyle(Fomo.red)
                     }
 
                     // Until the first schedule arrives, show grey placeholders instead of
@@ -99,12 +99,12 @@ struct TodayScreen: View {
                     }
 
                     if p.panelBirthdays, !state.birthdaysToday.isEmpty {
-                        Banner(icon: "birthday.cake.fill", tint: .pink,
+                        Banner(icon: "birthday.cake.fill", tint: Fomo.text2,
                                text: "Fødselsdag i dag: \(state.birthdaysToday.joined(separator: ", "))")
                     }
                     if state.questionnaireCount > 0 {
                         Button { state.openViggo(URL(string: "/Shared/Questionnaire/Questionnaires", relativeTo: Config.baseURL)!.absoluteURL) } label: {
-                            Banner(icon: "list.clipboard.fill", tint: .orange, chevron: true,
+                            Banner(icon: "list.clipboard.fill", tint: Fomo.accent, chevron: true,
                                    text: "\(state.questionnaireCount) spørgeskema\(state.questionnaireCount == 1 ? "" : "er") venter på dig")
                         }
                         .buttonStyle(PressScale(scale: 0.98))
@@ -119,10 +119,10 @@ struct TodayScreen: View {
                     if let meal = state.meals[DateUtil.startOfDay(now)] {
                         Card(title: "Mad i dag", icon: "fork.knife") {
                             VStack(alignment: .leading, spacing: 10) {
-                                MealLine(when: "Middag", text: meal.lunch, icon: "sun.max.fill", tint: .orange)
+                                MealLine(when: "Middag", text: meal.lunch, icon: "sun.max.fill", tint: Fomo.text2)
                                 if let d = meal.dinner {
                                     Divider()
-                                    MealLine(when: "Aftensmad", text: d, icon: "moon.fill", tint: .indigo)
+                                    MealLine(when: "Aftensmad", text: d, icon: "moon.fill", tint: Fomo.text2)
                                 }
                             }
                         }
@@ -137,7 +137,7 @@ struct TodayScreen: View {
                     packCard
 
                     if p.panelDuty, !state.dutyTonight.isEmpty {
-                        Banner(icon: "person.badge.shield.checkmark.fill", tint: .indigo,
+                        Banner(icon: "person.badge.shield.checkmark.fill", tint: Fomo.text2,
                                text: "Aftenvagt: \(state.dutyTonight.joined(separator: ", "))")
                     }
 
@@ -229,7 +229,7 @@ struct TodayScreen: View {
                 .padding(.bottom, 28)
                 .animation(.viggo, value: current?.id)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Fomo.bg)
             .refreshable { await finish { await state.sync() } }
             .refreshIcon()
             .navigationDestination(for: Int.self) { ThreadScreen(id: $0) }
@@ -264,13 +264,13 @@ struct TodayScreen: View {
 
     private var loggedOut: some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.circle.fill").font(.title2).foregroundStyle(.orange)
+            Image(systemName: "exclamationmark.circle.fill").font(.title2).foregroundStyle(Fomo.red)
             Text("Du er logget ud af Viggo").font(.body.weight(.medium))
             Spacer()
-            Button("Log ind") { state.loginWithBrowser() }.buttonStyle(.borderedProminent)
+            Button("Log ind igen") { state.loginWithBrowser() }.buttonStyle(.borderedProminent)
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.orange.opacity(0.12)))
+        .surface(18)
     }
 }
 
@@ -334,107 +334,97 @@ private struct HeroCard: View {
     let now: Date
     let tomorrow: ViggoEvent?
 
-    private func mins(_ a: Date, _ b: Date) -> String {
+    /// The big number and the small word under it: "35" over "min tilbage", "1:05" over "timer tilbage".
+    private func count(_ a: Date, _ b: Date) -> (String, String) {
         let m = max(0, Int(b.timeIntervalSince(a) / 60.0 + 0.99))
-        return m >= 60 ? (m % 60 == 0 ? "\(m / 60) t" : "\(m / 60) t \(m % 60) min") : "\(m) min"
+        return m >= 60 ? ("\(m / 60):" + String(format: "%02d", m % 60), "timer") : ("\(m)", "min")
     }
-
-    private var tint: Color { (current ?? next)?.subjectColor ?? .accentColor }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let c = current {
-                label("NU", icon: "dot.radiowaves.left.and.right")
-                title(c)
-                let frac = min(1, max(0, now.timeIntervalSince(c.start) / max(1, c.end.timeIntervalSince(c.start))))
+                label("NU", color: c.subjectColor, live: true)
+                HStack(alignment: .top) {
+                    title(c)
+                    Spacer(minLength: 10)
+                    big(count(now, c.end), suffix: "tilbage")
+                }
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(mins(now, c.end)).font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
-                            .contentTransition(.numericText(countsDown: true))
-                        Text("tilbage").font(.headline).opacity(0.8)
-                        Spacer()
-                    }
-                    GeometryReader { g in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.25))
-                            Capsule().fill(.white).frame(width: max(8, g.size.width * frac))
-                        }
-                    }
-                    .frame(height: 8)
-                    HStack {
-                        Text(DateUtil.hm(c.start)); Spacer(); Text(DateUtil.hm(c.end))
-                    }
-                    .font(.footnote.monospacedDigit().weight(.medium)).opacity(0.8)
+                    GlideBar(start: c.start, end: c.end, now: now, color: c.subjectColor, height: 6)
+                    HStack { Text(DateUtil.hm(c.start)); Spacer(); Text(DateUtil.hm(c.end)) }
+                        .font(.footnote.monospacedDigit().weight(.medium)).foregroundStyle(Fomo.text2)
                 }
                 info(c)
                 if let n = next {
-                    Divider().overlay(.white.opacity(0.35))
                     HStack {
-                        Text("Bagefter").font(.subheadline).opacity(0.8)
+                        Text("Bagefter").font(.subheadline).foregroundStyle(Fomo.text2)
                         Text(n.shortTitle).font(.subheadline.weight(.semibold)).lineLimit(1)
                         Spacer()
-                        Text(DateUtil.hm(n.start)).font(.subheadline.monospacedDigit().weight(.semibold))
+                        Text(DateUtil.hm(n.start)).font(.subheadline.monospacedDigit().weight(.semibold)).foregroundStyle(Fomo.text2)
                     }
                 }
             } else if let n = next {
-                label("NÆSTE", icon: "arrow.forward.circle.fill")
-                title(n)
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("om").font(.headline).opacity(0.8)
-                    Text(mins(now, n.start)).font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
-                        .contentTransition(.numericText(countsDown: true))
-                    Spacer()
-                    Text("kl. \(DateUtil.hm(n.start))").font(.headline.monospacedDigit()).opacity(0.85)
+                label("NÆSTE", color: n.subjectColor, live: false)
+                HStack(alignment: .top) {
+                    title(n)
+                    Spacer(minLength: 10)
+                    big(count(now, n.start), suffix: "til start")
                 }
                 info(n)
             } else {
-                label("FRI", icon: "moon.stars.fill")
-                Text("Fri resten af dagen").font(.system(size: 30, weight: .bold, design: .rounded))
+                label("FRI", color: Fomo.green, live: false)
+                Text("Fri resten af dagen").font(.system(size: 28, weight: .bold))
                 if let t = tomorrow {
                     Text("I morgen starter du med \(t.shortTitle) kl. \(DateUtil.hm(t.start))")
-                        .font(.headline).opacity(0.85)
+                        .font(.subheadline).foregroundStyle(Fomo.text2)
                 }
             }
         }
-        .foregroundStyle(.white)
-        .padding(20)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(LinearGradient(colors: [tint, tint.mix(with: .black, by: 0.35)],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-        )
-        .shadow(color: tint.opacity(0.35), radius: 16, y: 8)
-        .contentShape(RoundedRectangle(cornerRadius: 26))
+        .surface(18)
+        .contentShape(RoundedRectangle(cornerRadius: 18))
         .onTapGesture { if let e = current ?? next, e.kind != .custom { state.openLesson(e) } }
-        .animation(.viggo, value: now)
+        .animation(.viggo, value: current?.id)
     }
 
-    private func label(_ t: String, icon: String) -> some View {
-        Label(t, systemImage: icon).font(.caption.weight(.bold)).tracking(1).opacity(0.85)
+    private func label(_ t: String, color: Color, live: Bool) -> some View {
+        HStack(spacing: 6) {
+            if live { PulseDot(color: color, size: 6) } else { Circle().fill(color).frame(width: 6, height: 6) }
+            Text(t).font(.caption.weight(.bold)).tracking(1).foregroundStyle(Fomo.text2)
+        }
+    }
+
+    private func big(_ v: (String, String), suffix: String) -> some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text(v.0).font(.system(size: 40, weight: .semibold).monospacedDigit())
+                .contentTransition(.numericText(countsDown: true))
+            Text("\(v.1) \(suffix)").font(.footnote.weight(.medium)).foregroundStyle(Fomo.text2)
+        }
+        .fixedSize()
     }
 
     private func title(_ e: ViggoEvent) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(e.shortTitle).font(.system(size: 30, weight: .bold, design: .rounded))
+            Text(e.shortTitle).font(.system(size: 28, weight: .bold))
                 .lineLimit(2).minimumScaleFactor(0.7)
-            HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
                 if !e.room.isEmpty { Label(e.room, systemImage: "mappin.and.ellipse") }
                 if let t = e.teachers.first { Label(t, systemImage: "person.fill").lineLimit(1) }
             }
-            .font(.subheadline.weight(.medium)).opacity(0.9)
+            .font(.subheadline).foregroundStyle(Fomo.text2)
         }
     }
 
     @ViewBuilder private func info(_ e: ViggoEvent) -> some View {
         if e.hasInfo {
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "text.alignleft").font(.footnote.weight(.bold)).padding(.top, 2)
+                Image(systemName: "text.alignleft").font(.footnote.weight(.bold)).foregroundStyle(Fomo.accent).padding(.top, 2)
                 Text(e.notes.replacingOccurrences(of: "\n", with: " ")).font(.subheadline).lineLimit(2)
                 Spacer(minLength: 0)
             }
             .padding(12)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white.opacity(0.18)))
+            .surface(12, fill: Fomo.surface2)
         }
     }
 }
@@ -450,15 +440,16 @@ private struct StatRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Stat(value: "\(lessonsLeft)", label: lessonsLeft == 1 ? "time tilbage" : "timer tilbage", icon: "graduationcap.fill", tint: .blue)
+            Stat(value: "\(lessonsLeft)", label: lessonsLeft == 1 ? "time tilbage" : "timer tilbage", icon: "graduationcap.fill", tint: Fomo.text2)
             if let e = schoolEnd, e > now {
-                Stat(value: DateUtil.hm(e), label: "fri kl.", icon: "figure.walk", tint: .green)
+                Stat(value: DateUtil.hm(e), label: "fri kl.", icon: "figure.walk", tint: Fomo.text2)
             } else {
-                Stat(value: "Fri", label: "i dag", icon: "figure.walk", tint: .green)
+                Stat(value: "Fri", label: "i dag", icon: "figure.walk", tint: Fomo.green)
             }
-            Stat(value: "\(homework)", label: "lektier", icon: "book.fill", tint: .orange)
+            Stat(value: "\(homework)", label: homework == 0 ? "ingen lektier" : "lektier", icon: homework == 0 ? "checkmark.circle.fill" : "book.fill",
+                 tint: homework == 0 ? Fomo.green : Fomo.text2)
             if unread > 0 {
-                Stat(value: "\(unread)", label: "ulæste", icon: "envelope.fill", tint: .red)
+                Stat(value: "\(unread)", label: "ulæste", icon: "envelope.fill", tint: Fomo.accent)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -476,12 +467,13 @@ private struct Stat: View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon).font(.footnote.weight(.semibold)).foregroundStyle(tint)
                 .frame(height: iconH)
-            Text(value).font(.title3.weight(.bold).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
-            Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.6)
+            Text(value).font(.title2.weight(.semibold).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
+                .contentTransition(.numericText())
+            Text(label).font(.caption).foregroundStyle(Fomo.text2).lineLimit(1).minimumScaleFactor(0.6)
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Fomo.surface))
     }
 }
 
@@ -495,12 +487,12 @@ struct Card<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Image(systemName: icon).font(.subheadline.weight(.semibold)).foregroundStyle(.tint)
+                Image(systemName: icon).font(.subheadline.weight(.semibold)).foregroundStyle(Fomo.text2)
                 Text(title).font(.title3.weight(.bold))
                 if badge > 0 {
                     Text("\(badge)").font(.caption.weight(.bold)).foregroundStyle(.white)
                         .padding(.horizontal, 7).padding(.vertical, 2)
-                        .background(Capsule().fill(.red))
+                        .background(Capsule().fill(Fomo.accent))
                 }
                 Spacer()
             }
@@ -508,7 +500,7 @@ struct Card<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Fomo.surface))
         .cardEntrance()
     }
 }
@@ -529,7 +521,7 @@ struct Banner: View {
             if chevron { Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary) }
         }
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Fomo.surface))
         .cardEntrance()
     }
 }
@@ -664,7 +656,7 @@ struct DayRow: View {
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.tertiarySystemGroupedBackground)))
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Fomo.surface2))
                 .padding(.leading, timeW + 16)
                 .transition(.opacity)
             }
@@ -712,8 +704,9 @@ struct HomeworkRow: View {
             Button { if p.panelHomeworkTick { state.toggleHomework(h) } } label: {
                 Image(systemName: h.done ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(h.done ? .green : .secondary)
+                    .foregroundStyle(h.done ? Fomo.green : Fomo.text2)
                     .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: h.done)
             }
             .buttonStyle(PressScale(scale: 0.8))
             VStack(alignment: .leading, spacing: 2) {
@@ -727,6 +720,9 @@ struct HomeworkRow: View {
         }
         .padding(.vertical, 8)
         .animation(.viggo, value: h.done)
+        .sensoryFeedback(trigger: h.done) { _, done in
+            Prefs.shared.haptics ? (done ? .success : .impact(weight: .light)) : nil
+        }
     }
 }
 
@@ -775,17 +771,17 @@ struct FriendsNowCard: View {
                 HStack(spacing: -10) {
                     ForEach(group.prefix(4)) { f in
                         Avatar(url: f.image, size: 30, name: f.name)
-                            .overlay(Circle().stroke(Color(.secondarySystemGroupedBackground), lineWidth: 2))
+                            .overlay(Circle().stroke(Fomo.surface2, lineWidth: 2))
                     }
                     if group.count > 4 {
                         Text("+\(group.count - 4)").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
-                            .frame(width: 30, height: 30).background(Circle().fill(Color(.tertiarySystemFill)))
-                            .overlay(Circle().stroke(Color(.secondarySystemGroupedBackground), lineWidth: 2))
+                            .frame(width: 30, height: 30).background(Circle().fill(Fomo.surface2))
+                            .overlay(Circle().stroke(Fomo.surface2, lineWidth: 2))
                     }
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     if let g = gaps.first {
-                        Text(span(g)).font(.headline.monospacedDigit())
+                        Text(span(g)).font(.headline.monospacedDigit()).foregroundStyle(Fomo.green)
                         Text(gaps.count > 1 ? "Fri sammen · \(length(g)) · \(gaps.count - 1) mere i dag" : "Fri sammen · \(length(g))")
                             .font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
                     } else {
@@ -801,14 +797,14 @@ struct FriendsNowCard: View {
                         Text("Nu").font(.caption.weight(.bold))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(.green))
+                    .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(Fomo.green))
                 }
                 Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
             }
             .multilineTextAlignment(.leading)
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(gaps.isEmpty ? Color(.tertiarySystemFill) : Color.green.opacity(0.14)))
+                .fill(Fomo.surface2))
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(PressScale(scale: 0.98))
@@ -832,11 +828,11 @@ struct FriendsNowCard: View {
                 Spacer()
                 if let g = gap, !sameAsGroup {
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text("Fri sammen").font(.caption2.weight(.semibold)).foregroundStyle(.green)
+                        Text("Fri sammen").font(.caption2.weight(.semibold)).foregroundStyle(Fomo.green)
                         Text(span(g)).font(.footnote.monospacedDigit().weight(.semibold))
                     }
                 } else if !expired {
-                    Circle().fill(free ? Color.green : Color.orange).frame(width: 9, height: 9)
+                    Circle().fill(free ? Fomo.green : Fomo.text2.opacity(0.5)).frame(width: 9, height: 9)
                 }
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
             }

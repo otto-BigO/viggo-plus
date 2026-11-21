@@ -126,17 +126,22 @@ struct PlanSheet: View {
                 if let e = existing {
                     Button("Fjern fra skema", role: .destructive) {
                         let starts = Set(draft.slots.map { Int($0.0.timeIntervalSince1970 / 60) })
+                        let before = p.planned
                         withAnimation(.viggo) {
                             p.planned.removeAll { $0.id == e.id || $0.title == e.title && starts.contains(Int($0.start.timeIntervalSince1970 / 60)) }
                         }
+                        StatusPill.shared.done("Fjernet fra skemaet") { withAnimation(.viggo) { Prefs.shared.planned = before } }
                         close()
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Fomo.red)
                 } else {
-                    Button(added ? "Tilføjet" : "Tilføj til skema") { add() }
+                    // When it can't be pressed, the button says why.
+                    let noTitle = draft.title.trimmingCharacters(in: .whitespaces).isEmpty
+                    Button(added ? "Tilføjet" : noTitle ? "Skriv en titel først" : "Tilføj til skema") { add() }
                         .buttonStyle(.borderedProminent)
+                        .tint(Fomo.accent)
                         .keyboardShortcut(.defaultAction)
-                        .disabled(draft.title.trimmingCharacters(in: .whitespaces).isEmpty || added)
+                        .disabled(noTitle || added)
                 }
             }
         }
@@ -154,6 +159,11 @@ struct PlanSheet: View {
             }
         }
         added = true
+        Haptic.tap()
+        let ids = Set(p.planned.suffix(draft.slots.count).map(\.id))
+        StatusPill.shared.done(draft.slots.count > 1 ? "\(draft.slots.count) dage sat i skema" : "Sat i skema") {
+            withAnimation(.viggo) { Prefs.shared.planned.removeAll { ids.contains($0.id) } }
+        }
         Task { try? await Task.sleep(for: .milliseconds(450)); close() }
     }
 

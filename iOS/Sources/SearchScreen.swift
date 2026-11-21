@@ -537,7 +537,7 @@ struct PersonScreen: View {
                 Text(title).font(.caption.weight(.medium))
             }
             .frame(width: 76, height: 56)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Fomo.surface))
         }
         .buttonStyle(PressScale())
     }

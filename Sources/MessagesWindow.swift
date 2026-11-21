@@ -23,7 +23,9 @@ struct MessagesWindow: View {
                 ForEach(shown) { t in MacThreadRow(t: t).tag(t.id) }
             }
             .overlay {
-                if inbox.threads.isEmpty, inbox.loading { ProgressView() }
+                if inbox.threads.isEmpty, inbox.loading {
+                    SkeletonRows(count: 9, avatar: 32).padding(.horizontal, 14).frame(maxHeight: .infinity, alignment: .top)
+                }
                 else if !inbox.threads.isEmpty, shown.isEmpty { ContentUnavailableView.search(text: search) }
             }
             .searchable(text: $search, placement: .sidebar, prompt: "Søg i beskeder")
@@ -56,6 +58,8 @@ struct MessagesWindow: View {
         }
         .task { await inbox.load() }
         .frame(minWidth: 760, minHeight: 480)
+        .tint(Fomo.accent)
+        .overlay(alignment: .top) { StatusPillView(compact: true).padding(.top, 10) }
     }
 }
 
@@ -128,7 +132,7 @@ private struct MacThreadView: View {
                     } else if failed {
                         ContentUnavailableView("Kunne ikke åbne beskeden", systemImage: "exclamationmark.bubble").padding(.top, 80)
                     } else {
-                        ProgressView().padding(.top, 80).frame(maxWidth: .infinity)
+                        SkeletonRows(count: 5, avatar: 28).padding(24).frame(maxWidth: .infinity)
                     }
                 }
                 .defaultScrollAnchor(.bottom)
@@ -281,7 +285,7 @@ private struct MacFileImage: View {
                 MacFileChip(f: f)
             } else {
                 RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.07))
-                    .frame(width: 200, height: 150).overlay(ProgressView().controlSize(.small))
+                    .frame(width: 200, height: 150).shimmer()
             }
         }
         .task(id: f.url) {
@@ -419,7 +423,7 @@ private struct MacCompose: View {
                 Spacer()
                 Button("Annuller") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button { Task { await send() } } label: {
-                    if sending { ProgressView().controlSize(.small) } else { Text("Send") }
+                    Text(sending ? "Sender..." : "Send")
                 }
                 .keyboardShortcut(.return, modifiers: .command)
                 .buttonStyle(.borderedProminent)

@@ -73,9 +73,10 @@ struct WeekView: View {
         let week = DateUtil.cal.component(.weekOfYear, from: monday)
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Text("Uge \(week)").font(.system(size: 20, weight: .bold))
-                Text("\(DateUtil.day(monday)) – \(DateUtil.day(DateUtil.add(.day, 6, monday)))")
-                    .foregroundStyle(.secondary)
+                Text("Uge \(week)").font(.system(size: 22, weight: .bold)).monospacedDigit()
+                    .contentTransition(.numericText())
+                Text("\(DateUtil.day(monday)) til \(DateUtil.day(DateUtil.add(.day, 6, monday)))")
+                    .monospacedDigit().foregroundStyle(Fomo.text2)
                 Spacer()
                 if !state.friends.isEmpty {
                     Picker("", selection: $person) {
@@ -85,9 +86,13 @@ struct WeekView: View {
                     .labelsHidden().fixedSize()
                     .onChange(of: person) { offset = max(range.lowerBound, min(offset, range.upperBound)) }
                 }
-                Button { offset -= 1 } label: { Image(systemName: "chevron.left") }.disabled(offset <= range.lowerBound)
-                Button("I dag") { offset = 0 }.disabled(offset == 0)
-                Button { offset += 1 } label: { Image(systemName: "chevron.right") }.disabled(offset >= range.upperBound)
+                Button { withAnimation(.viggo) { offset -= 1 } } label: { Image(systemName: "chevron.left") }
+                    .disabled(offset <= range.lowerBound)
+                    .help(offset <= range.lowerBound ? "Viggo+ har ikke flere uger tilbage" : "Ugen før")
+                Button(offset == 0 ? "Denne uge" : "I dag") { withAnimation(.viggo) { offset = 0 } }.disabled(offset == 0)
+                Button { withAnimation(.viggo) { offset += 1 } } label: { Image(systemName: "chevron.right") }
+                    .disabled(offset >= range.upperBound)
+                    .help(offset >= range.upperBound ? (person == nil ? "Viggo+ har ikke flere uger frem" : "Venners skema går kun en uge frem") : "Ugen efter")
             }
             .padding(.horizontal, 20).padding(.top, 34).padding(.bottom, 14)
 
@@ -97,7 +102,8 @@ struct WeekView: View {
                 .padding(.horizontal, 12).padding(.bottom, 12)
         }
         .frame(minWidth: 860, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity, alignment: .top)
-        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .background(Fomo.bg.ignoresSafeArea())
+        .tint(Fomo.accent)
     }
 }
 

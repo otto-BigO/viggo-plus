@@ -475,6 +475,8 @@ final class AppState: ObservableObject {
 
     func start() async {
         Notifier.shared.setup()
+        // iPhone screenshots in the simulator: made-up data, no account, nothing fetched.
+        if DemoData.enabled { DemoData.load(self); needsLogin = false; return }
         try? FileManager.default.removeItem(at: CookieJar.dir.appendingPathComponent("login.log"))
         CookieJar.restore()
         loadFriends()
@@ -745,7 +747,7 @@ final class AppState: ObservableObject {
     // MARK: sync
 
     func sync() async {
-        guard !syncing else { return }
+        guard !syncing, !DemoData.enabled else { return }
         syncing = true
         lastAttempt = Date()
         defer { syncing = false; syncAttempts += 1 }
@@ -989,6 +991,7 @@ final class AppState: ObservableObject {
     }
 
     func syncFriends() async {
+        guard !DemoData.enabled else { return }
         if friends.contains(where: { !$0.needsLogin }) { await Premises.shared.load() }
         for f in friends where !f.needsLogin {
             let list = Premises.shared.schedule(for: f.viggoID)
@@ -1194,23 +1197,50 @@ final class AppState: ObservableObject {
 
     // MARK: homework, badge, free together, focus, login item
 
-    func toggleHomework(_ h: Homework) {
+    /// Ticks homework off at once and says so in the status pill, with Fortryd. If Viggo says no,
+    /// the tick goes back and the pill turns red.
+    func toggleHomework(_ h: Homework, fromUndo: Bool = false) {
         guard let i = homework.firstIndex(where: { $0.id == h.id }) else { return }
         let newValue = !homework[i].done
+        // The iPhone's rows give their own feel with .sensoryFeedback; the Mac taps the trackpad here.
+        #if os(macOS)
         if newValue { Haptic.success() } else { Haptic.tap() }
+        #endif
         homework[i].done = newValue
         #if os(iOS)
         scheduleAhead()
         #endif
+        let pill = StatusPill.shared
+        if !fromUndo { pill.working(newValue ? "Markerer..." : "Fjerner markering...") }
         Task {
             do {
                 try await client.setHomework(h.id, done: newValue)
                 if prefs.imported { applyCalendar() }
+                if fromUndo { pill.done("Fortrudt") }
+                else {
+                    pill.done(newValue ? "Lektie klaret" : "Ikke klaret endnu") { [weak self] in
+                        guard let self, let cur = self.homework.first(where: { $0.id == h.id }) else { return }
+                        self.toggleHomework(cur, fromUndo: true)
+                    }
+                }
             } catch {
                 if let j = homework.firstIndex(where: { $0.id == h.id }) { homework[j].done = !newValue }
-                status = "Kunne ikke gemme lektie: \(error.localizedDescription)"
+                pill.failed("Kunne ikke gemme lektien")
             }
         }
+    }
+
+    /// The sync button: the pill shows it working and how it went.
+    func syncWithPill() async {
+        let pill = StatusPill.shared
+        if needsLogin { pill.failed("Log ind igen for at synke"); return }
+        guard !syncing else { return }
+        pill.working("Synker...")
+        await sync()
+        if needsLogin { pill.failed("Log ind igen for at synke") }
+        else if offline { pill.failed("Ingen forbindelse til Viggo") }
+        else if !status.isEmpty { pill.failed("Synk mislykkedes") }
+        else { pill.done("Synket") }
     }
 
     var badgeCount: Int { prefs.menubarBadge ? unreadCount + questionnaireCount : 0 }

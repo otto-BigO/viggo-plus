@@ -19,7 +19,7 @@ struct AttachButton: View {
             Image(systemName: "paperclip")
                 .font(.system(size: 16, weight: .semibold))
                 .frame(width: 36, height: 36)
-                .background(Circle().fill(Color(.tertiarySystemFill)))
+                .background(Circle().fill(Fomo.surface2))
         }
         .accessibilityLabel("Vedhæft")
         .photosPicker(isPresented: $photos, selection: $picked, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))

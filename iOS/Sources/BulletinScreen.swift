@@ -45,7 +45,7 @@ struct BulletinScreen: View {
                             Image(systemName: "arrow.up.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
                         }
                         .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Fomo.surface))
                     }
                     .buttonStyle(PressScale(scale: 0.97))
                 }
@@ -54,7 +54,7 @@ struct BulletinScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background {
-            LinearGradient(colors: [(b.color ?? .accentColor).opacity(0.25), Color(.systemGroupedBackground)],
+            LinearGradient(colors: [(b.color ?? .accentColor).opacity(0.25), Fomo.bg],
                            startPoint: .top, endPoint: .center)
                 .ignoresSafeArea()
         }
@@ -125,8 +125,8 @@ struct ViggoImage<Shown: View>: View {
             } else if zoom {
                 ProgressView().tint(.white)
             } else {
-                RoundedRectangle(cornerRadius: 14).fill(Color(.tertiarySystemFill))
-                    .frame(height: 200).overlay(ProgressView())
+                RoundedRectangle(cornerRadius: 14).fill(Fomo.surface2)
+                    .frame(height: 200).shimmer()
             }
         }
         .task(id: url) {

@@ -219,9 +219,12 @@ struct PhoneTab: View {
         guard let d = inst.device else { return nil }
         return AnyView(
             Button { Task { await inst.install(d) } } label: {
-                Label("Installer på \(d.name)", systemImage: "arrow.down.app.fill")
+                // When it can't be pressed, the button says why.
+                Label(inst.job != nil ? "Arbejder..." : !d.reachable ? "\(d.name) er ikke tilsluttet" : "Installer på \(d.name)",
+                      systemImage: "arrow.down.app.fill")
             }
             .buttonStyle(.borderedProminent)
+            .tint(Fomo.accent)
             .disabled(inst.job != nil || !d.reachable)
         )
     }
@@ -236,8 +239,10 @@ struct PhoneTab: View {
                 Label("Login", systemImage: "key.fill").font(.headline)
                 Spacer()
                 if let d = inst.device, inst.records[d.id] != nil {
-                    Button("Overfør login nu") { Task { await inst.sendLogin(to: d) } }
-                        .disabled(inst.job != nil || !d.reachable || t.isEmpty)
+                    Button(t.isEmpty ? "Intet login at overføre" : !d.reachable ? "iPhonen er ikke tilsluttet" : "Overfør login nu") {
+                        Task { await inst.sendLogin(to: d) }
+                    }
+                    .disabled(inst.job != nil || !d.reachable || t.isEmpty)
                 }
             }
             Toggle("Overfør mit login fra Mac'en, når appen installeres på min første iPhone", isOn: $inst.sendLoginOnInstall)
@@ -371,7 +376,7 @@ private struct StatusCard: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 6) {
                 if let d = device {
-                    Button("Forny nu") { Task { await inst.install(d) } }
+                    Button(inst.job != nil ? "Arbejder..." : !d.reachable ? "Ikke tilsluttet" : "Forny nu") { Task { await inst.install(d) } }
                         .disabled(inst.job != nil || !d.reachable)
                 }
                 if inst.records.count > 1 || device == nil {

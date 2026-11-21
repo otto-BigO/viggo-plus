@@ -45,51 +45,6 @@ private struct ZoomTarget<ID: Hashable>: ViewModifier {
 
 // MARK: - Placeholders while loading
 
-enum Skeleton {
-    /// `VIGGO_SKELETON=1` keeps the placeholders up, to look at them in the simulator.
-    static let forced = ProcessInfo.processInfo.environment["VIGGO_SKELETON"] != nil
-}
-
-/// A soft light that sweeps across placeholders, so a loading screen looks alive.
-private struct Shimmer: ViewModifier {
-    let active: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduce
-    @State private var go = false
-
-    func body(content: Content) -> some View {
-        if active, !reduce {
-            content
-                .overlay {
-                    GeometryReader { g in
-                        LinearGradient(colors: [.clear, .white.opacity(0.55), .clear], startPoint: .leading, endPoint: .trailing)
-                            .frame(width: max(120, g.size.width * 0.5))
-                            .offset(x: go ? g.size.width : -max(120, g.size.width * 0.5))
-                            .animation(.linear(duration: 1.25).repeatForever(autoreverses: false), value: go)
-                    }
-                    .mask(content)
-                    .allowsHitTesting(false)
-                }
-                .onAppear { go = true }
-        } else {
-            content
-        }
-    }
-}
-
-extension View {
-    func shimmer(_ active: Bool = true) -> some View { modifier(Shimmer(active: active)) }
-}
-
-/// A grey bar that stands in for a line of text.
-struct SkeletonBar: View {
-    var width: CGFloat? = nil
-    var height: CGFloat = 12
-    var body: some View {
-        RoundedRectangle(cornerRadius: height / 2, style: .continuous).fill(Color(.systemFill))
-            .frame(maxWidth: width ?? .infinity).frame(height: height)
-    }
-}
-
 /// The inbox before the first messages arrive: rows the shape of the real ones.
 struct SkeletonThreads: View {
     private let widths: [(CGFloat, CGFloat)] = [(120, 210), (90, 170), (150, 240), (110, 190), (130, 220), (80, 160), (140, 200), (100, 230)]
@@ -98,7 +53,7 @@ struct SkeletonThreads: View {
             ForEach(Array(widths.enumerated()), id: \.offset) { _, w in
                 HStack(spacing: 10) {
                     Circle().fill(.clear).frame(width: 10, height: 10)
-                    Circle().fill(Color(.systemFill)).frame(width: 50, height: 50)
+                    Circle().fill(Fomo.surface2).frame(width: 50, height: 50)
                     VStack(alignment: .leading, spacing: 8) {
                         HStack { SkeletonBar(width: w.0, height: 13); Spacer(); SkeletonBar(width: 34, height: 10) }
                         SkeletonBar(width: w.1, height: 11)
@@ -121,8 +76,8 @@ struct SkeletonBubbles: View {
             SkeletonBar(width: 180, height: 15).padding(.top, 16).padding(.bottom, 18)
             ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
                 HStack(alignment: .bottom, spacing: 6) {
-                    if r.0 { Spacer(minLength: 0) } else { Circle().fill(Color(.systemFill)).frame(width: 28, height: 28) }
-                    RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.systemFill))
+                    if r.0 { Spacer(minLength: 0) } else { Circle().fill(Fomo.surface2).frame(width: 28, height: 28) }
+                    RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Fomo.surface2)
                         .frame(width: r.1, height: r.2)
                     if !r.0 { Spacer(minLength: 0) }
                 }
@@ -144,7 +99,7 @@ struct SkeletonDay: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 5) { SkeletonBar(width: 38, height: 11); SkeletonBar(width: 30, height: 9) }
                         .frame(width: 48, alignment: .leading)
-                    RoundedRectangle(cornerRadius: 2).fill(Color(.systemFill)).frame(width: 4, height: 38)
+                    RoundedRectangle(cornerRadius: 2).fill(Fomo.surface2).frame(width: 4, height: 38)
                     VStack(alignment: .leading, spacing: 7) {
                         SkeletonBar(width: widths[i % widths.count], height: 13)
                         SkeletonBar(width: widths[(i + 2) % widths.count] * 0.6, height: 10)
@@ -163,12 +118,12 @@ struct SkeletonDay: View {
 struct SkeletonProfile: View {
     var body: some View {
         VStack(spacing: 14) {
-            Circle().fill(Color(.systemFill)).frame(width: 110, height: 110).padding(.top, 24)
+            Circle().fill(Fomo.surface2).frame(width: 110, height: 110).padding(.top, 24)
             SkeletonBar(width: 190, height: 20)
             SkeletonBar(width: 120, height: 12)
             VStack(spacing: 12) {
                 ForEach(0..<4, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.systemFill)).frame(height: 58)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Fomo.surface2).frame(height: 58)
                 }
             }
             .padding(.top, 14)
