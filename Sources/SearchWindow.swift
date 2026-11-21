@@ -15,14 +15,23 @@ struct SearchWindow: View {
     /// Links on a page ask the stack to push; the page is swapped in place instead (like a browser),
     /// so the split view resetting the stack when the list selection changes can't undo a step.
     private var path: Binding<[Found]> {
-        Binding(get: { [] }, set: { if let f = $0.last { nav.go(to: f) } })
+        Binding(get: { [] }, set: { if let f = $0.last { go(to: f) } })
     }
-    private func back() { nav.back() }
-    private func forward() { nav.forward() }
+    /// Which way the page slides: in from the right going forward, from the left going back.
+    @State private var goingBack = false
+    private func go(to f: Found) {
+        guard f != nav.current else { return }
+        goingBack = false
+        withAnimation(.viggo) { nav.go(to: f) }
+    }
+    private func back() { guard nav.canBack else { return }; goingBack = true; withAnimation(.viggo) { nav.back() } }
+    private func forward() { guard nav.canForward else { return }; goingBack = false; withAnimation(.viggo) { nav.forward() } }
     /// Keep the sidebar highlight on the page you are on.
     private func syncSelection() { if selection != nav.current { selection = nav.current } }
     @State private var found: [MessageThread] = []
     @State private var searchingViggo = false
+    /// The words `found` is for.
+    @State private var searchedFor: String?
     @State private var allPeople = false
     @AppStorage("recentSearches") private var recentRaw = ""
 
@@ -100,13 +109,17 @@ struct SearchWindow: View {
             .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 460)
         } detail: {
             NavigationStack(path: path) {
-                Group {
-                    if let s = nav.current { MacFoundView(found: s).id(s) }
-                    else {
+                ZStack {
+                    if let s = nav.current {
+                        MacFoundView(found: s).id(s)
+                            .transition(.asymmetric(insertion: .move(edge: goingBack ? .leading : .trailing).combined(with: .opacity),
+                                                    removal: .opacity))
+                    } else {
                         ContentUnavailableView("Søg i Viggo", systemImage: "magnifyingglass",
                                                description: Text("Find elever, lærere, klasser, værelser, beskeder og timer."))
                     }
                 }
+                .clipped()
                 .navigationDestination(for: Found.self) { MacFoundView(found: $0) }
             }
         }
@@ -130,7 +143,7 @@ struct SearchWindow: View {
         .onChange(of: selection) {
             guard let s = selection else { return }
             if case .thread(let id) = s { state.openMessages(thread: id); return }
-            nav.go(to: s)
+            go(to: s)
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
@@ -266,15 +279,17 @@ struct SearchWindow: View {
     }
 
     private func searchViggo() async {
+        // Coming back from a page runs this again for the same words: keep what we found.
+        guard q != searchedFor else { return }
         found = []
         allPeople = false
-        guard q.count >= 3 else { return }
+        guard q.count >= 3 else { searchedFor = q; return }
         try? await Task.sleep(for: .milliseconds(350))
         guard !Task.isCancelled else { return }
         searchingViggo = true
         defer { searchingViggo = false }
         let r = (try? await ViggoClient().searchThreads(q)) ?? []
-        if !Task.isCancelled { found = r }
+        if !Task.isCancelled { found = r; searchedFor = q }
     }
 
     private func remember(_ s: String) {
@@ -466,6 +481,13 @@ struct MacPersonView: View {
 
     private var me: Int? { state.profile?.id }
 
+    init(id: Int) {
+        self.id = id
+        // A page you have seen before is drawn complete at once instead of filling in piece by piece.
+        _details = State(initialValue: Directory.shared.cachedDetails(id))
+        _threads = State(initialValue: Directory.shared.member(id).map { PersonThreads.shared.cached(for: $0) } ?? [])
+    }
+
     var body: some View {
         Group {
             if let m = dir.member(id) { content(m) }
@@ -483,14 +505,20 @@ struct MacPersonView: View {
         .onChange(of: id) { zoom = false }
         .navigationTitle(dir.member(id)?.name ?? "")
         .task { await dir.load(); await premises.load() }
-        .task(id: id) {
-            details = await dir.details(id)
-            if let m = dir.member(id) {
-                let mine = inbox.threads.filter { $0.sender == m.name }
-                let r = (try? await ViggoClient().searchThreads(m.name)) ?? []
-                var seen = Set(mine.map(\.id))
-                threads = mine + r.filter { seen.insert($0.id).inserted }
-            }
+        .task(id: id) { await loadPerson() }
+    }
+
+    /// Details and messages at the same time, each shown as soon as it is there.
+    private func loadPerson() async {
+        details = dir.cachedDetails(id)
+        guard let m = dir.member(id) else { details = await dir.details(id); return }
+        threads = PersonThreads.shared.cached(for: m)
+        async let d = dir.details(id)
+        async let t = PersonThreads.shared.threads(for: m)
+        let (dd, tt) = await (d, t)
+        withAnimation(.viggo) {
+            if details == nil { details = dd }
+            if tt.map(\.id) != threads.map(\.id) { threads = tt }
         }
     }
 
@@ -573,7 +601,8 @@ struct MacPersonView: View {
     private func header(_ m: Member) -> some View {
         Section {
             VStack(spacing: 8) {
-                Avatar(url: m.imageBig ?? m.image, size: 96, name: m.name)
+                // The small cached picture (240 px) is sharp at this size and needs no download.
+                Avatar(url: m.image ?? m.imageBig, size: 96, name: m.name)
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
                     .onTapGesture { if m.imageBig ?? m.image != nil { withAnimation(.spring(duration: 0.3)) { zoom = true } } }
                     .help(m.imageBig ?? m.image == nil ? "" : "Vis billedet stort")

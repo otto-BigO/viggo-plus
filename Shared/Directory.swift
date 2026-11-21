@@ -382,6 +382,9 @@ final class Directory: ObservableObject {
         return groups(of: b).filter { mine.contains($0.id) }
     }
 
+    /// Details already fetched, for drawing a page you have seen before without waiting.
+    func cachedDetails(_ id: Int) -> MemberDetails? { details[id] }
+
     func details(_ id: Int) async -> MemberDetails? {
         if let d = details[id] { return d }
         guard let d = try? await client.fetchMemberDetails(id) else { return nil }
@@ -467,4 +470,30 @@ enum Found: Hashable {
     case bulletin(Bulletin)
     /// Everyone living in a house (boområde), by room.
     case house(String)
+}
+
+// MARK: - Messages with a person
+
+/// The messages shown on a person's page: your inbox matches at once, then Viggo's own search
+/// for their name. Kept for 10 minutes, so going back to a page you just saw is instant.
+@MainActor
+final class PersonThreads {
+    static let shared = PersonThreads()
+    private var cache: [Int: (at: Date, list: [MessageThread])] = [:]
+
+    /// What we have for this person without asking Viggo: the cached list, or the inbox matches.
+    func cached(for m: Member) -> [MessageThread] {
+        if let c = cache[m.id], Date().timeIntervalSince(c.at) < 600 { return c.list }
+        return Inbox.shared.threads.filter { $0.sender == m.name }
+    }
+
+    func threads(for m: Member) async -> [MessageThread] {
+        if let c = cache[m.id], Date().timeIntervalSince(c.at) < 600 { return c.list }
+        let mine = Inbox.shared.threads.filter { $0.sender == m.name }
+        guard let r = try? await ViggoClient().searchThreads(m.name) else { return mine }
+        var seen = Set(mine.map(\.id))
+        let list = mine + r.filter { seen.insert($0.id).inserted }
+        cache[m.id] = (Date(), list)
+        return list
+    }
 }

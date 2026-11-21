@@ -12,6 +12,8 @@ struct SearchScreen: View {
     @State private var path: [Found] = []
     @State private var found: [MessageThread] = []
     @State private var searchingViggo = false
+    /// The words `found` is for.
+    @State private var searchedFor: String?
     @State private var allPeople = false
     @AppStorage("recentSearches") private var recentRaw = ""
     @Environment(\.dismiss) private var dismiss
@@ -207,15 +209,17 @@ struct SearchScreen: View {
     }
 
     private func searchViggo() async {
+        // Coming back from a page runs this again for the same words: keep what we found.
+        guard q != searchedFor else { return }
         found = []
         allPeople = false
-        guard q.count >= 3 else { return }
+        guard q.count >= 3 else { searchedFor = q; return }
         try? await Task.sleep(for: .milliseconds(350))         // wait until typing pauses
         guard !Task.isCancelled else { return }
         searchingViggo = true
         defer { searchingViggo = false }
         let r = (try? await ViggoClient().searchThreads(q)) ?? []
-        if !Task.isCancelled { found = r }
+        if !Task.isCancelled { found = r; searchedFor = q }
     }
 
     private func remember(_ s: String) {
@@ -366,6 +370,13 @@ struct PersonScreen: View {
 
     private var me: Int? { state.profile?.id }
 
+    init(id: Int) {
+        self.id = id
+        // A page you have seen before is drawn complete at once instead of filling in piece by piece.
+        _details = State(initialValue: Directory.shared.cachedDetails(id))
+        _threads = State(initialValue: Directory.shared.member(id).map { PersonThreads.shared.cached(for: $0) } ?? [])
+    }
+
     var body: some View {
         Group {
             if Skeleton.forced { SkeletonProfile() }
@@ -375,17 +386,23 @@ struct PersonScreen: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .task { await dir.load(); await premises.load() }
-        .task(id: id) {
-            details = await dir.details(id)
-            if let m = dir.member(id) {
-                let mine = inbox.threads.filter { $0.sender == m.name }
-                let r = (try? await ViggoClient().searchThreads(m.name)) ?? []
-                var seen = Set(mine.map(\.id))
-                threads = mine + r.filter { seen.insert($0.id).inserted }
-            }
-        }
+        .task(id: id) { await loadPerson() }
         .sheet(isPresented: $composing) {
             if let m = dir.member(id) { ComposeScreen(to: [Person(id: m.id, name: m.name, image: m.image, info: "")]) }
+        }
+    }
+
+    /// Details and messages at the same time, each shown as soon as it is there.
+    private func loadPerson() async {
+        details = dir.cachedDetails(id)
+        guard let m = dir.member(id) else { details = await dir.details(id); return }
+        threads = PersonThreads.shared.cached(for: m)
+        async let d = dir.details(id)
+        async let t = PersonThreads.shared.threads(for: m)
+        let (dd, tt) = await (d, t)
+        withAnimation(.viggo) {
+            if details == nil { details = dd }
+            if tt.map(\.id) != threads.map(\.id) { threads = tt }
         }
     }
 
@@ -505,9 +522,7 @@ struct PersonScreen: View {
 
     private func header(_ m: Member) -> some View {
         VStack(spacing: 10) {
-            AsyncImage(url: m.imageBig ?? m.image) { img in img.resizable().scaledToFill() } placeholder: {
-                Avatar(url: m.image, size: 120, name: m.name)
-            }
+            ProfilePicture(small: m.image, big: m.imageBig, size: 120, name: m.name)
             .frame(width: 120, height: 120)
             .clipShape(Circle())
             .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
@@ -768,6 +783,40 @@ struct GroupScreen: View {
         .searchable(text: $filter, prompt: "Find i \(g.display)")
         .sheet(isPresented: $composing) {
             ComposeScreen(to: all.map { Person(id: $0.id, name: $0.name, image: $0.image, info: "") })
+        }
+    }
+}
+
+/// The big picture on a person's page. The small cached one shows at once, and the sharp one fades
+/// in over it. Sharp ones are kept in memory, so opening the page again is instant.
+struct ProfilePicture: View {
+    let small: URL?
+    let big: URL?
+    let size: CGFloat
+    let name: String
+    @State private var sharp: UIImage?
+    private static let cache = NSCache<NSURL, UIImage>()
+
+    init(small: URL?, big: URL?, size: CGFloat, name: String) {
+        self.small = small; self.big = big; self.size = size; self.name = name
+        _sharp = State(initialValue: big.flatMap { Self.cache.object(forKey: $0 as NSURL) })
+    }
+
+    var body: some View {
+        ZStack {
+            Avatar(url: small, size: size, name: name)
+            if let sharp {
+                Image(uiImage: sharp).resizable().scaledToFill()
+                    .frame(width: size, height: size).clipShape(Circle())
+                    .transition(.opacity)
+            }
+        }
+        .task(id: big) {
+            guard sharp == nil, let big, big != small else { return }
+            guard let data = await DownloadGate.shared.run({ try? await URLSession.shared.data(from: big).0 }),
+                  let img = UIImage(data: data) else { return }
+            Self.cache.setObject(img, forKey: big as NSURL)
+            withAnimation(.easeOut(duration: 0.2)) { sharp = img }
         }
     }
 }

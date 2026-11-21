@@ -1,5 +1,12 @@
 # Ændringer
 
+## 1.28.1 og iPhone-app 1.18.1 (2026-11-21)
+
+- **Profiler åbner hurtigere**: oplysninger og beskeder hentes på samme tid i stedet for efter hinanden, og en profil du har set inden for de sidste 10 minutter vises færdig med det samme. På Mac bruges det billede der allerede er hentet, i stedet for at hente det store hver gang.
+- **Tilbage til søgningen er øjeblikkelig**: listen søger ikke på Viggo forfra, når du kommer tilbage fra en profil, så beskedresultaterne bliver stående.
+- **Animation i Søg-vinduet på Mac**: en side glider ind fra højre, når du går frem, og fra venstre, når du går tilbage.
+- **iPhone**: profilbilledet vises med det samme i lille udgave, og det skarpe glider ind over. Det skarpe gemmes, så det ikke hentes igen.
+
 ## 1.28.0 og iPhone-app 1.18.0 (2026-11-21)
 
 - **Nyt udseende**: én mørk baggrund og flade kort uden kanter og skygger, i panelet, uge-overblikket, Beskeder og på iPhone. Farverne betyder noget: blå er noget du kan trykke på, grøn er klaret eller godt, rød er aflyst eller et problem. Resten er hvidt og gråt.

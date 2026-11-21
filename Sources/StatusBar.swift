@@ -324,6 +324,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 exit(0)
             }
         }
+        // --person-timing: how long a profile in Søg takes, the first time and the second: the
+        // calls to Viggo and drawing the page. VIGGO_PERSON=<id> picks the person.
+        if CommandLine.arguments.contains("--person-timing") {
+            Task { @MainActor in
+                setvbuf(stdout, nil, _IONBF, 0)
+                func ms(_ t: Date) -> Int { Int(-t.timeIntervalSinceNow * 1000) }
+                let dir = Directory.shared
+                try? await Task.sleep(for: .seconds(6))
+                var t = Date(); await dir.load(); print("[profil] adressebog \(ms(t)) ms")
+                let me = AppState.shared.profile?.id
+                let id = ProcessInfo.processInfo.environment["VIGGO_PERSON"].flatMap(Int.init)
+                    ?? dir.members.first { $0.kind == .student && $0.id != me && !$0.houseRoom.isEmpty }?.id ?? 0
+                guard let m = dir.member(id) else { print("[profil] ingen person"); exit(1) }
+                for round in 1...2 {
+                    t = Date(); _ = await dir.details(id); print("[profil] \(round). detaljer \(ms(t)) ms")
+                    t = Date(); await Premises.shared.load(); print("[profil] \(round). lokaler \(ms(t)) ms")
+                    t = Date(); _ = await PersonThreads.shared.threads(for: m); print("[profil] \(round). beskeder \(ms(t)) ms")
+                }
+                for round in 1...2 {
+                    t = Date()
+                    let host = NSHostingView(rootView: MacPersonView(id: id).environmentObject(AppState.shared).frame(width: 560, height: 800))
+                    host.frame = NSRect(x: 0, y: 0, width: 560, height: 800)
+                    let w = NSWindow(contentRect: NSRect(x: 60, y: 60, width: 560, height: 800), styleMask: [.titled], backing: .buffered, defer: false)
+                    w.contentView = host; w.isReleasedWhenClosed = false; w.orderFrontRegardless()
+                    host.layoutSubtreeIfNeeded(); host.display()
+                    print("[profil] \(round). tegning \(ms(t)) ms")
+                    try? await Task.sleep(for: .milliseconds(300))
+                    w.orderOut(nil)
+                }
+                // The real Søg window: open a person, another, then back. Prints how long the main
+                // thread was busy after each click (two run loop turns, so the page has been drawn).
+                func turn() async { await withCheckedContinuation { c in DispatchQueue.main.async { c.resume() } } }
+                func click(_ what: String, _ f: Found?) async {
+                    let t = Date()
+                    NotificationCenter.default.post(name: .searchTest, object: what, userInfo: f.map { ["found": $0] })
+                    await turn(); await turn()
+                    print("[profil] søg \(what): \(ms(t)) ms"); fflush(stdout)
+                    try? await Task.sleep(for: .seconds(1.5))
+                }
+                AppState.shared.openSearch()
+                try? await Task.sleep(for: .seconds(3))
+                let other = dir.members.first { $0.kind == .student && $0.id != me && $0.id != id && !$0.houseRoom.isEmpty }?.id ?? id
+                await click("select", .person(id))
+                await click("link", .person(other))
+                await click("back", nil)
+                await click("forward", nil)
+                print("[profil] færdig"); fflush(stdout)
+                exit(0)
+            }
+        }
         // --panel-test: opens the panel and switches between you and every friend a few times, the
         // way the account switcher does, and prints whether the card stays inside the screen. The
         // card used to grow past the screen and crash the app.

@@ -229,7 +229,7 @@ struct PanelPersonCard: View {
                         .buttonStyle(.plain).foregroundStyle(Color.accentColor)
                         .keyboardShortcut("[", modifiers: .command)
                     HStack(spacing: 12) {
-                        Avatar(url: m.imageBig ?? m.image, size: 58, name: m.name)
+                        Avatar(url: m.image ?? m.imageBig, size: 58, name: m.name)
                             .onTapGesture { if m.imageBig ?? m.image != nil { withAnimation(.spring(duration: 0.3)) { zoom = true } } }
                             .help("Vis billedet stort")
                         VStack(alignment: .leading, spacing: 2) {
