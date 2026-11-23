@@ -102,6 +102,8 @@ final class AppState: ObservableObject {
     private var lastFriendAutoLogin: [UUID: Date] = [:]
     @Published var friendAutoLoginRunning: Set<UUID> = []
     @Published var autoLoginRunning = false
+    /// Whether the last automatic login worked (see tryAutoLogin).
+    private var lastAutoLoginOK = false
     /// The sign-in card: where the login is, and whose login it is (nil = yours).
     @Published var loginStage: LoginStage?
     @Published var loginStageName: String?
@@ -608,9 +610,16 @@ final class AppState: ObservableObject {
     /// so a wrong password never hammers SkoleIT.
     @discardableResult
     func tryAutoLogin(force: Bool = false, saving: Bool = false) async -> Bool {
+        // One is already running (the Mac woke and a sync and the keep-alive ping both found the
+        // session gone): wait for it and take its answer, instead of a false "session udløbet".
+        if autoLoginRunning {
+            while autoLoginRunning { try? await Task.sleep(for: .milliseconds(200)) }
+            return !needsLogin && lastAutoLoginOK
+        }
         guard SkoleITLogin.isSet, let user = SkoleITLogin.username, let pass = SkoleITLogin.password,
-              !autoLoginRunning, force || Date().timeIntervalSince(lastAutoLogin) > 10 * 60 else { return false }
+              force || Date().timeIntervalSince(lastAutoLogin) > 10 * 60 else { return false }
         lastAutoLogin = Date()
+        lastAutoLoginOK = false
         autoLoginRunning = true
         defer { autoLoginRunning = false }
         loginMessage = "Logger ind automatisk…"
@@ -622,6 +631,7 @@ final class AppState: ObservableObject {
             needsLogin = false
             expiryNotified = false
             loginMessage = "Logget ind automatisk ✓"
+            lastAutoLoginOK = true
             return true
         case .failure(let why):
             loginMessage = "Automatisk login fejlede: \(why)"
@@ -1209,6 +1219,7 @@ final class AppState: ObservableObject {
         homework[i].done = newValue
         #if os(iOS)
         scheduleAhead()
+        pushWidget()
         #endif
         let pill = StatusPill.shared
         if !fromUndo { pill.working(newValue ? "Markerer..." : "Fjerner markering...") }
@@ -1225,6 +1236,10 @@ final class AppState: ObservableObject {
                 }
             } catch {
                 if let j = homework.firstIndex(where: { $0.id == h.id }) { homework[j].done = !newValue }
+                #if os(iOS)
+                scheduleAhead()
+                pushWidget()
+                #endif
                 pill.failed("Kunne ikke gemme lektien")
             }
         }
@@ -1239,7 +1254,8 @@ final class AppState: ObservableObject {
         await sync()
         if needsLogin { pill.failed("Log ind igen for at synke") }
         else if offline { pill.failed("Ingen forbindelse til Viggo") }
-        else if !status.isEmpty { pill.failed("Synk mislykkedes") }
+        // Calendar messages stay in `status` across syncs; they are not a failed sync.
+        else if !status.isEmpty, !status.contains("Kalender") { pill.failed("Synk mislykkedes") }
         else { pill.done("Synket") }
     }
 

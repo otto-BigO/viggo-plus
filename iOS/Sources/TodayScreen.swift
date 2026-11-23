@@ -114,6 +114,7 @@ struct TodayScreen: View {
                         Card(title: "Dagen", icon: "clock") {
                             DayList(items: shown, now: now, schoolEnd: school.map(\.end).max(), line: true)
                         }
+                        .transition(.opacity)
                     }
 
                     if let meal = state.meals[DateUtil.startOfDay(now)] {
@@ -228,6 +229,8 @@ struct TodayScreen: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 28)
                 .animation(.viggo, value: current?.id)
+                // The skeleton fades out and the real day fades in when the first sync lands.
+                .animation(.viggo, value: Skeleton.forced || state.events.isEmpty && state.lastSync == nil && !state.needsLogin)
             }
             .background(Fomo.bg)
             .refreshable { await finish { await state.sync() } }
@@ -399,6 +402,8 @@ private struct HeroCard: View {
         VStack(alignment: .trailing, spacing: 0) {
             Text(v.0).font(.system(size: 40, weight: .semibold).monospacedDigit())
                 .contentTransition(.numericText(countsDown: true))
+                // The clock ticks without an animation, so the roll needs its own.
+                .animation(.viggo, value: v.0)
             Text("\(v.1) \(suffix)").font(.footnote.weight(.medium)).foregroundStyle(Fomo.text2)
         }
         .fixedSize()
@@ -469,6 +474,7 @@ private struct Stat: View {
                 .frame(height: iconH)
             Text(value).font(.title2.weight(.semibold).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
                 .contentTransition(.numericText())
+                .animation(.viggo, value: value)
             Text(label).font(.caption).foregroundStyle(Fomo.text2).lineLimit(1).minimumScaleFactor(0.6)
         }
         .padding(12)

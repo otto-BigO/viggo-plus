@@ -82,6 +82,9 @@ struct MenuView: View {
     var body: some View {
         let now = state.tick
         VStack(alignment: .leading, spacing: 10) {
+            // Swapped views overlap in a ZStack: in the VStack both were stacked for the length of
+            // the animation, so the card grew and shrank back.
+            ZStack(alignment: .topLeading) {
             if searching {
                 searchHeader
                     .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: -6)), removal: .opacity))
@@ -119,6 +122,7 @@ struct MenuView: View {
             }
             .transition(.opacity)
             }
+            }
 
             if state.needsLogin {
                 HStack {
@@ -150,6 +154,7 @@ struct MenuView: View {
                 }
             }
 
+            ZStack(alignment: .topLeading) {
             if searching {
                 PanelSearch(query: $query, height: searchFrame)
                     .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -158,8 +163,9 @@ struct MenuView: View {
             // The day scrolls when it is taller than the screen (many friends, a long day), so the
             // buttons at the bottom stay in reach.
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 10) {
+                ZStack(alignment: .topLeading) {
                     if let fid = state.selectedFriend, let f = state.friends.first(where: { $0.id == fid }) {
+                      VStack(alignment: .leading, spacing: 10) {
                         if state.friendExpired.contains(f.id) {
                             HStack {
                                 Text("\(f.firstName) skal logge ind igen").font(Sz.f(11)).foregroundStyle(Fomo.red)
@@ -169,8 +175,9 @@ struct MenuView: View {
                         }
                         DayPanel(name: f.firstName, events: state.friendEvents[f.id] ?? [],
                                  homework: state.friendHomework[f.id] ?? [], now: now, friend: f)
-                            .id(f.id)
-                            .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
+                      }
+                      .id(f.id)
+                      .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
                     } else {
                         DayPanel(name: nil, events: state.events, homework: state.homework, now: now)
                             .id("me")
@@ -199,6 +206,8 @@ struct MenuView: View {
             .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity),
                                     removal: .move(edge: .leading).combined(with: .opacity)))
             }
+            }
+            .clipped()
 
             HStack(spacing: 13) {
                 // Short, so it never breaks in two next to the buttons: "Synket 13:38".
@@ -247,6 +256,7 @@ struct MenuView: View {
         }
         .clipped()
         .onReceive(NotificationCenter.default.publisher(for: .panelClosed)) { _ in searching = false; query = "" }
+        .panelEscape(searching) { toggleSearch() }
         .onReceive(NotificationCenter.default.publisher(for: .panelSearchTest)) { n in
             // --panel-search-test drives the search the way clicks and typing would.
             let s = n.object as? String ?? ""
@@ -385,6 +395,7 @@ struct SettingsView: View {
                 Text((page ?? .konto).rawValue)
                     .font(.system(size: 20, weight: .bold))
                     .padding(.horizontal, 20).padding(.top, 30).padding(.bottom, 2)
+                ZStack(alignment: .topLeading) {
                 Group {
                 switch page ?? .konto {
                 case .konto: AccountTab()
@@ -402,6 +413,8 @@ struct SettingsView: View {
                 }
                 .id(page ?? .konto)
                 .transition(.opacity.combined(with: .offset(y: 4)))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }

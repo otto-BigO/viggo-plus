@@ -45,10 +45,21 @@ extension AppState {
     func setHomeworkFromWidget(_ id: Int, done: Bool) async {
         CookieJar.restore()
         func mark(_ v: Bool) {
-            if let i = homework.firstIndex(where: { $0.id == id }) { homework[i].done = v }
+            if let i = homework.firstIndex(where: { $0.id == id }) {
+                homework[i].done = v
+                // The app knows all the homework: rebuild the widget data from it (the count, Siri's
+                // list) and move the evening reminder, which still named a ticked one.
+                pushWidget()
+                scheduleAhead()
+                return
+            }
+            // Not loaded in this process: change only what the widget has.
             var d = WidgetStore.load()
             if let i = d.homeworkItems?.firstIndex(where: { $0.id == id }) { d.homeworkItems?[i].done = v }
-            d.homework = d.homeworkItems?.filter { !$0.done }.count ?? d.homework
+            if let i = d.homeworkItems?.firstIndex(where: { $0.id == id }), let t = d.homeworkItems?[i].title {
+                if v { d.homework = max(0, d.homework - 1); d.homeworkList?.removeAll { $0 == t } }
+                else { d.homework += 1; if d.homeworkList?.contains(t) == false { d.homeworkList?.append(t) } }
+            }
             WidgetStore.save(d)
             WidgetCenter.shared.reloadAllTimelines()
         }

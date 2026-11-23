@@ -328,9 +328,16 @@ struct ThreadScreen: View {
                         }
                     }
                     .padding(.horizontal, 12).padding(.bottom, 8)
+                    // The whole thread fades in over the skeleton; the bubbles' own transitions are
+                    // for messages that arrive later.
+                    .transition(.opacity)
                 } else if failed {
-                    ContentUnavailableView("Kunne ikke åbne beskeden", systemImage: "exclamationmark.bubble")
-                        .padding(.top, 80)
+                    ContentUnavailableView {
+                        Label("Kunne ikke åbne beskeden", systemImage: "exclamationmark.bubble")
+                    } actions: {
+                        Button("Prøv igen") { failed = false; Task { await load() } }
+                    }
+                    .padding(.top, 80)
                 } else {
                     SkeletonBubbles().transition(.opacity)
                 }
@@ -424,8 +431,13 @@ struct ThreadScreen: View {
 
     private func load() async {
         if detail == nil, let d = inbox.details[id] { detail = d }
-        do { detail = try await inbox.open(id); kind = detail?.canReplyAll == true && (detail?.to.count ?? 0) <= 1 ? .all : .sender }
-        catch { failed = true }
+        do {
+            let d = try await inbox.open(id)
+            // Animated, so the skeleton fades out instead of the thread popping in.
+            withAnimation(detail == nil ? .viggo : nil) { detail = d }
+            kind = d.canReplyAll && d.to.count <= 1 ? .all : .sender
+        }
+        catch { withAnimation(.viggo) { failed = detail == nil } }
     }
 
     private func header(_ d: ThreadDetail) -> some View {

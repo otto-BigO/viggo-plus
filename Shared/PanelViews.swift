@@ -340,6 +340,7 @@ struct NowCard: View {
         VStack(alignment: .trailing, spacing: 0) {
             Text(v.0).font(.system(size: 26 * Sz.k, weight: .semibold)).monospacedDigit()
                 .contentTransition(.numericText(countsDown: true))
+                .animation(.viggo, value: v.0)
             Text("\(v.1) \(suffix)").font(Sz.f(10, .medium)).foregroundStyle(Fomo.text2)
         }
         .fixedSize()

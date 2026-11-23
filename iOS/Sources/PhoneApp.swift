@@ -84,7 +84,10 @@ struct RootView: View {
         .sheet(isPresented: Binding(get: { state.showSearch && !splash }, set: { state.showSearch = $0 })) {
             SearchScreen().environment(\.zoomSpace, zoomSearch)
         }
-        .sheet(item: $lessons.shown) { e in LessonSheet(e: e).environment(\.zoomSpace, zoomNow) }
+        // While Søg is up it shows the lesson sheet itself (see SearchScreen).
+        .sheet(item: Binding(get: { state.showSearch ? nil : lessons.shown }, set: { lessons.shown = $0 })) { e in
+            LessonSheet(e: e).environment(\.zoomSpace, zoomNow)
+        }
     }
 
     /// Keep the launch screen up until the first sync is done (at least long enough for the
@@ -100,7 +103,10 @@ struct RootView: View {
         if left > 0 { try? await Task.sleep(for: .seconds(left)) }
         Haptic.soft()
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) { splash = false }
-        try? await Task.sleep(for: .milliseconds(700))
+        // The app was built under the launch screen, so its entrances already ran out of sight.
+        try? await Task.sleep(for: .milliseconds(200))
+        NotificationCenter.default.post(name: .viggoRevealed, object: nil)
+        try? await Task.sleep(for: .milliseconds(500))
         offerGuide()
     }
 
@@ -145,15 +151,23 @@ struct RootView: View {
 /// A lesson or event as a sheet that is as tall as what it says, and can be pulled up to full height.
 /// The height is measured before the sheet opens: changing it while the zoom runs stalled the
 /// animation for over a second and sometimes dropped it.
-private struct LessonSheet: View {
+struct LessonSheet: View {
     @EnvironmentObject var state: AppState
     let e: ViggoEvent
     private let fitted: PresentationDetent
     @State private var detent: PresentationDetent
 
+    /// The height measured when this lesson opened. RootView redraws with every clock tick and
+    /// builds the sheet again; measuring again each time cost a hosting controller per tick, and a
+    /// new height (after a photo was added) no longer matched the selected detent.
+    @MainActor private static var measured: (id: AnyHashable, h: CGFloat)?
+
     init(e: ViggoEvent) {
         self.e = e
-        let fitted = PresentationDetent.height(Self.height(of: e) + 72)
+        let h: CGFloat
+        if let m = Self.measured, m.id == AnyHashable(e.id) { h = m.h }
+        else { h = Self.height(of: e); Self.measured = (AnyHashable(e.id), h) }
+        let fitted = PresentationDetent.height(h + 72)
         self.fitted = fitted
         _detent = State(initialValue: fitted)
     }
@@ -182,6 +196,7 @@ private struct LessonSheet: View {
         .presentationDragIndicator(.visible)
         .zoomsFrom(e.id)
         .onAppear { Haptic.soft() }
+        .onDisappear { Self.measured = nil }
     }
 }
 

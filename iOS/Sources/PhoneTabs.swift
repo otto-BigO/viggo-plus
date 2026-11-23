@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 
 // MARK: - Uge
@@ -18,6 +19,11 @@ struct WeekBrowser<Header: View>: View {
     @ViewBuilder var header: Header
     /// Which way the last day change went, so the list slides the same way.
     @State private var forward = true
+    /// The day the list shows. It follows `day` one beat later, so the direction is set on the
+    /// old page before it slides out (every way of changing day goes through here: swipe, strip,
+    /// week arrows, I dag, a time tapped in a message).
+    @State private var shown: Date?
+    private var listDay: Date { shown ?? day }
     @State private var showDuty = false
     @ObservedObject private var dir = Directory.shared
     @ScaledMetric(relativeTo: .subheadline) private var timeW: CGFloat = 48
@@ -29,7 +35,7 @@ struct WeekBrowser<Header: View>: View {
     }
     private var range: ClosedRange<Int> { person == nil ? -Config.weeksBack...Config.weeksAhead : 0...1 }
     private var homework: [Homework] {
-        (person.flatMap { state.friendHomework[$0] } ?? state.homework).filter { DateUtil.cal.isDate($0.due, inSameDayAs: day) }
+        (person.flatMap { state.friendHomework[$0] } ?? state.homework).filter { DateUtil.cal.isDate($0.due, inSameDayAs: listDay) }
     }
 
     func move(days n: Int) {
@@ -40,7 +46,6 @@ struct WeekBrowser<Header: View>: View {
 
     private func go(to d: Date) {
         guard !DateUtil.cal.isDate(d, inSameDayAs: day) else { return }
-        forward = d > day
         Haptic.select()
         withAnimation(.viggo) { day = d }
     }
@@ -52,11 +57,16 @@ struct WeekBrowser<Header: View>: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     header
-                    agenda
-                        .id(day)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
-                            removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity)))
+                    // A ZStack, so the old and the new day overlap while they slide. In the VStack
+                    // the new one came in under the old one and then jumped up.
+                    ZStack(alignment: .top) {
+                        agenda
+                            .id(listDay)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
+                                removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity)))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
                 .padding(.horizontal, 16).padding(.top, 6).padding(.bottom, 28)
             }
@@ -65,6 +75,13 @@ struct WeekBrowser<Header: View>: View {
             .gesture(DaySwipe(direction: .right) { move(days: -1) })
         }
         .background(Fomo.bg)
+        .onAppear { if shown == nil { shown = day } }
+        .onChange(of: day) { old, new in
+            guard !DateUtil.cal.isDate(new, inSameDayAs: listDay) else { return }
+            var t = Transaction(); t.disablesAnimations = true
+            withTransaction(t) { forward = new > old }
+            DispatchQueue.main.async { withAnimation(.viggo) { shown = new } }
+        }
     }
 
     private var strip: some View {
@@ -97,6 +114,7 @@ struct WeekBrowser<Header: View>: View {
     }
 
     @ViewBuilder private var agenda: some View {
+        let day = listDay
         let items = state.weekItems(day, person: person, wholeDay: true)
         let school = AppState.schoolDay(items)
         let birthdays = state.birthdayNames(on: day, person: person)
@@ -450,7 +468,11 @@ struct SettingsScreen: View {
                 }
                 Section {
                     Toggle(isOn: $p.liveActivity) { row("Live Activity i skoletiden", "clock.badge.fill", .orange) }
-                        .onChange(of: p.liveActivity) { state.updateLiveActivity() }
+                        .onChange(of: p.liveActivity) { _, on in
+                            // Turned off: end the one on the lock screen now, not after the last lesson.
+                            if !on { for a in Activity<LessonAttributes>.activities { Task { await a.end(nil, dismissalPolicy: .immediate) } } }
+                            state.updateLiveActivity()
+                        }
                 } footer: {
                     Text("Timen der er i gang og nedtællingen står på låseskærmen og i Dynamic Island, fra en halv time før første time til sidste time slutter. Den starter når du åbner Viggo+. Vil du have den uden at åbne appen, så lav en automatisering i Genveje (fx kl. 7.45 på hverdage) med \"Vis skoledagen\" fra Viggo+, eller læg knappen \"Vis skoledagen\" i Kontrolcenter.")
                 }

@@ -51,6 +51,7 @@ struct PanelSearch: View {
         ZStack {
             if let id = person {
                 PanelPersonCard(id: id, back: { withAnimation(.viggo) { person = nil } })
+                    .panelEscape(true) { withAnimation(.viggo) { person = nil } }
                     .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
                                             removal: .move(edge: .trailing).combined(with: .opacity)))
             } else {
@@ -289,6 +290,7 @@ struct PanelPersonCard: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.92)))
                 }
             }
+            .panelEscape(zoom) { withAnimation(.easeOut(duration: 0.2)) { zoom = false } }
             .task { await premises.load() }
         }
     }

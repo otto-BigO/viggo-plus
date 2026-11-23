@@ -17,6 +17,9 @@ struct SearchScreen: View {
     @State private var allPeople = false
     @AppStorage("recentSearches") private var recentRaw = ""
     @Environment(\.dismiss) private var dismiss
+    /// Lessons tapped in Søg open over Søg: RootView already shows Søg as a sheet, and one view
+    /// can not show two sheets, so the lesson sheet there never came up.
+    @ObservedObject private var lessonSheet = LessonPresenter.shared
 
     /// The query the results are for. It follows what you type after a short pause, so the
     /// results are worked out once per pause and not for every letter and every redraw.
@@ -89,6 +92,7 @@ struct SearchScreen: View {
                 ToolbarItem(placement: .topBarTrailing) { Button("Luk") { dismiss() } }
             }
         }
+        .sheet(item: $lessonSheet.shown) { e in LessonSheet(e: e) }
     }
 
     // MARK: before typing

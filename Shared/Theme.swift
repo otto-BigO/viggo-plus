@@ -172,27 +172,31 @@ enum Skeleton {
 }
 
 /// A soft light that sweeps across placeholders, so a loading screen looks alive.
+///
+/// The content itself is never swapped: only the overlay comes and goes. Branching on `active`
+/// around the content rebuilt the cards under it when loading ended (their state reset and their
+/// own animations started over), and the sweep is driven by the clock, so it runs every time.
 private struct Shimmer: ViewModifier {
     let active: Bool
     @Environment(\.accessibilityReduceMotion) private var reduce
-    @State private var go = false
 
     func body(content: Content) -> some View {
-        if active, !reduce {
-            content
-                .overlay {
-                    GeometryReader { g in
+        let on = active && !reduce
+        content.overlay {
+            if on {
+                GeometryReader { g in
+                    let w = max(120, g.size.width * 0.5)
+                    TimelineView(.animation) { tl in
+                        let p = tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.25) / 1.25
                         LinearGradient(colors: [.clear, .white.opacity(0.18), .clear], startPoint: .leading, endPoint: .trailing)
-                            .frame(width: max(120, g.size.width * 0.5))
-                            .offset(x: go ? g.size.width : -max(120, g.size.width * 0.5))
-                            .animation(.linear(duration: 1.25).repeatForever(autoreverses: false), value: go)
+                            .frame(width: w)
+                            .offset(x: -w + (g.size.width + w) * p)
                     }
-                    .mask(content)
-                    .allowsHitTesting(false)
                 }
-                .onAppear { go = true }
-        } else {
-            content
+                .mask(content)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
         }
     }
 }
@@ -326,10 +330,25 @@ struct GlideBar: View {
         }
         .frame(height: height)
         .onChange(of: now) { anchor = Date() }
-        .onAppear {
-            guard !grown else { return }
-            if reduce || !Prefs.shared.drawIn || CommandLine.arguments.contains("--render-docs") { grown = true; return }
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.9).delay(0.08)) { grown = true }
+        .onAppear { grow() }
+        // The Mac panel is kept and only ordered front, and on the iPhone the app is built under
+        // the launch screen, so onAppear alone played the fill-in once, or out of sight.
+        .onReceive(NotificationCenter.default.publisher(for: .viggoRevealed)) { _ in
+            guard !reduce, Prefs.shared.drawIn else { return }
+            grown = false
+            DispatchQueue.main.async { grow() }
         }
     }
+
+    private func grow() {
+        guard !grown else { return }
+        if reduce || !Prefs.shared.drawIn || CommandLine.arguments.contains("--render-docs") { grown = true; return }
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.9).delay(0.08)) { grown = true }
+    }
+}
+
+extension Notification.Name {
+    /// Posted when the Mac panel opens and when the iPhone launch screen goes, so entrance
+    /// animations play where they can be seen.
+    static let viggoRevealed = Notification.Name("ViggoRevealed")
 }

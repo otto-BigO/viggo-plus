@@ -1,5 +1,17 @@
 # Ændringer
 
+## 1.29.0 og iPhone-app 1.18.2 (2026-11-23)
+
+- **Sendt på Mac**: Beskeder-vinduet har nu en Indbakke/Sendt-vælger. En tråd du selv starter, ligger kun i Viggos Sendt, indtil nogen svarer, så før kunne du ikke se den. Rækkerne viser hvem den gik til ("Til Emilie, Jonas"), og du kan søge i dem. En ny besked kommer i Sendt med det samme.
+- **Esc i panelet går ét skridt tilbage**: fra et forstørret billede til personen, fra personen til søgeresultaterne og fra søgningen til dagen. Først på dagen lukker Esc panelet.
+- **Animationer der nu spiller**: dagsskiftet i Uge glider den rigtige vej (også med ugepilene, "I dag" og en dato i en besked), og den nye dag hopper ikke længere op under den gamle. Tal der tæller ned ruller i stedet for at skifte. Beskedtråde toner frem i stedet for at poppe. Bjælken i Nu-kortet fylder op hver gang panelet åbner, og efter opstartsbilledet på iPhone. Panelet vokser ikke længere et øjeblik, når du skifter person eller søger.
+- **iPhone**: et tryk på en lektion i Søg åbner den nu. Før skete der ingenting.
+- **iPhone**: slår du Live Activity fra midt i skoledagen, forsvinder den med det samme.
+- **iPhone**: en lektie krydset af i widgetten fjerner også aftenpåmindelsen, og Siri nævner den ikke længere. Widgetten følger med, når du krydser af i appen.
+- **iPhone**: swiper du forbi notifikationssiden i introduktionen, gemmes dine valg nu (før skete det kun med Fortsæt-knappen).
+- **iPhone**: en tråd der ikke kunne åbnes, har en "Prøv igen"-knap.
+- **Rettet**: synk-knappen sagde "Synk mislykkedes", når Kalender manglede adgang, selvom synket gik godt. Og når Macen vågnede, kunne der komme en falsk "logget ud"-besked, mens det automatiske login stadig var i gang.
+
 ## 1.28.1 og iPhone-app 1.18.1 (2026-11-21)
 
 - **Profiler åbner hurtigere**: oplysninger og beskeder hentes på samme tid i stedet for efter hinanden, og en profil du har set inden for de sidste 10 minutter vises færdig med det samme. På Mac bruges det billede der allerede er hentet, i stedet for at hente det store hver gang.

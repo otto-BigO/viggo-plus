@@ -14,6 +14,7 @@ struct GuideSheet: View {
     @State private var briefs = false
     @State private var status: UNAuthorizationStatus?
     private let notifyPage = 1
+    @State private var skipped = false
 
     struct Page { let icon: String; let title: String; let text: String; var steps: [String] = [] }
 
@@ -47,12 +48,11 @@ struct GuideSheet: View {
                 if page > 0 { Button("Tilbage") { withAnimation(.viggo) { page -= 1 } }.foregroundStyle(Fomo.text2) }
                 Spacer()
                 if page == notifyPage, status == .notDetermined {
-                    Button("Spring over") { Haptic.tap(); withAnimation(.viggo) { page += 1 } }
+                    Button("Spring over") { Haptic.tap(); skipped = true; withAnimation(.viggo) { page += 1 } }
                         .foregroundStyle(Fomo.text2).padding(.trailing, 8)
                 }
                 Button(page == pages.count - 1 ? "Kom i gang" : "Fortsæt") {
                     Haptic.tap()
-                    if page == notifyPage { Task { await applyNotify() } }
                     if page == pages.count - 1 { dismiss() } else { withAnimation(.viggo) { page += 1 } }
                 }
                 .buttonStyle(.borderedProminent)
@@ -64,6 +64,12 @@ struct GuideSheet: View {
         .background(Fomo.bg)
         .tint(Fomo.accent)
         .interactiveDismissDisabled(false)
+        // Leaving the notification page forward saves the choices, with the button or a swipe
+        // (a swipe used to skip them, so iOS never asked). Spring over leaves them as they are.
+        .onChange(of: page) { old, new in
+            guard old == notifyPage, new > old else { return }
+            if skipped { skipped = false } else { Task { await applyNotify() } }
+        }
         .task {
             status = await NotifyAsk.status()
             // Someone who has already chosen sees their own choices, not the suggestions.

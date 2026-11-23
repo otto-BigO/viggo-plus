@@ -247,13 +247,27 @@ extension String {
 
 extension ViggoClient {
     static let inboxFolder = 13
+    /// Viggo's "Sendt". A thread you start is only here until someone answers; then it is in the
+    /// inbox too. `Details/13/<id>` opens these as well.
+    static let sentFolder = 0
 
     func fetchThreads() async throws -> [MessageThread] {
         let html = String(decoding: try await getPublic("/Basic/Message/Folder/\(Self.inboxFolder)?ajax=1"), as: UTF8.self)
         guard html.contains("Indbakke") else { throw ViggoError.notLoggedIn }
+        return Parser.threads(html, unread: await fetchUnreadIDs())
+    }
+
+    /// The threads with something unread, from Viggo's front-page widget (newest 50).
+    func fetchUnreadIDs() async -> Set<Int> {
         let w = String(decoding: (try? await getPublic("/Basic/Message/HomeWidget?show=50&ajax=1")) ?? Data(), as: UTF8.self)
-        let unread = Set(w.matches("Message/Details/(?:\\d+/)?(\\d+)").compactMap { Int($0[1]) })
-        return Parser.threads(html, unread: unread)
+        return Set(w.matches("Message/Details/(?:\\d+/)?(\\d+)").compactMap { Int($0[1]) })
+    }
+
+    /// The threads in Sendt, newest first. Never marked unread: they are your own.
+    func fetchSent() async throws -> [MessageThread] {
+        let html = String(decoding: try await getPublic("/Basic/Message/Folder/\(Self.sentFolder)?ajax=1"), as: UTF8.self)
+        guard html.contains("Sendt") else { throw ViggoError.notLoggedIn }
+        return Parser.threads(html, unread: []).map { t in var t = t; t.unread = false; return t }
     }
 
     /// Opening a thread marks it read on Viggo, like on the website.
@@ -365,6 +379,9 @@ final class Inbox: ObservableObject {
     private let client = ViggoClient()
 
     @Published var threads: [MessageThread] = []
+    /// Viggo's Sendt folder, for the Mac window's Sendt list.
+    @Published var sent: [MessageThread] = []
+    @Published var sentLoading = false
     @Published var loading = false
     @Published var error: String?
     @Published var people: [Person] = []
@@ -387,12 +404,12 @@ final class Inbox: ObservableObject {
     @Published private(set) var details: [Int: ThreadDetail] = [:]
 
     // The inbox and the threads you have opened are kept on disk, so Beskeder works offline.
-    private struct Stored: Codable { var threads: [MessageThread]; var details: [Int: ThreadDetail] }
+    private struct Stored: Codable { var threads: [MessageThread]; var details: [Int: ThreadDetail]; var sent: [MessageThread]? }
     private var storeURL: URL { CookieJar.dir.appendingPathComponent("inbox.json") }
 
     init() {
         if let data = try? Data(contentsOf: storeURL), let s = try? JSONDecoder().decode(Stored.self, from: data) {
-            threads = s.threads; details = s.details
+            threads = s.threads; details = s.details; sent = s.sent ?? []
         }
     }
 
@@ -404,8 +421,8 @@ final class Inbox: ObservableObject {
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
             // The newest 60 threads are plenty offline.
-            let keep = Set(threads.prefix(60).map(\.id))
-            let s = Stored(threads: threads, details: details.filter { keep.contains($0.key) })
+            let keep = Set(threads.prefix(60).map(\.id)).union(sent.prefix(30).map(\.id))
+            let s = Stored(threads: threads, details: details.filter { keep.contains($0.key) }, sent: sent)
             if let data = try? JSONEncoder().encode(s) { try? data.write(to: storeURL, options: .atomic) }
         }
     }
@@ -443,6 +460,39 @@ final class Inbox: ObservableObject {
         }
         keep(d)
         return d
+    }
+
+    /// Fetches Sendt, then the threads in it you have not opened yet, so the list can say who each
+    /// went to. Never one with an unread answer: fetching a thread marks it read on Viggo.
+    func loadSent() async {
+        sentLoading = true
+        defer { sentLoading = false }
+        do {
+            sent = try await client.fetchSent()
+            save()
+        } catch where AppState.isOffline(error) {
+            AppState.shared.offline = true
+            return
+        } catch { return }
+        let unread = await client.fetchUnreadIDs()
+        for t in sent.prefix(25) where details[t.id] == nil && !unread.contains(t.id)
+            && threads.first(where: { $0.id == t.id })?.unread != true {
+            guard let d = try? await client.fetchThread(t.id) else { break }
+            details[d.id] = d
+            Receipts.track(d, notify: false)
+        }
+        save()
+    }
+
+    /// Who a thread in Sendt is with: "Til Emilie, Jonas" when you started it, else who did.
+    func counterpart(_ id: Int, me: Int?) -> String? {
+        guard let d = details[id] else { return nil }
+        if d.messages.first?.authorID == me {
+            let to = d.to.map { $0.components(separatedBy: " ").first ?? $0 }
+            guard !to.isEmpty else { return nil }
+            return "Til " + (to.count > 3 ? to.prefix(3).joined(separator: ", ") + " og \(to.count - 3) andre" : to.joined(separator: ", "))
+        }
+        return d.from.first
     }
 
     /// Marks a thread read without showing it: Viggo marks it when the thread is fetched.
@@ -513,7 +563,7 @@ final class Inbox: ObservableObject {
     /// Forgets everything about the account that was logged in.
     func clear() {
         saveTask?.cancel()
-        threads = []; details = [:]; people = []; groups = []; selected = nil; pinned = []
+        threads = []; sent = []; details = [:]; people = []; groups = []; selected = nil; pinned = []
         loadedAt = nil; error = nil
         try? FileManager.default.removeItem(at: storeURL)
         Receipts.clear()
@@ -568,6 +618,8 @@ final class Inbox: ObservableObject {
         do { try await client.newMessage(to: to, subject: subject, text: text, files: files) }
         catch where AppState.isOffline(error) { throw ViggoError.offline }
         await load()
+        // A new thread is only in Sendt until someone answers, so show it there at once.
+        if !sent.isEmpty { await loadSent() }
     }
 
     func loadDirectory() async {

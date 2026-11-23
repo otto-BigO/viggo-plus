@@ -146,7 +146,8 @@ extension View {
 private struct CardEntrance: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduce
     func body(content: Content) -> some View {
-        let calm = reduce
+        // "Animationer når noget åbner" off counts as calm too.
+        let calm = reduce || !Prefs.shared.drawIn
         content.scrollTransition(.animated(.spring(response: 0.5, dampingFraction: 0.84)).threshold(.visible(0.04))) { c, phase in
             let below = phase == .bottomTrailing
             return c
@@ -164,19 +165,19 @@ struct PulseDot: View {
     var color: Color = .white
     var size: CGFloat = 6
     @Environment(\.accessibilityReduceMotion) private var reduce
-    @State private var on = false
 
     var body: some View {
         Circle().fill(color).frame(width: size, height: size)
             .background {
+                // A phase animator instead of repeatForever started in onAppear: that one stopped
+                // in its end frame (an invisible ring) when the view came back with its state kept.
                 if !reduce {
                     Circle().fill(color)
-                        .scaleEffect(on ? 2.8 : 1)
-                        .opacity(on ? 0 : 0.55)
-                        .animation(.easeOut(duration: 1.5).repeatForever(autoreverses: false), value: on)
+                        .phaseAnimator([false, true]) { c, on in
+                            c.scaleEffect(on ? 2.8 : 1).opacity(on ? 0 : 0.55)
+                        } animation: { on in on ? .easeOut(duration: 1.5) : nil }
                 }
             }
-            .onAppear { on = true }
     }
 }
 
@@ -185,18 +186,15 @@ struct NowGlow: View {
     let color: Color
     var radius: CGFloat = 14
     @Environment(\.accessibilityReduceMotion) private var reduce
-    @State private var on = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous).fill(color.opacity(0.12))
             .overlay {
                 if !reduce {
                     RoundedRectangle(cornerRadius: radius, style: .continuous).fill(color.opacity(0.13))
-                        .opacity(on ? 1 : 0)
-                        .animation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true), value: on)
+                        .phaseAnimator([false, true]) { c, on in c.opacity(on ? 1 : 0) } animation: { _ in .easeInOut(duration: 1.7) }
                 }
             }
-            .onAppear { on = true }
     }
 }
 
@@ -209,6 +207,7 @@ struct NowLine: View {
             Text(DateUtil.hm(now)).font(.caption.monospacedDigit().weight(.bold)).foregroundStyle(.red).lineLimit(1)
                 .frame(width: timeW, alignment: .leading)
                 .contentTransition(.numericText())
+                .animation(.viggo, value: DateUtil.hm(now))
             PulseDot(color: .red, size: 7)
             Rectangle().fill(Color.red.opacity(0.7)).frame(height: 1.5)
         }

@@ -7,11 +7,20 @@ struct MessagesWindow: View {
     @State private var search = ""
     @State private var composing = false
     @State private var composeTo: [Person] = []
+    /// Indbakke or Sendt. A thread you start is only in Sendt until someone answers.
+    @State private var folder: Folder = .inbox
+    enum Folder: String { case inbox, sent }
+
+    private var list: [MessageThread] { folder == .inbox ? inbox.threads : inbox.sent }
+    private var listLoading: Bool { folder == .inbox ? inbox.loading : inbox.sentLoading }
+    private var me: Int? { state.profile?.id }
 
     private var shown: [MessageThread] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return inbox.threads }
-        return inbox.threads.filter { "\($0.sender) \($0.subject) \($0.preview)".lowercased().contains(q) }
+        guard !q.isEmpty else { return list }
+        return list.filter { t in
+            "\(t.sender) \(inbox.counterpart(t.id, me: me) ?? "") \(t.subject) \(t.preview)".lowercased().contains(q)
+        }
     }
 
     var body: some View {
@@ -20,15 +29,33 @@ struct MessagesWindow: View {
                 if let e = inbox.error {
                     Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
-                ForEach(shown) { t in MacThreadRow(t: t).tag(t.id) }
+                ForEach(shown) { t in
+                    MacThreadRow(t: t, title: folder == .sent ? inbox.counterpart(t.id, me: me) : nil).tag(t.id)
+                }
             }
             .overlay {
-                if inbox.threads.isEmpty, inbox.loading {
+                if list.isEmpty, listLoading {
                     SkeletonRows(count: 9, avatar: 32).padding(.horizontal, 14).frame(maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
                 }
-                else if !inbox.threads.isEmpty, shown.isEmpty { ContentUnavailableView.search(text: search) }
+                else if !list.isEmpty, shown.isEmpty { ContentUnavailableView.search(text: search) }
+                else if list.isEmpty, folder == .sent {
+                    ContentUnavailableView("Ingen sendte beskeder", systemImage: "paperplane",
+                                           description: Text("Beskeder du skriver, kommer her, også før nogen har svaret."))
+                }
             }
-            .searchable(text: $search, placement: .sidebar, prompt: "Søg i beskeder")
+            .animation(.viggo, value: list.isEmpty)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Picker("", selection: $folder) {
+                    Text("Indbakke").tag(Folder.inbox)
+                    Text("Sendt").tag(Folder.sent)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 4)
+            }
+            .task(id: folder) { if folder == .sent { await inbox.loadSent() } }
+            .searchable(text: $search, placement: .sidebar, prompt: folder == .inbox ? "Søg i beskeder" : "Søg i sendte")
             .navigationSplitViewColumnWidth(min: 280, ideal: 330, max: 440)
         } detail: {
             if let id = inbox.selected {
@@ -40,7 +67,7 @@ struct MessagesWindow: View {
         }
         .toolbar {
             ToolbarItem {
-                Button { Task { await inbox.load() } } label: { Image(systemName: "arrow.clockwise") }
+                Button { Task { if folder == .inbox { await inbox.load() } else { await inbox.loadSent() } } } label: { Image(systemName: "arrow.clockwise") }
                     .help("Hent beskeder")
             }
             ToolbarItem {
@@ -65,6 +92,8 @@ struct MessagesWindow: View {
 
 private struct MacThreadRow: View {
     let t: MessageThread
+    /// In Sendt: who it went to ("Til Emilie, Jonas"), when the thread is known.
+    var title: String? = nil
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Avatar(url: t.image, size: 34, name: t.sender)
@@ -73,8 +102,8 @@ private struct MacThreadRow: View {
                 }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(t.sender).font(.system(size: 13, weight: t.unread ? .bold : .semibold)).lineLimit(1)
-                    if t.others > 0 { Text("+\(t.others)").font(.system(size: 11)).foregroundStyle(.secondary) }
+                    Text(title ?? t.sender).font(.system(size: 13, weight: t.unread ? .bold : .semibold)).lineLimit(1)
+                    if title == nil, t.others > 0 { Text("+\(t.others)").font(.system(size: 11)).foregroundStyle(.secondary) }
                     Spacer()
                     Text(t.when).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }

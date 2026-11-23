@@ -95,6 +95,8 @@ final class PanelController: NSObject {
         p.alphaValue = 0
         p.makeKeyAndOrderFront(nil)
         NSAnimationContext.runAnimationGroup { $0.duration = 0.12; p.animator().alphaValue = 1 }
+        // The panel is kept between opens, so its onAppear entrances only ran the first time.
+        NotificationCenter.default.post(name: .viggoRevealed, object: nil)
         button.highlight(true)
         watch()
     }
@@ -159,13 +161,44 @@ final class PanelController: NSObject {
             return e
         }) { monitors.append(m) }
         if let m = NSEvent.addLocalMonitorForEvents(matching: [.keyDown], handler: { e in
-            if e.keyCode == 53, PanelController.shared.panel?.isKeyWindow == true { PanelController.shared.close(); return nil }
+            if e.keyCode == 53, PanelController.shared.panel?.isKeyWindow == true {
+                // Esc steps back one layer (photo, person, search) and only closes the panel on the day.
+                if let top = PanelEscape.stack.last { top.run() } else { PanelController.shared.close() }
+                return nil
+            }
             return e
         }) { monitors.append(m) }
     }
 }
 
 final class PanelHost: NSHostingView<AnyView> {}
+
+/// What Esc does in the panel, innermost layer last. The key monitor swallows Esc before SwiftUI
+/// sees it, so a `.cancelAction` button in the panel never ran; layers register here instead.
+@MainActor enum PanelEscape {
+    static var stack: [(id: UUID, run: () -> Void)] = []
+}
+
+private struct PanelEscapeModifier: ViewModifier {
+    let active: Bool
+    let run: () -> Void
+    @State private var id = UUID()
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: active, initial: true) { _, on in
+                PanelEscape.stack.removeAll { $0.id == id }
+                if on { PanelEscape.stack.append((id, run)) }
+            }
+            .onDisappear { PanelEscape.stack.removeAll { $0.id == id } }
+    }
+}
+
+extension View {
+    /// While `active`, Esc in the panel runs `run` instead of closing the panel.
+    func panelEscape(_ active: Bool, _ run: @escaping () -> Void) -> some View {
+        modifier(PanelEscapeModifier(active: active, run: run))
+    }
+}
 
 /// The panel as you see it: the frosted card with a shadow, at the top of a see-through window.
 /// Clicks on the see-through part fall through to whatever is behind it.
@@ -254,6 +287,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 catch { print("[peek] \(error.localizedDescription)") }
                 exit(0)
+            }
+            return
+        }
+        // --sent-test: fetches Sendt and its threads the way the Messages window does, and prints
+        // counts only (no names). Marks nothing read: threads with an unread answer are skipped.
+        if CommandLine.arguments.contains("--sent-test") {
+            Task { @MainActor in
+                CookieJar.restore()
+                await AppState.shared.sync()
+                let inbox = Inbox.shared
+                await inbox.load()
+                let t0 = Date()
+                await inbox.loadSent()
+                let me = AppState.shared.profile?.id
+                let named = inbox.sent.filter { inbox.counterpart($0.id, me: me) != nil }.count
+                let mine = inbox.sent.filter { inbox.counterpart($0.id, me: me)?.hasPrefix("Til ") == true }.count
+                let onlyThere = inbox.sent.filter { s in !inbox.threads.contains { $0.id == s.id } }.count
+                print("[sendt] \(inbox.sent.count) tråde, \(named) med navn, \(mine) startet af dig, \(onlyThere) ikke i indbakken (\(inbox.threads.count) i indbakken), \(String(format: "%.1f", Date().timeIntervalSince(t0))) s")
+                exit(inbox.sent.isEmpty ? 1 : 0)
             }
             return
         }
