@@ -24,7 +24,7 @@ private func hm(_ d: Date) -> String { hmF.string(from: d) }
 private func itemColor(_ i: WidgetItem) -> Color {
     if let h = i.color, let c = Color(widgetHex: h) { return c }
     switch i.kind {
-    case "lesson": return .accentColor
+    case "lesson": return Fomo.accent
     case "event": return .orange
     case "custom": return .green
     default: return .gray
@@ -117,7 +117,7 @@ struct WidgetView: View {
                 Text(n.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                 Text(when(n, from: entry.date)).font(.system(size: 11)).foregroundStyle(.secondary)
             } else if entry.data.homework > 0 {
-                Label("\(entry.data.homework) lektier", systemImage: "book.closed").font(.system(size: 12)).foregroundStyle(.secondary)
+                Label("\(entry.data.homework) lektier", systemImage: "book.fill").font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -131,7 +131,7 @@ struct WidgetView: View {
                 nowBlock(cur, next, big: true)
                 Spacer(minLength: 0)
                 if entry.data.homework > 0 {
-                    Label("\(entry.data.homework) lektier", systemImage: "book.closed").font(.system(size: 11)).foregroundStyle(.secondary)
+                    Label("\(entry.data.homework) lektier", systemImage: "book.fill").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

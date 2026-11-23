@@ -227,7 +227,7 @@ struct UpdateView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(r.highlights, id: \.self) { h in
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Image(systemName: "sparkle").font(.system(size: 10)).foregroundStyle(Color.accentColor)
+                            Image(systemName: "sparkle").font(.system(size: 10)).foregroundStyle(Fomo.accent)
                             Text(h).font(.system(size: 13))
                         }
                     }
@@ -237,7 +237,7 @@ struct UpdateView: View {
                 Link("Læs mere på GitHub", destination: r.page).font(.system(size: 12))
             }
             if case .failed(let msg) = updater.phase {
-                Text("Opdateringen fejlede: \(msg)").font(.caption).foregroundStyle(.orange)
+                Text("Opdateringen fejlede: \(msg)").font(.caption).foregroundStyle(Fomo.warn)
             }
             HStack {
                 Spacer()
@@ -253,6 +253,6 @@ struct UpdateView: View {
         }
         .padding(.horizontal, 22).padding(.top, 30).padding(.bottom, 18)
         .frame(width: 380)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Fomo.bg)
     }
 }

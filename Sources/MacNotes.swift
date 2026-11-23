@@ -23,7 +23,7 @@ struct MacPackSection: View {
                 Spacer()
                 if !items.isEmpty {
                     Text(left == 0 ? "Alt er pakket" : "\(left) tilbage")
-                        .font(Sz.f(10, .medium)).foregroundStyle(left == 0 ? .green : .secondary)
+                        .font(Sz.f(10, .medium)).foregroundStyle(left == 0 ? Fomo.green : .secondary)
                         .padding(.top, 4)
                         .contentTransition(.numericText())
                 }
@@ -50,7 +50,7 @@ struct MacPackSection: View {
             Button { withAnimation(.viggo) { store.toggle(i, on: day) } } label: {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .font(Sz.f(14))
-                    .foregroundStyle(done ? .green : .secondary)
+                    .foregroundStyle(done ? Fomo.green : .secondary)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(PressScale(scale: 0.8))
@@ -157,7 +157,7 @@ struct MacLessonNotes: View {
         .padding(8)
         .background {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                .strokeBorder(Fomo.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
                 .opacity(dropping ? 1 : 0)
         }
         .padding(-8)

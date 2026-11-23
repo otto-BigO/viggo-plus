@@ -215,16 +215,20 @@ struct UpdateTab: View {
                     Text("Du har den nyeste version.")
                 }
             }
+            .fomoRows()
             if let n = (u.waiting ?? latest ?? u.arrived)?.notes, !n.isEmpty {
                 Section("Nyt i \((u.waiting ?? latest ?? u.arrived)!.version)") {
                     ForEach(n, id: \.self) { Text($0) }
                 }
+                .fomoRows()
             }
             Section {
                 Text("iPhone-appen er signeret med Apple-ID'et på din Mac, så den kan ikke opdatere sig selv. Viggo+ på Mac'en opdaterer sig selv, når Mac'en ikke bruges, og lægger så den nye iPhone-app på telefonen. Den kigger hvert 5. minut, så snart der er en ny version, og du får en besked når den er lagt på.")
                     .font(.subheadline).foregroundStyle(.secondary)
             } header: { Text("Sådan virker det") }
+            .fomoRows()
         }
+        .fomoList()
         .task { latest = await PhoneUpdate.latest() }
     }
 }

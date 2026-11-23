@@ -204,12 +204,12 @@ struct NowLine: View {
     @ScaledMetric(relativeTo: .subheadline) private var timeW: CGFloat = 48
     var body: some View {
         HStack(spacing: 8) {
-            Text(DateUtil.hm(now)).font(.caption.monospacedDigit().weight(.bold)).foregroundStyle(.red).lineLimit(1)
+            Text(DateUtil.hm(now)).font(.caption.monospacedDigit().weight(.bold)).foregroundStyle(Fomo.accent).lineLimit(1)
                 .frame(width: timeW, alignment: .leading)
                 .contentTransition(.numericText())
                 .animation(.viggo, value: DateUtil.hm(now))
-            PulseDot(color: .red, size: 7)
-            Rectangle().fill(Color.red.opacity(0.7)).frame(height: 1.5)
+            PulseDot(color: Fomo.accent, size: 7)
+            Rectangle().fill(Fomo.accent.opacity(0.7)).frame(height: 1.5)
         }
         .padding(.vertical, 5)
         .accessibilityLabel("Klokken er \(DateUtil.hm(now))")

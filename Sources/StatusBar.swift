@@ -208,7 +208,7 @@ struct PanelCard: View {
             MenuView().environmentObject(AppState.shared)
                 .layoutPriority(1)
                 .background(Fomo.bg)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Fomo.radius, style: .continuous))
                 // The one shadow left: it lifts the panel off the desktop, like a menu.
                 .shadow(color: .black.opacity(0.28), radius: 16, y: 6)
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { PanelController.shared.cardSize = $0 }

@@ -10,7 +10,7 @@ private func lhm(_ d: Date) -> String { liveHM.string(from: d) }
 func liveColor(_ i: WidgetItem) -> Color {
     if let h = i.color, let c = Color(widgetHex: h) { return c }
     switch i.kind {
-    case "lesson": return .blue
+    case "lesson": return Fomo.accent
     case "event": return .orange
     case "custom": return .green
     default: return .gray

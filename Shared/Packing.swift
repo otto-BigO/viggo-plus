@@ -248,7 +248,7 @@ struct PackCard: View {
             Button { Haptic.tap(); withAnimation(.viggo) { store.toggle(i, on: day) } } label: {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(done ? .green : .secondary)
+                    .foregroundStyle(done ? Fomo.green : .secondary)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(PressScale(scale: 0.8))

@@ -132,7 +132,7 @@ struct AttachmentChips: View {
                             } else {
                                 Image(systemName: Self.icon(f)).font(.system(size: 16, weight: .semibold)).foregroundStyle(.tint)
                                     .frame(width: 34, height: 34)
-                                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.accentColor.opacity(0.14)))
+                                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Fomo.accent.opacity(0.14)))
                             }
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(f.name).font(.caption.weight(.medium)).lineLimit(1)
@@ -148,7 +148,7 @@ struct AttachmentChips: View {
                             .accessibilityLabel("Fjern \(f.name)")
                         }
                         .padding(6).padding(.trailing, 2)
-                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.secondarySystemBackground)))
+                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Fomo.surface2))
                         .transition(.scale(scale: 0.6).combined(with: .opacity))
                     }
                 }

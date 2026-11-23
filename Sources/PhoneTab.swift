@@ -99,9 +99,9 @@ struct PhoneTab: View {
                 }
                 if let e = inst.error {
                     Label(e, systemImage: "exclamationmark.triangle.fill")
-                        .font(.callout).foregroundStyle(.orange)
+                        .font(.callout).foregroundStyle(Fomo.warn)
                         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(.orange.opacity(0.1)))
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Fomo.warn.opacity(0.1)))
                 }
                 prep
                 stepList
@@ -206,7 +206,7 @@ struct PhoneTab: View {
             if current == nil {
                 Label(inst.records.count > 1 ? "Viggo+ er klar på \(inst.device?.name ?? "iPhonen")" : "Viggo+ er klar på iPhonen",
                       systemImage: "checkmark.seal.fill")
-                    .foregroundStyle(.green).font(.callout.weight(.semibold)).padding(.top, 10)
+                    .foregroundStyle(Fomo.green).font(.callout.weight(.semibold)).padding(.top, 10)
                 Text("Vil du have Viggo+ på en iPhone mere? Sæt den til med kabel og lås den op, så starter guiden forfra for den. Trin 1 til 3 er klaret, og alle dine iPhones bliver fornyet automatisk.")
                     .font(.caption).foregroundStyle(.secondary).padding(.top, 2)
             }
@@ -255,7 +255,7 @@ struct PhoneTab: View {
             }
             .font(.caption).foregroundStyle(.secondary)
             if let sent = inst.loginSent {
-                Label(sent, systemImage: "checkmark.circle.fill").font(.callout).foregroundStyle(.green)
+                Label(sent, systemImage: "checkmark.circle.fill").font(.callout).foregroundStyle(Fomo.green)
                     .transition(.opacity)
             }
         }
@@ -293,7 +293,7 @@ private struct StepRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 ZStack {
-                    Circle().fill(done ? Color.green : current ? Color.accentColor : Color.primary.opacity(0.1))
+                    Circle().fill(done ? Fomo.green : current ? Fomo.accent : Color.primary.opacity(0.1))
                     if done { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(.white) }
                     else { Text("\(n)").font(.system(size: 11, weight: .bold)).foregroundStyle(current ? .white : .secondary) }
                 }
@@ -343,7 +343,7 @@ private struct JobCard: View {
             Text("Første gang tager det 2 til 5 minutter. Hold iPhonen ulåst.").font(.caption).foregroundStyle(.secondary)
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: 12).fill(Fomo.accent.opacity(0.08)))
         .transition(.opacity.combined(with: .scale(scale: 0.97)))
     }
 }
@@ -358,7 +358,7 @@ private struct StatusCard: View {
 
     var body: some View {
         let left = rec.expires.timeIntervalSinceNow
-        let color: Color = left < 0 ? .red : left < 86400 ? .orange : .green
+        let color: Color = left < 0 ? Fomo.red : left < 86400 ? Fomo.warn : Fomo.green
         HStack(spacing: 14) {
             Image(systemName: "iphone.gen3").font(.system(size: 30)).foregroundStyle(color)
             VStack(alignment: .leading, spacing: 3) {
@@ -399,7 +399,7 @@ private struct StatusCard: View {
         let d = device
         let (icon, text, tint): (String, String, Color) = {
             guard let d, d.reachable else { return ("wifi.slash", "Ikke i nærheden lige nu", .secondary) }
-            return d.wired ? ("cable.connector", "Forbundet med kabel", .green) : ("wifi", "Forbundet over wifi", .green)
+            return d.wired ? ("cable.connector", "Forbundet med kabel", Fomo.green) : ("wifi", "Forbundet over wifi", Fomo.green)
         }()
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 5) {

@@ -62,6 +62,7 @@ struct SearchScreen: View {
             List {
                 if q.isEmpty { suggestions } else { results }
             }
+            .fomoList()
             .listStyle(.insetGrouped)
             .overlay {
                 if !q.isEmpty, nothing, !searchingViggo, !dir.loading { ContentUnavailableView.search(text: query) }
@@ -99,7 +100,7 @@ struct SearchScreen: View {
 
     @ViewBuilder private var suggestions: some View {
         if let e = dir.error {
-            Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Fomo.warn)
         }
         if !recent.isEmpty {
             Section {
@@ -108,6 +109,7 @@ struct SearchScreen: View {
                 }
                 Button("Ryd seneste", role: .destructive) { recentRaw = "" }.font(.subheadline)
             } header: { Text("Seneste") }
+            .fomoRows()
         }
         if let me = state.profile.flatMap({ dir.member($0.id) }) {
             Section {
@@ -121,6 +123,7 @@ struct SearchScreen: View {
                     }
                 }
             } header: { Text("Dine") }
+            .fomoRows()
         }
         Section {
             ForEach(["10.4", "Musiklinjen", "D17", "Valgfag", "Fødselsdag"], id: \.self) { s in
@@ -129,6 +132,7 @@ struct SearchScreen: View {
         } header: { Text("Prøv fx") } footer: {
             Text("Søg efter navn, klasse (10.4), værelse (D17), hus, linje, valgfag, initialer eller elevnummer. Beskeder søges i hele teksten.")
         }
+        .fomoRows()
     }
 
     // MARK: results
@@ -146,11 +150,13 @@ struct SearchScreen: View {
                     Button(allPeople ? "Vis færre" : "Vis alle \(people.count)") { withAnimation(.viggo) { allPeople.toggle() } }
                 }
             } header: { Text("Personer") }
+            .fomoRows()
         }
         if !groups.isEmpty {
             Section("Grupper") {
                 ForEach(groups) { g in NavigationLink(value: Found.group(g.id)) { GroupRow(g: g) } }
             }
+            .fomoRows()
         }
         if !threads.isEmpty || searchingViggo {
             Section {
@@ -160,6 +166,7 @@ struct SearchScreen: View {
             } header: {
                 HStack { Text("Beskeder"); if searchingViggo { ProgressView().controlSize(.mini) } }
             }
+            .fomoRows()
         }
         if !lessons.isEmpty {
             Section("Skema") {
@@ -167,6 +174,7 @@ struct SearchScreen: View {
                     Button { state.shownLesson = e } label: { LessonRow(e: e) }.foregroundStyle(.primary)
                 }
             }
+            .fomoRows()
         }
         if !homework.isEmpty {
             Section("Lektier") {
@@ -178,6 +186,7 @@ struct SearchScreen: View {
                     }
                 }
             }
+            .fomoRows()
         }
         if !posts.isEmpty {
             Section("Opslag") {
@@ -190,6 +199,7 @@ struct SearchScreen: View {
                     }
                 }
             }
+            .fomoRows()
         }
     }
 
@@ -210,6 +220,7 @@ struct SearchScreen: View {
                 }
             }
         }
+        .fomoRows()
     }
 
     private func searchViggo() async {
@@ -338,7 +349,7 @@ private struct FoundThreadRow: View {
         var a = AttributedString(s)
         if !q.isEmpty, let r = a.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) {
             a[r].font = font.weight(.bold)
-            a[r].foregroundColor = .accentColor
+            a[r].foregroundColor = Fomo.accent
         }
         return a
     }
@@ -457,6 +468,7 @@ struct PersonScreen: View {
                 // Anything else Viggo's profile page has.
                 ForEach(extraFields(m), id: \.0) { f in info(f.0, f.1, "info.circle") }
             }
+            .fomoRows()
 
             people("Bor med", dir.roommates(of: m))
             people("Kontaktlærer", dir.contactTeachers(of: m.id))
@@ -478,8 +490,10 @@ struct PersonScreen: View {
                         }
                     }
                 }
+                .fomoRows()
             }
         }
+        .fomoList()
         .listStyle(.insetGrouped)
     }
 
@@ -500,10 +514,10 @@ struct PersonScreen: View {
                                 Text([c.room.isEmpty ? nil : c.room, "til \(untilText(c.start, c.end))"].compactMap { $0 }.joined(separator: " · "))
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
-                        } icon: { Image(systemName: "mappin.circle.fill").foregroundStyle(.orange) }
+                        } icon: { Image(systemName: "mappin.circle.fill").foregroundStyle(Fomo.warn) }
                     } else {
                         Label(w.next.map { "Fri til \(DateUtil.hm($0.start))" } ?? "Ingen flere timer i dag",
-                              systemImage: "cup.and.saucer.fill").foregroundStyle(.green)
+                              systemImage: "cup.and.saucer.fill").foregroundStyle(Fomo.green)
                     }
                     if let n = w.next {
                         Label {
@@ -521,6 +535,7 @@ struct PersonScreen: View {
             } header: { Text("Lige nu") } footer: {
                 if canAdd { Text("Uden login: Viggo+ finder \(m.firstName)s timer i Viggos lokaleoversigt.") }
             }
+            .fomoRows()
         }
     }
 
@@ -591,6 +606,7 @@ struct PersonScreen: View {
             Section(title) {
                 ForEach(list) { p in NavigationLink(value: Found.person(p.id)) { PersonRow(m: p, size: 36) } }
             }
+            .fomoRows()
         }
     }
 
@@ -608,6 +624,7 @@ struct PersonScreen: View {
                     }
                 }
             }
+            .fomoRows()
         }
     }
 
@@ -624,6 +641,7 @@ struct PersonScreen: View {
                         Button { state.shownLesson = e } label: { LessonRow(e: e) }.foregroundStyle(.primary)
                     }
                 }
+                .fomoRows()
             }
         }
     }
@@ -643,9 +661,9 @@ struct PersonScreen: View {
                             Spacer(minLength: 6)
                             if mine.contains(g.id) {
                                 Label("Fælles", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon)
-                                    .font(.caption.weight(.semibold)).foregroundStyle(.green)
+                                    .font(.caption.weight(.semibold)).foregroundStyle(Fomo.green)
                                     .padding(.horizontal, 8).padding(.vertical, 3)
-                                    .background(Capsule().fill(Color.green.opacity(0.14)))
+                                    .background(Capsule().fill(Fomo.green.opacity(0.14)))
                             }
                         }
                     }
@@ -656,6 +674,7 @@ struct PersonScreen: View {
             } header: {
                 Text(mine.isEmpty ? "Grupper" : "Grupper · \(mine.count) fælles med dig")
             }
+            .fomoRows()
         }
     }
 }
@@ -731,8 +750,10 @@ struct HouseScreen: View {
                         NavigationLink(value: Found.person(p.id)) { PersonRow(m: p, size: 36) }
                     }
                 }
+                .fomoRows()
             }
         }
+        .fomoList()
         .listStyle(.insetGrouped)
         .navigationTitle(house)
         .navigationBarTitleDisplayMode(.inline)
@@ -772,15 +793,18 @@ struct GroupScreen: View {
                 }
                 if !g.note.isEmpty, g.kind != .klasse { Text(g.note).font(.caption).foregroundStyle(.secondary) }
             }
+            .fomoRows()
             ForEach(kinds, id: \.0) { title, k in
                 let list = shown.filter { $0.kind == k }
                 if !list.isEmpty {
                     Section("\(title) (\(list.count))") {
                         ForEach(list) { m in NavigationLink(value: Found.person(m.id)) { PersonRow(m: m, size: 36) } }
                     }
+                    .fomoRows()
                 }
             }
         }
+        .fomoList()
         .listStyle(.insetGrouped)
         .navigationTitle(g.display)
         .navigationBarTitleDisplayMode(.inline)

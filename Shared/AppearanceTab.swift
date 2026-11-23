@@ -18,6 +18,7 @@ struct AppearanceTab: View {
                 Text("Små tryk når du krydser en lektie af, fortryder noget eller logger ind.")
                 #endif
             }
+            .fomoRows()
             Section {
                 Toggle("Animationer når noget åbner", isOn: $p.drawIn)
                     .disabled(reduce)
@@ -26,7 +27,9 @@ struct AppearanceTab: View {
                      ? "Slået fra, fordi Reducer bevægelse er slået til i systemets indstillinger."
                      : "Uge-overblikket og nedtællingen tegner sig selv ind, kort og stille, når du åbner dem.")
             }
+            .fomoRows()
         }
+        .fomoList()
         .formStyle(.grouped)
     }
 }
@@ -126,12 +129,14 @@ struct NotifyStatusRow: View {
                         Label("Slå notifikationer til", systemImage: "bell.badge.fill").font(.body.weight(.semibold))
                     }
                 } footer: { Text("Viggo+ har ikke fået lov til at sende notifikationer endnu.") }
+                .fomoRows()
             case .denied?:
                 Section {
                     Button { if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) } } label: {
                         Label("Åbn Indstillinger", systemImage: "gear").font(.body.weight(.semibold))
                     }
                 } footer: { Text("Notifikationer er slået fra for Viggo+ i iPhonens Indstillinger. Slå dem til der, så virker valgene herunder.") }
+                .fomoRows()
             default:
                 EmptyView()
             }

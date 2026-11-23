@@ -431,7 +431,7 @@ struct PersonChip: View {
                     }
                     .opacity(expired ? 0.4 : 1)
                     .overlay(alignment: .topTrailing) {
-                        if expired { Circle().fill(.orange).frame(width: 8, height: 8).overlay(Circle().stroke(.background, lineWidth: 1.5)) }
+                        if expired { Circle().fill(Fomo.warn).frame(width: 8, height: 8).overlay(Circle().stroke(.background, lineWidth: 1.5)) }
                     }
                     .padding(3)
                     .contentShape(Circle())
@@ -661,7 +661,7 @@ struct LessonDetailView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(width: 420, height: min(max(height, 240), 640))
-        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .background(Fomo.bg.ignoresSafeArea())
         #else
         ScrollView { LessonDetailContent(e: e) }
         #endif
@@ -864,7 +864,7 @@ struct LoginCard: View {
     private var symbol: String {
         done ? "checkmark.shield.fill" : failed ? "exclamationmark.shield.fill" : stage == .saving ? "lock.fill" : "lock.shield.fill"
     }
-    private var tint: Color { done ? .green : failed ? .orange : .accentColor }
+    private var tint: Color { done ? Fomo.green : failed ? Fomo.warn : Fomo.accent }
     private var title: String {
         let who = state.loginStageName
         if done { return who.map { "\($0.prefix(1).uppercased() + $0.dropFirst()) er logget ind" } ?? "Du er logget ind" }

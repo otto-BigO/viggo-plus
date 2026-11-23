@@ -5,53 +5,6 @@ import AppKit
 import UIKit
 #endif
 
-// The look, borrowed from the fomo app: one dark background and one surface, no borders or
-// shadows, and colours that mean something. Accent is something you can do, green is done or
-// good, red is cancelled or a problem. Everything else is white or grey.
-
-enum Fomo {
-    static let bg = dynamic(light: 0xF4F4F7, dark: 0x060510)
-    static let surface = dynamic(light: 0xFFFFFF, dark: 0x12111A)
-    /// Tracks, placeholders and chips inside a surface.
-    static let surface2 = dynamic(light: 0xE9E9EF, dark: 0x1D1C29)
-    static let accent = Color(hex: 0x4F6AF8)
-    static let green = Color(hex: 0x21C95E)
-    static let red = Color(hex: 0xEF371F)
-    static let text2 = dynamic(light: 0x6B6B76, dark: 0x9899A3)
-    static let radius: CGFloat = 14
-    /// The pill and other things that move into place.
-    static let spring = Animation.spring(response: 0.4, dampingFraction: 0.8)
-
-    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
-        #if os(macOS)
-        Color(nsColor: NSColor(name: nil) { a in
-            a.bestMatch(from: [.darkAqua, .vibrantDark, .accessibilityHighContrastDarkAqua]) != nil ? NSColor(hex: dark) : NSColor(hex: light)
-        })
-        #else
-        Color(uiColor: UIColor { t in t.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light) })
-        #endif
-    }
-}
-
-extension Color {
-    init(hex: UInt32) {
-        self.init(.sRGB, red: Double(hex >> 16 & 0xff) / 255, green: Double(hex >> 8 & 0xff) / 255, blue: Double(hex & 0xff) / 255)
-    }
-}
-
-extension PlatformColor {
-    convenience init(hex: UInt32) {
-        self.init(red: CGFloat(hex >> 16 & 0xff) / 255, green: CGFloat(hex >> 8 & 0xff) / 255, blue: CGFloat(hex & 0xff) / 255, alpha: 1)
-    }
-}
-
-extension View {
-    /// A flat card on the surface colour: no border, no shadow.
-    func surface(_ radius: CGFloat = Fomo.radius, fill: Color = Fomo.surface) -> some View {
-        background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(fill))
-    }
-}
-
 // MARK: - Status pill
 
 /// A pill at the top that says what is happening and morphs when it is done:

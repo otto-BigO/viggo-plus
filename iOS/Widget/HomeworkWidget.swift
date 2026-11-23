@@ -58,13 +58,13 @@ struct HomeworkWidgetView: View {
         let open = (entry.data.homeworkItems ?? []).filter { !$0.done }.count
         VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 8) {
             HStack {
-                Image(systemName: "book.fill").foregroundStyle(.orange)
+                Image(systemName: "book.fill").foregroundStyle(Fomo.warn)
                 Text("Lektier").font(.system(size: 15, weight: .bold))
                 Spacer()
                 if open > 0 {
                     Text("\(open)").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
                         .padding(.horizontal, 7).padding(.vertical, 2)
-                        .background(Capsule().fill(.orange))
+                        .background(Capsule().fill(Fomo.warn))
                 }
             }
             if entry.data.loggedOut {

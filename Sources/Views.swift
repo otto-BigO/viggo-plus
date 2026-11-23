@@ -342,10 +342,10 @@ struct SidebarRow<Content: View>: View {
                     if selected {
                         // The blue highlight slides to the page you pick.
                         if let highlight {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.accentColor)
+                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Fomo.accent)
                                 .matchedGeometryEffect(id: "sel", in: highlight)
                         } else {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.accentColor)
+                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Fomo.accent)
                         }
                     }
                 }
@@ -538,7 +538,7 @@ struct CalendarTab: View {
                     }
                 } label: {
                     HStack {
-                        Circle().fill(.green).frame(width: 9, height: 9)
+                        Circle().fill(Fomo.green).frame(width: 9, height: 9)
                         Text("Hverdag")
                         Spacer()
                         Text(p.includedRoutines.isEmpty ? "Ingen" : "\(p.includedRoutines.count) valgt")
@@ -606,10 +606,10 @@ struct FocusSection: View {
             }
             HStack(spacing: 8) {
                 if fs.ready(mode) {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Fomo.green)
                     Text("Genvejene er klar")
                 } else {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Fomo.warn)
                     Text("Viggo+ mangler to genveje for at kunne slå fokus til")
                 }
                 Spacer()

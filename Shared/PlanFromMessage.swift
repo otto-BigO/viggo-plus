@@ -77,7 +77,7 @@ extension Deadlines {
                   let hi = AttributedString.Index(range.upperBound, within: out) else { continue }
             if out[lo..<hi].runs.contains(where: { $0.link != nil }) { continue }
             out[lo..<hi].inlinePresentationIntent = .stronglyEmphasized
-            out[lo..<hi].backgroundColor = onAccent ? Color.white.opacity(0.22) : Color.accentColor.opacity(0.14)
+            out[lo..<hi].backgroundColor = onAccent ? Color.white.opacity(0.22) : Fomo.accent.opacity(0.14)
             if let url { out[lo..<hi].link = url }
         }
     }
@@ -101,7 +101,7 @@ struct PlanSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(existing == nil ? "Tilføj til skema" : "Står i dit skema", systemImage: existing == nil ? "calendar.badge.plus" : "calendar.badge.checkmark")
                 .font(.headline)
-                .foregroundStyle(existing == nil ? Color.primary : Color.green)
+                .foregroundStyle(existing == nil ? Color.primary : Fomo.green)
             TextField("Hvad", text: $draft.title)
                 .textFieldStyle(.roundedBorder)
                 .focused($titleFocused)
@@ -116,7 +116,7 @@ struct PlanSheet: View {
             }
             if !draft.timed {
                 Text("Beskeden siger ikke hvornår på dagen, så vælg en tid.")
-                    .font(.caption).foregroundStyle(.orange)
+                    .font(.caption).foregroundStyle(Fomo.warn)
             }
             HStack {
                 if let showDay {

@@ -121,7 +121,7 @@ struct PanelSearch: View {
             ForEach(ps.prefix(8)) { m in personRow(m) }
             if ps.count > 8 {
                 row { remember(); SearchBridge.shared.open(query: query) } content: {
-                    Text("Vis alle \(ps.count)").font(Sz.f(12, .medium)).foregroundStyle(Color.accentColor).padding(.leading, 36)
+                    Text("Vis alle \(ps.count)").font(Sz.f(12, .medium)).foregroundStyle(Fomo.accent).padding(.leading, 36)
                 }
             }
         }
@@ -227,7 +227,7 @@ struct PanelPersonCard: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     Button(action: back) { Label("Resultater", systemImage: "chevron.left").font(Sz.f(12, .medium)) }
-                        .buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                        .buttonStyle(.plain).foregroundStyle(Fomo.accent)
                         .keyboardShortcut("[", modifiers: .command)
                     HStack(spacing: 12) {
                         Avatar(url: m.image ?? m.imageBig, size: 58, name: m.name)
@@ -255,10 +255,10 @@ struct PanelPersonCard: View {
                         Group {
                             if let c = w.now {
                                 Label("\(c.title)\(c.room.isEmpty ? "" : " · \(c.room)") til \(DateUtil.hm(c.end))", systemImage: "mappin.circle.fill")
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(Fomo.warn)
                             } else {
                                 Label(w.next.map { "Fri til \(DateUtil.hm($0.start))" } ?? "Ingen flere timer i dag", systemImage: "cup.and.saucer.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(Fomo.green)
                             }
                         }
                         .font(Sz.f(12, .medium))
@@ -276,7 +276,7 @@ struct PanelPersonCard: View {
                     Button { SearchBridge.shared.open(found: .person(m.id)) } label: {
                         Label("Hele profilen i Søg", systemImage: "arrow.up.right.square").font(Sz.f(12))
                     }
-                    .buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                    .buttonStyle(.plain).foregroundStyle(Fomo.accent)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -315,9 +315,9 @@ struct TextHitRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: compact ? 10 : 8) {
             Image(systemName: h.file == nil ? "text.bubble" : "doc.text")
-                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.accentColor)
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Fomo.accent)
                 .frame(width: compact ? 26 : 28, height: compact ? 26 : 28)
-                .background(Circle().fill(Color.accentColor.opacity(0.12)))
+                .background(Circle().fill(Fomo.accent.opacity(0.12)))
             VStack(alignment: .leading, spacing: 1) {
                 Text(h.file.map { ($0 as NSString).deletingPathExtension } ?? h.subject)
                     .font(compact ? Sz.f(13, .medium) : .system(size: 12, weight: .semibold)).lineLimit(1)

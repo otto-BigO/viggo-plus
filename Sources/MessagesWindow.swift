@@ -27,7 +27,7 @@ struct MessagesWindow: View {
         NavigationSplitView {
             List(selection: $inbox.selected) {
                 if let e = inbox.error {
-                    Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Fomo.warn)
                 }
                 ForEach(shown) { t in
                     MacThreadRow(t: t, title: folder == .sent ? inbox.counterpart(t.id, me: me) : nil).tag(t.id)
@@ -98,7 +98,7 @@ private struct MacThreadRow: View {
         HStack(alignment: .top, spacing: 10) {
             Avatar(url: t.image, size: 34, name: t.sender)
                 .overlay(alignment: .topLeading) {
-                    if t.unread { Circle().fill(Color.accentColor).frame(width: 9, height: 9).offset(x: -3, y: -2) }
+                    if t.unread { Circle().fill(Fomo.accent).frame(width: 9, height: 9).offset(x: -3, y: -2) }
                 }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
@@ -212,7 +212,7 @@ private struct MacThreadView: View {
                     else { Image(systemName: "arrow.up.circle.fill").font(.system(size: 26)) }
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Fomo.accent)
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
                 .help("Send (⌘↩)")
@@ -267,13 +267,13 @@ struct MacBubble: View {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "arrow.up.right.square")
                                 .font(.system(size: 12, weight: .medium))
                         }
-                        .foregroundStyle(mine && !personal ? Color.white : Color.accentColor)
+                        .foregroundStyle(mine && !personal ? Color.white : Fomo.accent)
                     }
                 }
                 .padding(.horizontal, 13).padding(.vertical, 9)
                 .foregroundStyle(mine && !personal ? Color.white : Color.primary)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(personal ? Color.indigo.opacity(0.1) : mine ? Color.accentColor : Color.primary.opacity(0.07)))
+                    .fill(personal ? Color.indigo.opacity(0.1) : mine ? Fomo.accent : Color.primary.opacity(0.07)))
                 // A personal answer in a group thread: outlined, so it is clear only one person sees it.
                 .overlay {
                     if personal {
@@ -392,7 +392,7 @@ private struct MacCompose: View {
                                             .buttonStyle(.plain).foregroundStyle(.secondary)
                                     }
                                     .padding(.leading, 3).padding(.trailing, 7).padding(.vertical, 3)
-                                    .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+                                    .background(Capsule().fill(Fomo.accent.opacity(0.14)))
                                 }
                             }
                         }
@@ -423,7 +423,7 @@ private struct MacCompose: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "person.3.fill").frame(width: 24, height: 24)
-                                    .background(Circle().fill(Color.accentColor.opacity(0.15)))
+                                    .background(Circle().fill(Fomo.accent.opacity(0.15)))
                                 Text(g.name)
                                 Text("\(g.members.count) personer").font(.system(size: 11)).foregroundStyle(.secondary)
                                 Spacer()

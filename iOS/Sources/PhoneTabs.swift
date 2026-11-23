@@ -98,13 +98,13 @@ struct WeekBrowser<Header: View>: View {
                             .foregroundStyle(sel ? Color.white.opacity(0.85) : .secondary)
                         Text("\(DateUtil.cal.component(.day, from: d))")
                             .font(.system(size: 17, weight: sel || today ? .bold : .regular))
-                            .foregroundStyle(sel ? Color.white : today ? Color.accentColor : .primary)
-                        Circle().fill(sel ? Color.white : today ? Color.accentColor : Color.secondary.opacity(0.5))
+                            .foregroundStyle(sel ? Color.white : today ? Fomo.accent : .primary)
+                        Circle().fill(sel ? Color.white : today ? Fomo.accent : Color.secondary.opacity(0.5))
                             .frame(width: 4, height: 4).opacity(today || busy ? 1 : 0)
                     }
                     .frame(maxWidth: .infinity).padding(.vertical, 7)
                     .background {
-                        if sel { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.accentColor.gradient).matchedGeometryEffect(id: "pill", in: pill) }
+                        if sel { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Fomo.accent.gradient).matchedGeometryEffect(id: "pill", in: pill) }
                     }
                     .contentShape(Rectangle())
                 }
@@ -126,8 +126,8 @@ struct WeekBrowser<Header: View>: View {
                 Text(summary(school)).font(.subheadline).foregroundStyle(.secondary)
             }
             if !birthdays.isEmpty {
-                Banner(icon: "gift.fill", tint: .pink,
-                       text: birthdays.count == 1 ? "\(birthdays[0]) har fødselsdag 🎉" : "Fødselsdag: " + birthdays.joined(separator: ", "))
+                Banner(icon: "birthday.cake.fill", tint: Fomo.text2,
+                       text: birthdays.count == 1 ? "\(birthdays[0]) har fødselsdag" : "Fødselsdag: " + birthdays.joined(separator: ", "))
             }
             if Skeleton.forced || person == nil && state.events.isEmpty && state.lastSync == nil && !state.needsLogin {
                 // The first schedule has not arrived yet.
@@ -144,7 +144,7 @@ struct WeekBrowser<Header: View>: View {
                 }
             }
             if !hw.isEmpty {
-                Card(title: "Lektier", icon: "book.closed.fill", badge: hw.filter { !$0.done }.count) {
+                Card(title: "Lektier", icon: "book.fill", badge: hw.filter { !$0.done }.count) {
                     VStack(spacing: 0) { ForEach(hw) { HomeworkRow(h: $0) } }
                 }
             }
@@ -348,13 +348,16 @@ struct FriendsScreen: View {
                     } header: {
                         Text("Lige nu")
                     }
+                    .fomoRows()
                     Section {
                         NavigationLink { FriendsTab().navigationTitle("Administrer venner") } label: {
                             Label("Tilføj eller fjern venner", systemImage: "person.badge.plus")
                         }
                     }
+                    .fomoRows()
                 }
             }
+            .fomoList()
             .navigationTitle("Venner")
             .navigationDestination(for: Found.self) { FoundScreen(found: $0).zoomsFromPicture($0) }
             .navigationDestination(for: FriendRoute.self) { r in
@@ -448,6 +451,7 @@ struct SettingsScreen: View {
                             .padding(.vertical, 4)
                         }
                     }
+                    .fomoRows()
                 }
                 Section {
                     NavigationLink { PanelTab().navigationTitle("I dag") } label: { row("I dag-skærmen", "sun.max.fill", .teal) }
@@ -457,6 +461,7 @@ struct SettingsScreen: View {
                     NavigationLink { FriendsTab().navigationTitle("Venner") } label: { row("Venner", "person.2.fill", .blue) }
                     NavigationLink { AppearanceTab().navigationTitle("Udseende og haptik") } label: { row("Udseende og haptik", "hand.tap.fill", .purple) }
                 }
+                .fomoRows()
                 Section {
                     NavigationLink { IconPicker().navigationTitle("App-ikon") } label: {
                         Label {
@@ -466,6 +471,7 @@ struct SettingsScreen: View {
                         }
                     }
                 }
+                .fomoRows()
                 Section {
                     Toggle(isOn: $p.liveActivity) { row("Live Activity i skoletiden", "clock.badge.fill", .orange) }
                         .onChange(of: p.liveActivity) { _, on in
@@ -476,6 +482,7 @@ struct SettingsScreen: View {
                 } footer: {
                     Text("Timen der er i gang og nedtællingen står på låseskærmen og i Dynamic Island, fra en halv time før første time til sidste time slutter. Den starter når du åbner Viggo+. Vil du have den uden at åbne appen, så lav en automatisering i Genveje (fx kl. 7.45 på hverdage) med \"Vis skoledagen\" fra Viggo+, eller læg knappen \"Vis skoledagen\" i Kontrolcenter.")
                 }
+                .fomoRows()
                 Section {
                     NavigationLink { UpdateTab().navigationTitle("Opdateringer") } label: { row("Opdateringer", "arrow.down.circle.fill", .blue) }
                     Button { showGuide = true } label: { row("Introduktion", "questionmark.circle.fill", .gray) }
@@ -485,7 +492,9 @@ struct SettingsScreen: View {
                 } footer: {
                     Text("Viggo+ \(version)").frame(maxWidth: .infinity).padding(.top, 12)
                 }
+                .fomoRows()
             }
+            .fomoList()
             .navigationTitle("Indstillinger")
             .sheet(isPresented: $showGuide) { GuideSheet() }
         }

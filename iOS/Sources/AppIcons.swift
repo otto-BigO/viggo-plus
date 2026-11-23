@@ -111,7 +111,7 @@ struct IconPicker: View {
                                 .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 76 * 0.225 + 5, style: .continuous)
-                                        .stroke(Color.accentColor, lineWidth: 3)
+                                        .stroke(Fomo.accent, lineWidth: 3)
                                         .padding(-5)
                                         .opacity(current == s ? 1 : 0)
                                 }

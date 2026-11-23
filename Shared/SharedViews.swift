@@ -281,6 +281,7 @@ struct LessonsTab: View {
                 Text("Giv timer dine egne navne og farver. Navnet bruges i menubaren, panelet, uge-overblikket og kalenderen.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
             Section("Timer") {
                 if titles.isEmpty { Text("Log ind for at se dine timer").font(.caption).foregroundStyle(.secondary) }
                 ForEach(titles, id: \.self) { t in
@@ -302,7 +303,9 @@ struct LessonsTab: View {
                     }
                 }
             }
+            .fomoRows()
         }
+        .fomoList()
         .formStyle(.grouped)
         .onChange(of: p.lessonNames) { if p.imported { state.applyCalendar() } }
     }
@@ -334,6 +337,7 @@ struct AccountTab: View {
                             }
                     }
                 }
+                .fomoRows()
             }
             Section {
                 if saved {
@@ -366,7 +370,9 @@ struct AccountTab: View {
                 Text("Viggo+ logger selv ind, når sessionen udløber. Koden gemmes kun på \(Platform.deviceName).")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
         }
+        .fomoList()
         .formStyle(.grouped)
         .animation(.viggo, value: saved)
         .animation(.viggo, value: state.loginMessage)
@@ -401,15 +407,19 @@ struct PanelTab: View {
                     Stepper("Antal beskeder: \(p.panelMsgCount)", value: $p.panelMsgCount, in: 1...5)
                 }
             }
+            .fomoRows()
             Section("Udseende") {
                 Toggle("Skjul det der er overstået", isOn: $p.panelHidePast)
                 Toggle("Stor tekst", isOn: $p.panelLarge)
             }
+            .fomoRows()
             Section {
                 Text("Hvilke hverdags-punkter (aftensmad, godnat …) der vises, vælger du under Menubar.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
         }
+        .fomoList()
         .formStyle(.grouped)
     }
 }
@@ -445,7 +455,9 @@ struct FriendAutoLoginButton: View {
                             }
                         }
                     }
+                    .fomoRows()
                 }
+                .fomoList()
                 .formStyle(.grouped)
                 .frame(width: 300)
             }
@@ -467,7 +479,7 @@ struct FriendsTab: View {
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(f.name)
                                 Text(!f.needsLogin ? "Uden login, skema fra lokaleoversigten" : expired ? "Skal logge ind igen" : "Logget ind")
-                                    .font(.caption).foregroundStyle(!f.needsLogin ? Color.secondary : expired ? Color.orange : Color.green)
+                                    .font(.caption).foregroundStyle(!f.needsLogin ? Color.secondary : expired ? Fomo.warn : Fomo.green)
                             }
                             Spacer()
                             if f.needsLogin, state.friendAutoLoginRunning.contains(f.id) {
@@ -486,6 +498,7 @@ struct FriendsTab: View {
                     }
                     Toggle("Vis hvornår I har fri samtidig", isOn: $p.friendsFreeTogether)
                 }
+                .fomoRows()
             }
             Section {
                 FriendPicker()
@@ -495,6 +508,7 @@ struct FriendsTab: View {
                 Text("Uden login. Viggo+ finder vennens timer og lokaler i Viggos lokaleoversigt, ud fra holdene vennen går på. Lektier kræver at vennen logger ind.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
             Section {
                 SkoleITFields(button: "Tilføj") { u, p in
                     Task { await state.addFriendWithSkoleIT(username: u, password: p) }
@@ -507,7 +521,9 @@ struct FriendsTab: View {
                 Text("Med vennens SkoleIT-login logger Viggo+ selv vennen ind igen. Koden gemmes kun på \(Platform.deviceName).")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
         }
+        .fomoList()
         .formStyle(.grouped)
         .animation(.viggo, value: state.friends)
         .animation(.viggo, value: state.friendExpired)
@@ -538,7 +554,7 @@ struct FriendPicker: View {
                 }
                 Spacer()
                 if state.isFriend(m.id) {
-                    Image(systemName: "checkmark").foregroundStyle(.green)
+                    Image(systemName: "checkmark").foregroundStyle(Fomo.green)
                 } else {
                     Button("Tilføj") { Task { await state.addFriend(member: m); q = "" } }
                         .buttonStyle(.borderedProminent)
@@ -564,6 +580,7 @@ struct CustomItemsTab: View {
                         }
                     }
                 }
+                .fomoRows()
             }
             Section {
                 HStack(spacing: 8) {
@@ -573,7 +590,7 @@ struct CustomItemsTab: View {
                                 Button { add(s) } label: { Label(s.title, systemImage: "plus").fixedSize() }
                                     .buttonStyle(PressScale(scale: 0.94))
                                     .padding(.horizontal, 10).padding(.vertical, 5)
-                                    .background(Capsule().fill(Color.green.opacity(0.15)))
+                                    .background(Capsule().fill(Fomo.green.opacity(0.15)))
                             }
                         }
                     }
@@ -586,7 +603,9 @@ struct CustomItemsTab: View {
                 Text("Punkterne står i panelet og i menubaren på de dage du vælger, fx \"Frokost 12:00\".")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
         }
+        .fomoList()
         .formStyle(.grouped)
         .animation(.viggo, value: p.customItems)
     }
@@ -650,12 +669,12 @@ struct CustomItemRow: View {
                             .font(.system(size: 11, weight: .semibold))
                             .frame(width: 24, height: 24)
                             .foregroundStyle(on ? Color.white : Color.secondary)
-                            .background(Circle().fill(on ? Color.green : Color.primary.opacity(0.08)))
+                            .background(Circle().fill(on ? Fomo.green : Color.primary.opacity(0.08)))
                     }
                     .buttonStyle(PressScale(scale: 0.85))
                 }
                 if item.end <= item.start {
-                    Text("Slut skal være efter start").font(.caption).foregroundStyle(.orange).padding(.leading, 6)
+                    Text("Slut skal være efter start").font(.caption).foregroundStyle(Fomo.warn).padding(.leading, 6)
                 }
             }
         }
@@ -679,6 +698,7 @@ struct NotificationsTab: View {
                 Toggle("Fødselsdage om morgenen", isOn: $p.notifyBirthdays)
                 Toggle("Når nogen har set din besked", isOn: $p.notifySeen)
             }
+            .fomoRows()
             Section {
                 Toggle("Lektier til i morgen", isOn: $p.homeworkReminder)
                 DatePicker("Kl.", selection: Binding(
@@ -690,12 +710,14 @@ struct NotificationsTab: View {
             } header: { Text("Påmindelse om aftenen") } footer: {
                 Text("Fx \"Du har 2 lektier til i morgen\" og \"Husk: lommeregner, idrætstøj\". Kommer kun når der er noget. Huskelisten finder \"husk\" og \"medbring\" i lærerens info, beskeder og opslag.").font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
             Section {
                 Toggle("Find deadlines i beskeder og opslag", isOn: $p.deadlineRadar)
             } header: { Text("Deadline-radar") } footer: {
                 Text("Viggo+ læser opslag og de beskeder du har læst, finder fx \"deadline i dag kl. 13.00\" og minder dig om det aftenen før og 2 timer før. Ulæste beskeder åbnes aldrig, så kun emne og start bruges.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .fomoRows()
             #if os(iOS)
             Section("Påmindelse før timer") {
                 Picker("Før hver time", selection: $p.lessonAlarmMinutes) {
@@ -703,18 +725,22 @@ struct NotificationsTab: View {
                     ForEach([5, 10, 15, 30], id: \.self) { Text("\($0) min").tag($0) }
                 }
             }
+            .fomoRows()
             #endif
             Section("Daglig brief") {
                 Toggle("Slået til", isOn: $p.briefs)
                 Stepper("Morgen kl. \(p.morningHour)", value: $p.morningHour, in: 5...11).disabled(!p.briefs)
                 Stepper("Aften kl. \(p.eveningHour)", value: $p.eveningHour, in: 16...23).disabled(!p.briefs)
             }
+            .fomoRows()
             Section {
                 Button("Send test-notifikation") {
                     Notifier.shared.post("Viggo+ test", state.brief(for: Date(), prefix: "I dag"))
                 }
             }
+            .fomoRows()
         }
+        .fomoList()
         .formStyle(.grouped)
         #if os(iOS)
         // New settings take effect right away: the waiting reminders are made again.
@@ -735,7 +761,7 @@ struct OfflineBanner: View {
             HStack(spacing: compact ? 7 : 10) {
                 Image(systemName: "wifi.slash")
                     .font(compact ? .system(size: 12, weight: .semibold) : .subheadline.weight(.semibold))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Fomo.warn)
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Offline").font(compact ? .system(size: 12, weight: .semibold) : .subheadline.weight(.semibold))
                     Text(state.syncedText.map { "Viser det gemte. \($0)." } ?? "Intet gemt endnu.")
@@ -750,7 +776,7 @@ struct OfflineBanner: View {
                 }
             }
             .padding(.horizontal, compact ? 9 : 12).padding(.vertical, compact ? 6 : 9)
-            .background(RoundedRectangle(cornerRadius: compact ? 10 : 14, style: .continuous).fill(Color.orange.opacity(0.1)))
+            .background(RoundedRectangle(cornerRadius: compact ? 10 : 14, style: .continuous).fill(Fomo.warn.opacity(0.1)))
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

@@ -39,7 +39,7 @@ struct QuietLoginAvatar: View {
     var size: CGFloat = 30
     @State private var spin = false
 
-    private var tint: Color { q.failed ? .orange : q.done ? .green : .accentColor }
+    private var tint: Color { q.failed ? Fomo.warn : q.done ? Fomo.green : Fomo.accent }
 
     var body: some View {
         ZStack {
@@ -111,7 +111,7 @@ struct QuietLoginBadges: View {
         }
         .padding(.leading, 4).padding(.trailing, 12).padding(.vertical, 4)
         .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(q.failed ? Color.orange.opacity(0.5) : .primary.opacity(0.08)))
+        .overlay(Capsule().strokeBorder(q.failed ? Fomo.warn.opacity(0.5) : .primary.opacity(0.08)))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
         .animation(.easeInOut(duration: 0.25), value: q.stage)
     }

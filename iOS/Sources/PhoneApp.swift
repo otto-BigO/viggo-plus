@@ -232,6 +232,7 @@ struct LoginScreen: View {
                     .padding(.vertical, 12)
                     .listRowBackground(Color.clear)
                 }
+                .fomoRows()
                 Section {
                     SkoleITFields(button: "Log ind") { u, p in
                         Task { await state.saveAutoLogin(username: u, password: p) }
@@ -243,13 +244,16 @@ struct LoginScreen: View {
                 } footer: {
                     Text("Viggo+ gemmer login på telefonen og logger selv ind igen, når Viggo smider dig ud.")
                 }
+                .fomoRows()
                 Section {
                     Button("Log ind via Viggo i stedet") { state.loginWithBrowser() }
                 }
+                .fomoRows()
                 if !state.loginMessage.isEmpty {
                     Text(state.loginMessage).font(.footnote).foregroundStyle(.secondary)
                 }
             }
+            .fomoList()
         }
     }
 }

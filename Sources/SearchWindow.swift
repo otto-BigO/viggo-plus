@@ -164,7 +164,7 @@ struct SearchWindow: View {
 
     @ViewBuilder private var suggestions: some View {
         if let e = dir.error {
-            Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Fomo.warn)
         }
         if !recent.isEmpty {
             Section("Seneste") {
@@ -202,7 +202,7 @@ struct SearchWindow: View {
                 ForEach(allPeople ? people : Array(people.prefix(8))) { m in MacPersonRow(m: m).tag(Found.person(m.id)) }
                 if people.count > 8 {
                     Button(allPeople ? "Vis færre" : "Vis alle \(people.count)") { withAnimation(.viggo) { allPeople.toggle() } }
-                        .buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                        .buttonStyle(.plain).foregroundStyle(Fomo.accent)
                 }
             }
         }
@@ -443,7 +443,7 @@ private struct MacFoundThreadRow: View {
         var a = AttributedString(s)
         if !q.isEmpty, let r = a.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) {
             a[r].inlinePresentationIntent = .stronglyEmphasized
-            a[r].foregroundColor = .accentColor
+            a[r].foregroundColor = Fomo.accent
         }
         return a
     }
@@ -643,10 +643,10 @@ struct MacPersonView: View {
                                 Text([c.room.isEmpty ? nil : c.room, "til \(untilText(c.start, c.end))"].compactMap { $0 }.joined(separator: " · "))
                                     .font(.system(size: 12)).foregroundStyle(.secondary)
                             }
-                        } icon: { Image(systemName: "mappin.circle.fill").foregroundStyle(.orange) }
+                        } icon: { Image(systemName: "mappin.circle.fill").foregroundStyle(Fomo.warn) }
                     } else {
                         Label(w.next.map { "Fri til \(DateUtil.hm($0.start))" } ?? "Ingen flere timer i dag",
-                              systemImage: "cup.and.saucer.fill").foregroundStyle(.green)
+                              systemImage: "cup.and.saucer.fill").foregroundStyle(Fomo.green)
                     }
                     if let n = w.next {
                         Label("Næste: \(n.title) kl. \(DateUtil.hm(n.start))\(n.room.isEmpty ? "" : " i \(n.room)")", systemImage: "arrow.forward.circle")
@@ -740,9 +740,9 @@ struct MacPersonView: View {
                             Spacer(minLength: 6)
                             if mine.contains(g.id) {
                                 Label("Fælles", systemImage: "checkmark.circle.fill")
-                                    .font(.caption.weight(.semibold)).foregroundStyle(.green)
+                                    .font(.caption.weight(.semibold)).foregroundStyle(Fomo.green)
                                     .padding(.horizontal, 7).padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.green.opacity(0.14)))
+                                    .background(Capsule().fill(Fomo.green.opacity(0.14)))
                             }
                         }
                     }

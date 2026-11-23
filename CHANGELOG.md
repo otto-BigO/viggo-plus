@@ -1,5 +1,13 @@
 # Ændringer
 
+## 1.29.1 og iPhone-app 1.18.3 (2026-11-23)
+
+- **Ét udseende overalt**: Beskeder, Søg, Venner og Indstillinger på iPhone har nu samme mørke baggrund og kort som I dag i stedet for systemets grå. Widgets og Live Activity bruger de samme farver som appen.
+- **Farver der betyder det samme**: blå er noget du kan trykke på, grøn er færdig eller godt, orange er noget du skal se på (frister, lektier, advarsler). Grøn og orange er mørkere i lyst tema, så teksten kan læses på et hvidt kort.
+- **Nu-linjen** i Dagen er blå i stedet for rød, så den ikke ligner en aflysning. "Nu"-mærket i Dagen har bedre kontrast.
+- **Samme ikoner**: fødselsdage har en kage og lektier en bog både i I dag, Uge og widgetten.
+- Fristkortet i en beskedtråd er fladt som resten af kortene, uden skygge og kant.
+
 ## 1.29.0 og iPhone-app 1.18.2 (2026-11-23)
 
 - **Sendt på Mac**: Beskeder-vinduet har nu en Indbakke/Sendt-vælger. En tråd du selv starter, ligger kun i Viggos Sendt, indtil nogen svarer, så før kunne du ikke se den. Rækkerne viser hvem den gik til ("Til Emilie, Jonas"), og du kan søge i dem. En ny besked kommer i Sendt med det samme.

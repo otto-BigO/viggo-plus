@@ -578,7 +578,7 @@ struct PauseRow: View {
             Spacer()
             if current {
                 HStack(spacing: 5) {
-                    PulseDot(color: .accentColor, size: 5)
+                    PulseDot(color: Fomo.accent, size: 5)
                     Text("Nu").font(.caption.weight(.bold)).foregroundStyle(.tint)
                 }
             }
@@ -654,7 +654,7 @@ struct DayRow: View {
                                     .font(.footnote.weight(.medium)).lineLimit(1)
                             }
                             .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+                            .background(Capsule().fill(Fomo.accent.opacity(0.14)))
                         }
                         Spacer(minLength: 0)
                         Button("Detaljer") { state.openLesson(e) }.font(.footnote.weight(.medium))
@@ -799,10 +799,10 @@ struct FriendsNowCard: View {
                 Spacer(minLength: 4)
                 if let g = gaps.first, g.0 <= now {
                     HStack(spacing: 5) {
-                        PulseDot(size: 5)
+                        PulseDot(color: Fomo.onGreen, size: 5)
                         Text("Nu").font(.caption.weight(.bold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Fomo.onGreen)
                     .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(Fomo.green))
                 }
                 Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)

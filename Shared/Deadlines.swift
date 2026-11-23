@@ -379,9 +379,9 @@ struct DeadlineSuggestion: View {
         return HStack(spacing: 10) {
             Image(systemName: on ? "pin.fill" : "pin.slash")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(on ? Color.orange : Color.secondary)
+                .foregroundStyle(on ? Fomo.warn : Color.secondary)
                 .frame(width: 30, height: 30)
-                .background(Circle().fill(Color.orange.opacity(on ? 0.16 : 0.07)))
+                .background(Circle().fill(Fomo.warn.opacity(on ? 0.16 : 0.07)))
             VStack(alignment: .leading, spacing: 1) {
                 Text(on ? "Deadline \(d.whenText().lowercasedFirst)" : "Deadline fundet")
                     .font(.subheadline.weight(.semibold))
@@ -394,17 +394,15 @@ struct DeadlineSuggestion: View {
             }
             .font(.caption.weight(.semibold))
             .buttonStyle(.bordered)
-            .tint(on ? .secondary : .orange)
+            .tint(on ? .secondary : Fomo.warn)
             .controlSize(.small)
         }
         .padding(10)
         .background {
             // Solid underneath, so it can sit over a scrolling thread.
-            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.background)
-            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.orange.opacity(0.08))
+            RoundedRectangle(cornerRadius: Fomo.radius, style: .continuous).fill(Fomo.surface)
+            RoundedRectangle(cornerRadius: Fomo.radius, style: .continuous).fill(Fomo.warn.opacity(0.1))
         }
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.orange.opacity(0.22)))
     }
 }
 
@@ -422,7 +420,7 @@ struct DeadlineRow: View {
             Button { withAnimation(.viggo) { store.toggleDone(d) } } label: {
                 Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: compact ? 15 : 20))
-                    .foregroundStyle(isDone ? Color.green : Color.secondary)
+                    .foregroundStyle(isDone ? Fomo.green : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
@@ -435,7 +433,7 @@ struct DeadlineRow: View {
             Spacer(minLength: 4)
             Text(late ? "Overskredet" : d.whenText())
                 .font(compact ? .system(size: 11, weight: .semibold) : .caption.weight(.semibold))
-                .foregroundStyle(late ? Color.red : soon ? Color.orange : Color.secondary)
+                .foregroundStyle(late ? Fomo.red : soon ? Fomo.warn : Color.secondary)
                 .lineLimit(1)
         }
         .opacity(isDone ? 0.55 : 1)

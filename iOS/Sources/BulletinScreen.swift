@@ -36,7 +36,7 @@ struct BulletinScreen: View {
                         HStack(spacing: 10) {
                             Image(systemName: "link").font(.body.weight(.semibold))
                                 .frame(width: 34, height: 34)
-                                .background(Circle().fill(Color.accentColor.opacity(0.14)))
+                                .background(Circle().fill(Fomo.accent.opacity(0.14)))
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link").font(.subheadline.weight(.semibold))
                                 Text(u.absoluteString).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -54,7 +54,7 @@ struct BulletinScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background {
-            LinearGradient(colors: [(b.color ?? .accentColor).opacity(0.25), Fomo.bg],
+            LinearGradient(colors: [(b.color ?? Fomo.accent).opacity(0.25), Fomo.bg],
                            startPoint: .top, endPoint: .center)
                 .ignoresSafeArea()
         }

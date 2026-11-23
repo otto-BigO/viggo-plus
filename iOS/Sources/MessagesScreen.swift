@@ -25,24 +25,26 @@ struct MessagesScreen: View {
         NavigationStack(path: $path) {
             List {
                 if state.offline {
-                    OfflineBanner().listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                    OfflineBanner().listRowSeparator(.hidden).listRowBackground(Fomo.bg).listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                 }
                 if let e = inbox.error {
-                    Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Fomo.warn)
+                        .listRowBackground(Fomo.bg)
                 }
                 if !searching, !inbox.pinnedThreads.isEmpty, !firstLoad {
                     PinnedGrid(threads: inbox.pinnedThreads) { path.append($0) }
-                        .listRowSeparator(.hidden)
+                        .listRowSeparator(.hidden).listRowBackground(Fomo.bg)
                         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 4, trailing: 12))
                 }
                 if firstLoad {
                     SkeletonThreads()
-                        .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden).listRowInsets(EdgeInsets()).listRowBackground(Fomo.bg)
                         .transition(.opacity)
                 }
                 ForEach(shown) { t in
                     NavigationLink(value: t.id) { ThreadRow(t: t) }
                         .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 16))
+                        .listRowBackground(Fomo.bg)
                         .alignmentGuide(.listRowSeparatorLeading) { _ in 76 }
                         // Like Mail: right for read, left for the rest.
                         .swipeActions(edge: .leading, allowsFullSwipe: true) { if t.unread { readButton(t) } }
@@ -53,6 +55,7 @@ struct MessagesScreen: View {
                         } preview: { ThreadPreview(t: t) }
                 }
             }
+            .fomoList()
             .listStyle(.plain)
             .animation(.viggo, value: inbox.pinned)
             .animation(.viggo, value: inbox.threads)
@@ -127,7 +130,7 @@ private struct PinnedGrid: View {
                         Avatar(url: t.image, size: 70, name: t.sender)
                             .overlay(alignment: .topLeading) {
                                 if t.unread {
-                                    Circle().fill(Color.accentColor).frame(width: 16, height: 16)
+                                    Circle().fill(Fomo.accent).frame(width: 16, height: 16)
                                         .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 3))
                                         .transition(.scale)
                                 }
@@ -137,7 +140,7 @@ private struct PinnedGrid: View {
                                     Text(t.preview).font(.caption2).lineLimit(2)
                                         .padding(.horizontal, 7).padding(.vertical, 4)
                                         .frame(maxWidth: 110)
-                                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .background(Fomo.surface2, in: RoundedRectangle(cornerRadius: Fomo.radiusSmall, style: .continuous))
                                         .offset(y: -22)
                                 }
                             }
@@ -166,7 +169,7 @@ private struct ThreadRow: View {
     let t: MessageThread
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
-            Circle().fill(t.unread ? Color.accentColor : .clear).frame(width: 10, height: 10)
+            Circle().fill(t.unread ? Fomo.accent : .clear).frame(width: 10, height: 10)
             Avatar(url: t.image, size: 50, name: t.sender)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -206,7 +209,7 @@ private struct SeenMark: View {
         }
         .labelStyle(SmallLabel())
         .font(.caption2.weight(.semibold))
-        .foregroundStyle(r.readers.isEmpty ? Color.secondary : Color.accentColor)
+        .foregroundStyle(r.readers.isEmpty ? Color.secondary : Fomo.accent)
         .fixedSize()
         .transition(.opacity.combined(with: .scale(scale: 0.8)))
     }
@@ -387,7 +390,7 @@ struct ThreadScreen: View {
                     Image(systemName: inbox.isPinned(id) ? "pin.fill" : "pin")
                         .contentTransition(.symbolEffect(.replace))
                 }
-                .tint(inbox.isPinned(id) ? .yellow : .accentColor)
+                .tint(inbox.isPinned(id) ? .yellow : Fomo.accent)
                 .accessibilityLabel(inbox.isPinned(id) ? "Frigør" : "Fastgør")
             }
         }
@@ -482,7 +485,7 @@ struct ThreadScreen: View {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: 30))
                             .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, Color.accentColor)
+                            .foregroundStyle(.white, Fomo.accent)
                     }
                     .disabled(empty || sending != nil)
                     .padding(.bottom, 3)
@@ -491,7 +494,7 @@ struct ThreadScreen: View {
             }
             .padding(.trailing, 3)
             .frame(minHeight: 36)
-            .background(RoundedRectangle(cornerRadius: 19, style: .continuous).fill(Color(.systemBackground)))
+            .background(RoundedRectangle(cornerRadius: 19, style: .continuous).fill(Fomo.surface))
             .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).strokeBorder(Color(.separator), lineWidth: 1))
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: empty)
         }
@@ -576,22 +579,22 @@ private struct Bubble: View {
                     if !m.text.isEmpty {
                         Text(mentions.linked(m.text, author: m.authorID, posted: m.sentAt, onAccent: mine && !personal))
                             .font(.body)
-                            .tint(mine && !personal ? .white : .accentColor)
+                            .tint(mine && !personal ? .white : Fomo.accent)
                     }
                     ForEach(m.links, id: \.self) { u in
                         Link(destination: u) {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "link")
                                 .font(.subheadline.weight(.semibold)).lineLimit(1)
                                 .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(Capsule().fill(mine && !personal ? Color.white.opacity(0.2) : Color.accentColor.opacity(0.12)))
+                                .background(Capsule().fill(mine && !personal ? Color.white.opacity(0.2) : Fomo.accent.opacity(0.12)))
                         }
-                        .tint(mine && !personal ? .white : .accentColor)
+                        .tint(mine && !personal ? .white : Fomo.accent)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .foregroundStyle(mine && !personal ? .white : .primary)
                 .background(shape.fill(personal ? AnyShapeStyle(Color.indigo.opacity(0.1))
-                                       : mine ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color(.systemGray5))))
+                                       : mine ? AnyShapeStyle(Fomo.accent.gradient) : AnyShapeStyle(Fomo.surface2)))
                 // A personal answer in a group thread: outlined, so it is clear only one person sees it.
                 .overlay { if personal { shape.strokeBorder(Color.indigo.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])) } }
                 .contentShape(.contextMenuPreview, shape)
@@ -623,7 +626,7 @@ private struct VideoBubble: View {
         } label: {
             ZStack {
                 if let poster { Image(uiImage: poster).resizable().scaledToFit() }
-                else { Color(.systemGray5).frame(width: 200, height: 260) }
+                else { Fomo.surface2.frame(width: 200, height: 260) }
                 if failed {
                     Label("Videoen kunne ikke hentes", systemImage: "video.slash").font(.footnote).foregroundStyle(.secondary).padding()
                 } else if local == nil {
@@ -818,7 +821,7 @@ private struct FileChip: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
             .frame(maxWidth: 240, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.systemGray5)))
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Fomo.surface2))
         }
         .buttonStyle(PressScale(scale: 0.97))
         .tint(.primary)
@@ -882,7 +885,7 @@ struct ComposeScreen: View {
                                         .buttonStyle(.plain)
                                     }
                                     .padding(.leading, 4).padding(.trailing, 8).padding(.vertical, 4)
-                                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                                    .background(Capsule().fill(Fomo.accent.opacity(0.12)))
                                 }
                             }
                         }
@@ -911,7 +914,7 @@ struct ComposeScreen: View {
                         } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: "person.3.fill").frame(width: 32, height: 32)
-                                    .background(Circle().fill(Color.accentColor.opacity(0.15)))
+                                    .background(Circle().fill(Fomo.accent.opacity(0.15)))
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(g.name).foregroundStyle(.primary)
                                     Text("\(g.members.count) personer").font(.caption).foregroundStyle(.secondary)
@@ -920,12 +923,15 @@ struct ComposeScreen: View {
                         }
                     }
                 }
+                .fomoRows()
                 Section("Emne") {
                     TextField("Hvad handler det om?", text: $subject)
                 }
+                .fomoRows()
                 Section("Besked") {
                     TextField("Skriv din besked", text: $text, axis: .vertical).lineLimit(6...20)
                 }
+                .fomoRows()
                 Section {
                     if !files.isEmpty {
                         AttachmentChips(files: $files).listRowInsets(EdgeInsets(top: 8, leading: 6, bottom: 8, trailing: 6))
@@ -935,7 +941,9 @@ struct ComposeScreen: View {
                         Text(files.isEmpty ? "Vedhæft billeder eller filer" : "\(files.count) vedhæftet").foregroundStyle(.secondary)
                     }
                 } footer: { Text("Højst 10 MB pr. fil.") }
+                .fomoRows()
             }
+            .fomoList()
             .navigationTitle("Ny besked")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
