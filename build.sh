@@ -7,6 +7,8 @@ rm -rf "$DIR/build"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$DIR/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$DIR/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+# Exercise photos for Træning, from free-exercise-db (public domain).
+cp -R "$DIR/Resources/Exercises" "$APP/Contents/Resources/Exercises"
 # The iPhone app's source goes inside the Mac app, so Viggo+ can build and install it on an iPhone.
 SRC="$APP/Contents/Resources/iPhoneSource"
 mkdir -p "$SRC/iOS"

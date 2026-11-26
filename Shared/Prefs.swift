@@ -23,7 +23,7 @@ final class Prefs: ObservableObject {
     @Published var panelMsgCount: Int { didSet { d.set(panelMsgCount, forKey: "panelMsgCount") } }
     @Published var menubarBadge: Bool { didSet { d.set(menubarBadge, forKey: "menubarBadge") } }
     @Published var panelHomeworkTick: Bool { didSet { d.set(panelHomeworkTick, forKey: "panelHomeworkTick") } }
-    @Published var friendsFreeTogether: Bool { didSet { d.set(friendsFreeTogether, forKey: "friendsFreeTogether") } }
+    @Published var friendsFreeTogether: Bool { didSet { d.set(friendsFreeTogether, forKey: "friendsFreeTogetherOn") } }
     @Published var focusEnabled: Bool { didSet { d.set(focusEnabled, forKey: "focusEnabled") } }
     @Published var focusOnShortcut: String { didSet { d.set(focusOnShortcut, forKey: "focusOnShortcut") } }
     @Published var focusOffShortcut: String { didSet { d.set(focusOffShortcut, forKey: "focusOffShortcut") } }
@@ -49,6 +49,10 @@ final class Prefs: ObservableObject {
     @Published var panelLunch: Bool { didSet { d.set(panelLunch, forKey: "panelLunch") } }
     @Published var customItems: [CustomItem] { didSet { d.set(try? JSONEncoder().encode(customItems), forKey: "customItems") } }
     /// Things added to the schedule from a time in a message ("fredag kl. 10-12").
+    /// The panel's bottom row (FooterStyle on the Mac).
+    @Published var footerStyle: String { didSet { d.set(footerStyle, forKey: "footerStyle") } }
+    /// Workouts from Træning show in the panel, the menu bar and Uge.
+    @Published var trainingInSchedule: Bool { didSet { d.set(trainingInSchedule, forKey: "trainingInSchedule") } }
     @Published var planned: [PlannedItem] { didSet { d.set(try? JSONEncoder().encode(planned), forKey: "planned") } }
     @Published var dismissedVersion: String { didSet { d.set(dismissedVersion, forKey: "dismissedVersion") } }
     @Published var imported: Bool { didSet { d.set(imported, forKey: "imported") } }
@@ -80,6 +84,13 @@ final class Prefs: ObservableObject {
     @Published var eveningHour: Int { didSet { d.set(eveningHour, forKey: "eveningHour") } }
     /// Small taps on the iPhone (and the trackpad on a Mac) when you tick off homework and the like.
     @Published var haptics: Bool { didSet { d.set(haptics, forKey: "haptics") } }
+    /// Rolig, Kontrast or Klassisk (Mac only; the iPhone keeps Kontrast).
+    @Published var look: Look { didSet { d.set(look.rawValue, forKey: "look"); Prefs.apply(look) } }
+    private static func apply(_ l: Look) {
+        #if os(macOS)
+        Fomo.look = l
+        #endif
+    }
     /// Things that draw themselves in when a screen opens. Off also when Reduce Motion is on.
     @Published var drawIn: Bool { didSet { d.set(drawIn, forKey: "drawIn") } }
     /// iPhone: our own question about notifications has been shown (once, at a moment it makes sense).
@@ -87,12 +98,12 @@ final class Prefs: ObservableObject {
 
     private init() {
         d.register(defaults: [
-            "panelBirthdays": true, "panelLunch": true, "panelBreaks": true, "panelMeals": true, "menubarBreaks": false, "liveActivity": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "panelPacking": true, "autoUpdate": true, "autoInstall": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogether": true, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
+            "panelBirthdays": true, "panelLunch": true, "panelBreaks": true, "panelMeals": true, "menubarBreaks": false, "liveActivity": true, "notifyBirthdays": true, "hotkeyEnabled": true, "panelFriendsNow": true, "notifyBulletin": true, "panelBulletin": false, "panelPacking": true, "autoUpdate": true, "autoInstall": true, "hotkeyChoice": 0, "dismissedVersion": "", "menubarBadge": true, "panelHomeworkTick": true, "friendsFreeTogetherOn": false, "focusEnabled": false, "focusOnShortcut": "Viggo Fokus til", "focusOffShortcut": "Viggo Fokus fra", "panelNow": true, "panelTimeline": true, "panelTomorrow": true, "panelDuty": false, "panelHomework": true, "panelMessages": false, "panelHidePast": true, "panelLarge": false, "panelMsgCount": 3, "imported": false, "importSchedule": true, "importHomework": true,
             "importEvents": true, "menubarRoutine": true, "showBirthdays": false, "includedRoutines": [String](),
             "lessonAlarmMinutes": 10, "homeworkAlarm": true, "notifyChanges": true,
             "notifyHomework": true, "notifyMessages": true, "notifySeen": true, "briefs": true,
             "homeworkReminder": true, "packReminder": true, "deadlineRadar": true, "homeworkReminderAt": 19 * 60,
-            "morningHour": 7, "eveningHour": 20, "haptics": true, "drawIn": true, "askedNotifications": false,
+            "morningHour": 7, "eveningHour": 20, "haptics": true, "trainingInSchedule": true, "footerStyle": "faner", "drawIn": true, "askedNotifications": false,
         ])
         username = d.string(forKey: "username") ?? ""
         panelNow = d.bool(forKey: "panelNow")
@@ -106,7 +117,7 @@ final class Prefs: ObservableObject {
         panelMsgCount = d.integer(forKey: "panelMsgCount")
         menubarBadge = d.bool(forKey: "menubarBadge")
         panelHomeworkTick = d.bool(forKey: "panelHomeworkTick")
-        friendsFreeTogether = d.bool(forKey: "friendsFreeTogether")
+        friendsFreeTogether = d.bool(forKey: "friendsFreeTogetherOn")
         focusEnabled = d.bool(forKey: "focusEnabled")
         focusOnShortcut = d.string(forKey: "focusOnShortcut") ?? "Viggo Fokus til"
         focusOffShortcut = d.string(forKey: "focusOffShortcut") ?? "Viggo Fokus fra"
@@ -130,6 +141,8 @@ final class Prefs: ObservableObject {
         liveActivity = d.bool(forKey: "liveActivity")
         customItems = d.data(forKey: "customItems").flatMap { try? JSONDecoder().decode([CustomItem].self, from: $0) } ?? []
         // Old ones go after two weeks, so the list doesn't grow forever.
+        trainingInSchedule = d.bool(forKey: "trainingInSchedule")
+        footerStyle = d.string(forKey: "footerStyle") ?? "faner"
         planned = (d.data(forKey: "planned").flatMap { try? JSONDecoder().decode([PlannedItem].self, from: $0) } ?? [])
             .filter { $0.end > Date().addingTimeInterval(-14 * 86400) }
         dismissedVersion = d.string(forKey: "dismissedVersion") ?? ""
@@ -156,6 +169,10 @@ final class Prefs: ObservableObject {
         morningHour = d.integer(forKey: "morningHour")
         eveningHour = d.integer(forKey: "eveningHour")
         haptics = d.bool(forKey: "haptics")
+        // Klassisk picked in the build before the third look keeps Klassisk; everyone else starts on Rolig.
+        let picked = d.string(forKey: "look").flatMap(Look.init) ?? (d.bool(forKey: "classicTheme") ? .classic : .calm)
+        look = picked
+        Prefs.apply(picked)
         drawIn = d.bool(forKey: "drawIn")
         askedNotifications = d.bool(forKey: "askedNotifications")
     }

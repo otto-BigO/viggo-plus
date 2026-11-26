@@ -8,6 +8,20 @@ struct AppearanceTab: View {
 
     var body: some View {
         Form {
+            #if os(macOS)
+            Section {
+                HStack(spacing: 10) {
+                    ForEach(Look.allCases) { l in
+                        LookTile(look: l, selected: p.look == l) { withAnimation(.viggo) { p.look = l } }
+                    }
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Tema")
+            } footer: {
+                Text(p.look.blurb)
+            }
+            #endif
             Section {
                 Toggle("Haptik", isOn: $p.haptics)
                     .onChange(of: p.haptics) { if p.haptics { Haptic.tap() } }
@@ -33,6 +47,59 @@ struct AppearanceTab: View {
         .formStyle(.grouped)
     }
 }
+
+#if os(macOS)
+/// A small drawing of the panel in one look: a card, a "now" bar and two rows. Pick by clicking.
+struct LookTile: View {
+    let look: Look
+    let selected: Bool
+    let action: () -> Void
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let c = Fomo.palette(look)
+        let ink = c.text ?? Color.primary
+        Button(action: action) {
+            VStack(spacing: 7) {
+                VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        RoundedRectangle(cornerRadius: 2).fill(ink.opacity(0.85)).frame(width: 34, height: 5)
+                        Capsule().fill(c.surface2).frame(height: 4)
+                            .overlay(alignment: .leading) { Capsule().fill(c.accent).frame(width: 30, height: 4) }
+                    }
+                    .padding(6)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(c.surface))
+                    ForEach(0..<2, id: \.self) { i in
+                        HStack(spacing: 4) {
+                            RoundedRectangle(cornerRadius: 1).fill(i == 0 ? c.green : c.text2).frame(width: 2, height: 7)
+                            RoundedRectangle(cornerRadius: 2).fill(ink.opacity(0.7)).frame(width: i == 0 ? 38 : 28, height: 4)
+                            Spacer(minLength: 0)
+                            RoundedRectangle(cornerRadius: 2).fill(c.text2.opacity(0.7)).frame(width: 14, height: 4)
+                        }
+                    }
+                }
+                .padding(7)
+                .frame(maxWidth: .infinity, minHeight: 74, alignment: .top)
+                .background {
+                    if look == .classic { Rectangle().fill(.regularMaterial) } else { c.bg }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(selected ? Fomo.accent : Color.primary.opacity(0.12), lineWidth: selected ? 2 : 1))
+                HStack(spacing: 4) {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selected ? Fomo.accent : Color.secondary)
+                    Text(look.title).font(.system(size: 12, weight: selected ? .semibold : .regular, design: Fomo.design))
+                    if look == .calm { Text("Anbefalet").font(.system(size: 9, weight: .semibold, design: Fomo.design)).foregroundStyle(Fomo.text2) }
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(look.blurb)
+    }
+}
+#endif
 
 #if os(iOS)
 /// Asks for notifications at a moment it makes sense, with our own explanation first, and only
@@ -61,7 +128,7 @@ struct NotifyAskSheet: View {
     var body: some View {
         VStack(spacing: 18) {
             Image(systemName: "bell.badge.fill")
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: 30, weight: .semibold, design: Fomo.design))
                 .foregroundStyle(.white)
                 .frame(width: 72, height: 72)
                 .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Fomo.accent))

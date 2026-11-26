@@ -237,7 +237,7 @@ struct SearchWindow: View {
                 ForEach(homework) { h in
                     Button { NSWorkspace.shared.open(h.link) } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(h.title).font(.system(size: 13, weight: .medium))
+                            Text(h.title).font(.system(size: 13, weight: .medium, design: Fomo.design))
                             Text("\(h.group) · \(h.due.formatted(.dateTime.weekday(.wide).day().month().locale(Locale(identifier: "da_DK"))))")
                                 .font(.caption).foregroundStyle(.secondary)
                             if !h.notes.isEmpty { Text(h.notes).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
@@ -251,7 +251,7 @@ struct SearchWindow: View {
             Section("Opslag") {
                 ForEach(posts) { b in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(b.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                        Text(b.title).font(.system(size: 13, weight: .medium, design: Fomo.design)).lineLimit(1)
                         Text("\(b.author) · \(b.when)").font(.caption).foregroundStyle(.secondary)
                     }
                     .tag(Found.bulletin(b))
@@ -369,9 +369,9 @@ struct MacPersonRow: View {
         HStack(spacing: 10) {
             Avatar(url: m.image, size: size, name: m.name)
             VStack(alignment: .leading, spacing: 1) {
-                Text(m.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                Text(m.name).font(.system(size: 13, weight: .medium, design: Fomo.design)).lineLimit(1)
                 let s = Directory.shared.summary(m)
-                if !s.isEmpty { Text(s).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
+                if !s.isEmpty { Text(s).font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(1) }
             }
         }
         .padding(.vertical, 1)
@@ -410,12 +410,12 @@ struct MacGroupRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: g.kind.symbol)
-                .font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                .font(.system(size: 12, weight: .semibold, design: Fomo.design)).foregroundStyle(.white)
                 .frame(width: 26, height: 26)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(g.kind.color.gradient))
             VStack(alignment: .leading, spacing: 1) {
-                Text(g.display).font(.system(size: 13, weight: .medium))
-                Text("\(g.kind.title) · \(g.members.count) personer").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(g.display).font(.system(size: 13, weight: .medium, design: Fomo.design))
+                Text("\(g.kind.title) · \(g.members.count) personer").font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary)
             }
         }
     }
@@ -429,12 +429,12 @@ private struct MacFoundThreadRow: View {
             Avatar(url: t.image, size: 28, name: t.sender)
             VStack(alignment: .leading, spacing: 1) {
                 HStack {
-                    Text(t.sender).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    Text(t.sender).font(.system(size: 12, weight: .semibold, design: Fomo.design)).lineLimit(1)
                     Spacer()
-                    Text(t.when.shortWhen).font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text(t.when.shortWhen).font(.system(size: 10, design: Fomo.design)).foregroundStyle(.secondary)
                 }
-                Text(highlight(t.subject)).font(.system(size: 12)).lineLimit(1)
-                Text(highlight(t.preview)).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                Text(highlight(t.subject)).font(.system(size: 12, design: Fomo.design)).lineLimit(1)
+                Text(highlight(t.preview)).font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(2)
             }
         }
     }
@@ -455,11 +455,11 @@ struct MacLessonRow: View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 1.5).fill(e.subjectColor).frame(width: 3, height: 28)
             VStack(alignment: .leading, spacing: 1) {
-                Text(e.title).font(.system(size: 13, weight: .medium))
+                Text(e.title).font(.system(size: 13, weight: .medium, design: Fomo.design))
                 Text([e.start.formatted(.dateTime.weekday(.abbreviated).day().month().locale(Locale(identifier: "da_DK"))) + " " + DateUtil.hm(e.start),
                       e.room.isEmpty ? nil : e.room, e.teachers.isEmpty ? nil : e.teachers.joined(separator: ", ")]
                     .compactMap { $0 }.joined(separator: " · "))
-                    .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    .font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .contentShape(Rectangle())
@@ -584,7 +584,7 @@ struct MacPersonView: View {
                     ForEach(threads.prefix(10)) { t in
                         Button { state.openMessages(thread: t.id) } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(t.subject).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                Text(t.subject).font(.system(size: 13, weight: .medium, design: Fomo.design)).lineLimit(1)
                                 Text("\(t.sender) · \(t.when.shortWhen)").font(.caption).foregroundStyle(.secondary)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -606,8 +606,8 @@ struct MacPersonView: View {
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
                     .onTapGesture { if m.imageBig ?? m.image != nil { withAnimation(.spring(duration: 0.3)) { zoom = true } } }
                     .help(m.imageBig ?? m.image == nil ? "" : "Vis billedet stort")
-                Text(m.name).font(.system(size: 20, weight: .bold)).multilineTextAlignment(.center).textSelection(.enabled)
-                Text(dir.summary(m)).font(.system(size: 12)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Text(m.name).font(.system(size: 20, weight: .bold, design: Fomo.design)).multilineTextAlignment(.center).textSelection(.enabled)
+                Text(dir.summary(m)).font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 if m.id != me {
                     HStack(spacing: 10) {
                         Button { state.compose(to: [Person(id: m.id, name: m.name, image: m.image, info: "")]) } label: {
@@ -639,9 +639,9 @@ struct MacPersonView: View {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(c.title.replacingOccurrences(of: "^\\d{1,2}[.:]\\d{2}\\s*-\\s*\\d{1,2}[.:]\\d{2}\\s+", with: "", options: .regularExpression))
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(.system(size: 13, weight: .semibold, design: Fomo.design))
                                 Text([c.room.isEmpty ? nil : c.room, "til \(untilText(c.start, c.end))"].compactMap { $0 }.joined(separator: " · "))
-                                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                                    .font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary)
                             }
                         } icon: { Image(systemName: "mappin.circle.fill").foregroundStyle(Fomo.warn) }
                     } else {
@@ -835,12 +835,12 @@ struct MacBulletinView: View {
                 HStack(spacing: 10) {
                     Avatar(url: b.authorImage, size: 36, name: b.author)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(b.author).font(.system(size: 13, weight: .semibold))
-                        Text("\(b.board) · \(b.when)").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text(b.author).font(.system(size: 13, weight: .semibold, design: Fomo.design))
+                        Text("\(b.board) · \(b.when)").font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary)
                     }
                 }
-                Text(b.title).font(.system(size: 20, weight: .bold)).textSelection(.enabled)
-                Text(b.body.isEmpty ? b.text : b.body).font(.system(size: 13)).textSelection(.enabled)
+                Text(b.title).font(.system(size: 20, weight: .bold, design: Fomo.design)).textSelection(.enabled)
+                Text(b.body.isEmpty ? b.text : b.body).font(.system(size: 13, design: Fomo.design)).textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                 ForEach(b.links, id: \.self) { u in
                     Link(destination: u) { Label(u.host ?? u.absoluteString, systemImage: "link") }
@@ -878,7 +878,7 @@ struct MacPhotoViewer: View {
                 } else if !failed {
                     ProgressView().controlSize(.large)
                 } else {
-                    Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 60)).foregroundStyle(.white.opacity(0.7))
+                    Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 60, design: Fomo.design)).foregroundStyle(.white.opacity(0.7))
                 }
             }
             .frame(maxWidth: 560, maxHeight: 560)
@@ -896,13 +896,13 @@ struct MacPhotoViewer: View {
                 HStack {
                     Spacer()
                     Button(action: close) {
-                        Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+                        Image(systemName: "xmark").font(.system(size: 13, weight: .bold, design: Fomo.design)).foregroundStyle(.white)
                             .frame(width: 28, height: 28).background(.white.opacity(0.18), in: Circle())
                     }
                     .buttonStyle(.plain).keyboardShortcut(.cancelAction).help("Luk (Esc)")
                 }
                 Spacer()
-                Text(name).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white.opacity(0.9))
+                Text(name).font(.system(size: 15, weight: .semibold, design: Fomo.design)).foregroundStyle(.white.opacity(0.9))
             }
             .padding(16)
         }

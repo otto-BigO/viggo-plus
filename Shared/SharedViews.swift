@@ -66,8 +66,8 @@ struct WeekGrid: View {
                     let today = DateUtil.cal.isDateInToday(d)
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .firstTextBaseline, spacing: 5) {
-                            Text(DateUtil.weekdayF.string(from: d).capitalized).font(.system(size: 13, weight: .semibold))
-                            Text("\(DateUtil.cal.component(.day, from: d)).").font(.system(size: 13))
+                            Text(DateUtil.weekdayF.string(from: d).capitalized).font(.system(size: 13, weight: .semibold, design: Fomo.design))
+                            Text("\(DateUtil.cal.component(.day, from: d)).").font(.system(size: 13, design: Fomo.design))
                                 .monospacedDigit()
                                 .foregroundStyle(today ? Color.white : Fomo.text2)
                                 .padding(.horizontal, today ? 6 : 0).padding(.vertical, today ? 1 : 0)
@@ -75,7 +75,7 @@ struct WeekGrid: View {
                         }
                         ForEach(Array(notes(d).enumerated()), id: \.offset) { _, n in
                             Label(n.text, systemImage: n.icon)
-                                .font(.system(size: 11)).foregroundStyle(Fomo.text2).lineLimit(2)
+                                .font(.system(size: 11, design: Fomo.design)).foregroundStyle(Fomo.text2).lineLimit(2)
                                 .help(n.help)
                         }
                         ForEach(homework(d)) { hw in
@@ -85,7 +85,7 @@ struct WeekGrid: View {
                                 Image(systemName: hw.done ? "checkmark.circle.fill" : "book.closed")
                                     .foregroundStyle(hw.done ? Fomo.green : Fomo.text2)
                             }
-                            .font(.system(size: 11)).lineLimit(2)
+                            .font(.system(size: 11, design: Fomo.design)).lineLimit(2)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -216,7 +216,7 @@ struct GridBlock: View {
             .fill(Color.gray.opacity(0.14))
             .overlay(alignment: .leading) {
                 if height >= 14 {
-                    Text("Pause").font(.system(size: 9, weight: .medium)).foregroundStyle(.tertiary).padding(.leading, 7)
+                    Text("Pause").font(.system(size: 9, weight: .medium, design: Fomo.design)).foregroundStyle(.tertiary).padding(.leading, 7)
                 }
             }
             .frame(height: height)
@@ -228,7 +228,7 @@ struct GridBlock: View {
         let tint = e.subjectColor
         let roomy = height >= 44
         return VStack(alignment: .leading, spacing: 1) {
-            Text(e.shortTitle.softHyphenated).font(.system(size: height < 18 ? 9.5 : 11, weight: .semibold))
+            Text(e.shortTitle.softHyphenated).font(.system(size: height < 18 ? 9.5 : 11, weight: .semibold, design: Fomo.design))
                 .lineLimit(height >= 96 ? 4 : height >= 70 ? 3 : (roomy ? 2 : 1))
                 .minimumScaleFactor(0.75)
             if roomy {
@@ -239,7 +239,7 @@ struct GridBlock: View {
                 .font(.system(size: 9.5, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
             }
             if height >= 58, !e.room.isEmpty {
-                Text(e.room).font(.system(size: 9.5)).foregroundStyle(.secondary).lineLimit(1)
+                Text(e.room).font(.system(size: 9.5, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .padding(.leading, 7).padding(.trailing, 4).padding(.vertical, roomy ? 4 : height < 18 ? 0 : 2)
@@ -254,7 +254,7 @@ struct GridBlock: View {
         .help("\(e.title)\n\(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))\(e.room.isEmpty ? "" : " · \(e.room)")")
         .overlay(alignment: .topTrailing) {
             if e.hasInfo || !e.links.isEmpty {
-                Image(systemName: "text.alignleft").font(.system(size: 9, weight: .bold)).foregroundStyle(tint)
+                Image(systemName: "text.alignleft").font(.system(size: 9, weight: .bold, design: Fomo.design)).foregroundStyle(tint)
                     .padding(4)
             }
         }
@@ -413,6 +413,15 @@ struct PanelTab: View {
                 Toggle("Stor tekst", isOn: $p.panelLarge)
             }
             .fomoRows()
+            #if os(macOS)
+            Section {
+                Picker("Knapper i bunden", selection: $p.footerStyle) {
+                    ForEach(FooterStyle.allCases) { f in Text(f.title).tag(f.rawValue) }
+                }
+            } footer: {
+                Text((FooterStyle(rawValue: p.footerStyle) ?? .tabs).blurb)
+            }
+            #endif
             Section {
                 Text("Hvilke hverdags-punkter (aftensmad, godnat …) der vises, vælger du under Menubar.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -634,7 +643,7 @@ struct CustomItemRow: View {
     private var title: some View {
         TextField("", text: $item.title, prompt: Text("Navn, fx Frokost"))
             .labelsHidden()
-            .textFieldStyle(.plain).font(.system(size: 13, weight: .semibold))
+            .textFieldStyle(.plain).font(.system(size: 13, weight: .semibold, design: Fomo.design))
             .frame(maxWidth: .infinity, alignment: .leading)
     }
     @ViewBuilder private var times: some View {
@@ -666,7 +675,7 @@ struct CustomItemRow: View {
                         withAnimation(.viggo) { if on { item.days.remove(d) } else { item.days.insert(d) } }
                     } label: {
                         Text(Self.dayNames[d - 1])
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold, design: Fomo.design))
                             .frame(width: 24, height: 24)
                             .foregroundStyle(on ? Color.white : Color.secondary)
                             .background(Circle().fill(on ? Fomo.green : Color.primary.opacity(0.08)))
@@ -760,18 +769,18 @@ struct OfflineBanner: View {
         if state.offline {
             HStack(spacing: compact ? 7 : 10) {
                 Image(systemName: "wifi.slash")
-                    .font(compact ? .system(size: 12, weight: .semibold) : .subheadline.weight(.semibold))
+                    .font(compact ? .system(size: 12, weight: .semibold, design: Fomo.design) : .subheadline.weight(.semibold))
                     .foregroundStyle(Fomo.warn)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Offline").font(compact ? .system(size: 12, weight: .semibold) : .subheadline.weight(.semibold))
+                    Text("Offline").font(compact ? .system(size: 12, weight: .semibold, design: Fomo.design) : .subheadline.weight(.semibold))
                     Text(state.syncedText.map { "Viser det gemte. \($0)." } ?? "Intet gemt endnu.")
-                        .font(compact ? .system(size: 10) : .caption).foregroundStyle(.secondary)
+                        .font(compact ? .system(size: 10, design: Fomo.design) : .caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
                 if state.syncing { SpinRing().frame(width: 13, height: 13) }
                 else {
                     Button("Prøv igen") { Task { await state.sync() } }
-                        .font(compact ? .system(size: 11, weight: .medium) : .caption.weight(.semibold))
+                        .font(compact ? .system(size: 11, weight: .medium, design: Fomo.design) : .caption.weight(.semibold))
                         .buttonStyle(.bordered).controlSize(.small)
                 }
             }

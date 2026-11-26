@@ -13,9 +13,19 @@ enum DocRenderer {
 
     static func run(_ state: AppState, dir: String) async {
         DemoData.load(state)
+        // VIGGO_LOOK=rolig|nyt|klassisk draws everything in that look, for checking it.
+        if let l = ProcessInfo.processInfo.environment["VIGGO_LOOK"].flatMap(Look.init) { Prefs.shared.look = l }
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
 
         snap(MenuView().environmentObject(state), name: "panel", dir: dir, panel: true)
+        if ProcessInfo.processInfo.environment["VIGGO_FOOTERS"] != nil {
+            // Only for comparing the bottom rows; not part of the README pictures.
+            for f in FooterStyle.allCases {
+                Prefs.shared.footerStyle = f.rawValue
+                snap(MenuView().environmentObject(state), name: "footer-\(f.rawValue)", dir: dir, panel: true)
+            }
+            Prefs.shared.footerStyle = FooterStyle.tabs.rawValue
+        }
 
         StatusPill.shared.done("Lektie klaret") {}
         snap(MenuView().environmentObject(state), name: "panel-pill", dir: dir, panel: true)
@@ -89,9 +99,9 @@ enum DocRenderer {
 
     private static func snap<V: View>(_ view: V, name: String, dir: String, size: NSSize? = nil, panel: Bool = false) {
         let content: AnyView = panel
-            ? AnyView(view.environment(\.controlActiveState, .key).background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            ? AnyView(view.environment(\.controlActiveState, .key).looked().background(RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Fomo.bg)).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous)))
-            : AnyView(view.environment(\.controlActiveState, .key))
+            : AnyView(view.environment(\.controlActiveState, .key).looked())
         let host = NSHostingView(rootView: content)
         var sz = size ?? host.fittingSize
         host.frame = NSRect(origin: .zero, size: sz)

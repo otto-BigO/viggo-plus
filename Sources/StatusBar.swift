@@ -31,10 +31,10 @@ final class PanelController: NSObject {
     var windowHeight: CGFloat? { panel?.frame.height }
 
     /// Saves a picture of the panel window (for --panel-test with VIGGO_PANEL_SHOT=<dir>).
-    func snapshot(to dir: String) {
+    func snapshot(to dir: String, name: String = "panel") {
         guard let v = panel?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
         v.cacheDisplay(in: v.bounds, to: rep)
-        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("panel.png"))
+        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
     }
     /// Room around the card for its shadow.
     static let pad: CGFloat = 24
@@ -203,11 +203,15 @@ extension View {
 /// The panel as you see it: the frosted card with a shadow, at the top of a see-through window.
 /// Clicks on the see-through part fall through to whatever is behind it.
 struct PanelCard: View {
+    @ObservedObject private var p = Prefs.shared
     var body: some View {
         VStack(spacing: 0) {
             MenuView().environmentObject(AppState.shared)
+                .looked()
+                .id(p.look)
                 .layoutPriority(1)
-                .background(Fomo.bg)
+                // Klassisk: the frosted glass macOS uses for menus, like before 1.28.
+                .background { if p.look == .classic { VisualEffect() } else { Fomo.bg } }
                 .clipShape(RoundedRectangle(cornerRadius: Fomo.radius, style: .continuous))
                 // The one shadow left: it lifts the panel off the desktop, like a menu.
                 .shadow(color: .black.opacity(0.28), radius: 16, y: 6)
@@ -442,13 +446,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         withAnimation(.viggo) { s.selectedFriend = id }
                         try? await Task.sleep(for: .milliseconds(round == 0 ? 1500 : 400))
                         let name = id.flatMap { i in s.friends.first { $0.id == i }?.firstName } ?? "Mig"
+                        if round == 0, let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] { c.snapshot(to: dir, name: "panel-\(name)") }
                         let room = (c.windowHeight ?? 0) - PanelController.pad
                         print("[panel] \(name): kort \(Int(c.cardSize.height)) af \(Int(room)) pt \(c.cardSize.height <= room + 0.5 ? "ok" : "FOR HØJT")")
                         fflush(stdout)
                     }
                 }
                 s.selectedFriend = nil
-                if let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] { c.snapshot(to: dir) }
+                if let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] {
+                    // VIGGO_BAR_FRAMES: the Nu bar filling in, a picture every few hundredths of a second.
+                    if ProcessInfo.processInfo.environment["VIGGO_BAR_FRAMES"] != nil {
+                        try? await Task.sleep(for: .milliseconds(500))
+                        NotificationCenter.default.post(name: .viggoRevealed, object: nil)
+                        let t0 = Date()
+                        for i in 0..<12 {
+                            c.snapshot(to: dir, name: String(format: "bar-%02d-%03dms", i, Int(Date().timeIntervalSince(t0) * 1000)))
+                            try? await Task.sleep(for: .milliseconds(40))
+                        }
+                    }
+                    c.snapshot(to: dir)
+                }
                 print("[panel] færdig uden nedbrud"); fflush(stdout)
                 exit(0)
             }
@@ -657,6 +674,125 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // --feature-test: opens Søg (VIGGO_SEARCH) and the next lesson with a test note and photo,
         // saves pictures of the panel and both windows in VIGGO_PANEL_SHOT, then removes the note.
+        // --training-test: free time and the suggested workouts for the next 7 days from the real
+        // schedule (nothing is saved), a made-up workout through the log, and pictures of the
+        // three pages in VIGGO_PANEL_SHOT.
+        if CommandLine.arguments.contains("--training-test") {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(6))
+                let s = AppState.shared, p = Prefs.shared, now = Date()
+                let f = DateFormatter(); f.locale = Locale(identifier: "da_DK"); f.timeZone = DateUtil.tz; f.dateFormat = "EEE d/M HH:mm"
+                print("[træning] \(s.events.count) punkter i skemaet")
+                for i in 0..<7 {
+                    let day = DateUtil.add(.day, i, DateUtil.startOfDay(now))
+                    let g = TrainingPlanner.gaps(on: day, events: s.events, planned: p.planned, custom: p.customItems, now: now)
+                    let txt = g.map { "\(DateUtil.hm($0.start))-\(DateUtil.hm($0.end))" }.joined(separator: ", ")
+                    print("[træning] \(f.string(from: day).prefix(8)): \(TrainingPlanner.atSchool(day, events: s.events) ? (txt.isEmpty ? "ingen huller" : txt) : "ikke på skolen")")
+                }
+                let sug = TrainingPlanner.suggest(events: s.events, planned: p.planned, custom: p.customItems, now: now, first: "A")
+                for x in sug { print("[træning] forslag: \(x.title) \(f.string(from: x.start))-\(DateUtil.hm(x.end)) konflikt: \(TrainingPlanner.conflict(x, events: s.events, custom: p.customItems) ?? "nej")") }
+                // The log, in memory only.
+                let store = TrainingStore(url: nil)
+                TrainingStore.shared = store
+                store.start("A", at: now.addingTimeInterval(-3600))
+                for (ei, e) in (store.active?.exercises ?? []).enumerated() {
+                    let ex = TrainingProgram.exercise(e.exercise)!
+                    for si in e.sets.indices {
+                        store.active?.exercises[ei].sets[si].kg = ex.bodyweight ? 0 : 40
+                        store.active?.exercises[ei].sets[si].reps = ex.repsHigh
+                        store.toggle(exercise: ei, set: si, now: now)
+                    }
+                }
+                let log = store.finish(at: now)
+                let squat = TrainingProgram.exercise("squat")!
+                print("[træning] gemt: \(log?.session ?? "-"), \(log?.doneSets ?? 0) sæt, \(Int(log?.volume ?? 0)) kg, næste: \(store.nextSession), squat forslag: \(store.suggestedKg(squat) ?? 0) kg (ventet 42.5)")
+                store.start("B", at: now)
+                print("[træning] B startet med \(store.active?.exercises.count ?? 0) øvelser, rumænsk dødløft første sæt \(store.active?.exercises.first?.sets.first?.kg ?? -1) kg (ingen historik = 0)")
+                store.cancel()
+                // Programs for a few kinds of people.
+                let kinds: [(String, TrainingProfile)] = [
+                    ("Otto: recomp, ny, fitness, 3×60, mave+arme", TrainingProfile(weight: 81, goal: .recomp, level: .new, place: .gym, days: 3, minutes: 60, focus: [.abs, .arms])),
+                    ("Styrke, øvet, fitness, 4×60", TrainingProfile(weight: 75, goal: .strength, level: .trained, place: .gym, days: 4, minutes: 60)),
+                    ("Form, ny, hjemme, 2×30, ben", TrainingProfile(weight: 60, goal: .fit, level: .new, place: .home, days: 2, minutes: 30, focus: [.legs])),
+                    ("Muskler, lidt, hjemme, 3×45", TrainingProfile(weight: 70, goal: .muscle, level: .some, place: .home, days: 3, minutes: 45)),
+                ]
+                for (label, prof) in kinds {
+                    print("[program] \(label)")
+                    for s in TrainingBuilder.build(prof) {
+                        let names = s.items.map { i in "\(TrainingProgram.exercise(i.exercise)!.name) \(i.sets)×\(i.repsLow)-\(i.repsHigh)" }
+                        print("[program]   \(s.id) \(s.name): \(names.joined(separator: ", "))")
+                    }
+                }
+                for (label, w) in [("4 dage aften, ikke onsdag", TrainingPlanner.Wish(count: 4, minutes: 45, when: .evening, skip: [3])),
+                                   ("2 dage hjemme, lige meget", TrainingPlanner.Wish(count: 2, minutes: 30, when: .any, anywhere: true))] {
+                    let sg = TrainingPlanner.suggest(events: s.events, planned: p.planned, custom: p.customItems, now: now,
+                                                     first: "A", order: ["A", "B", "C", "D"], wish: w)
+                    print("[træning] \(label): " + sg.map { "\($0.title) \(f.string(from: $0.start))-\(DateUtil.hm($0.end))" }.joined(separator: " | "))
+                }
+                if let dir = ProcessInfo.processInfo.environment["VIGGO_PANEL_SHOT"] {
+                    store.fillDemo(now: now)
+                    @MainActor func shot<V: View>(_ v: V, _ name: String) async {
+                        let host = NSHostingView(rootView: v.environmentObject(s))
+                        host.frame = NSRect(x: 0, y: 0, width: 900, height: 700)
+                        let w = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
+                        w.contentView = host; w.isReleasedWhenClosed = false; w.orderFrontRegardless()
+                        try? await Task.sleep(for: .seconds(1.2))
+                        if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                            host.cacheDisplay(in: host.bounds, to: rep)
+                            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
+                        }
+                        w.orderOut(nil)
+                    }
+                    await shot(TrainingWindow(page: .plan, preview: sug), "training-plan")
+                    store.start(store.nextSession, at: now.addingTimeInterval(-900))
+                    store.toggle(exercise: 0, set: 0, now: now)
+                    await shot(TrainingWindow(page: .workout), "training-workout")
+                    store.cancel()
+                    await shot(TrainingWindow(page: .workout), "training-pick")
+                    await shot(TrainingWindow(page: .progress), "training-progress")
+                    // First time: the how-to with the moving photo opens by itself.
+                    let fresh = TrainingStore(url: nil)
+                    TrainingStore.shared = fresh
+                    fresh.start("B", at: now)
+                    await shot(TrainingWindow(page: .workout, setup: false), "training-how")
+                    // The setup, page by page.
+                    var me = TrainingProfile(weight: 81, height: 179.5, age: 16, goal: .recomp, level: .new, place: .gym,
+                                             days: 3, minutes: 60, focus: [.abs, .arms], when: .afternoon)
+                    for (st, name) in [(SetupStep.welcome, "welcome"), (.body, "body"), (.goal, "goal"), (.level, "level"),
+                                       (.place, "place"), (.schedule, "schedule"), (.focus, "focus"), (.when, "when")] {
+                        await shot(TrainingSetup(step: st, profile: me) { _ in }, "setup-\(name)")
+                    }
+                    await shot(TrainingSetup(step: .build, profile: me, built: true) { _ in }, "setup-done")
+                    fresh.cancel()
+                    fresh.apply(profile: me, now: now)
+                    fresh.fillDemo(now: now)
+                    await shot(TrainingWindow(page: .program, setup: false), "training-program")
+                    await shot(TrainingWindow(page: .plan, preview: sug, setup: false), "training-plan2")
+                    do {
+                        // "Vis i skema" off keeps the workouts out of the day, on brings them back.
+                        let p = Prefs.shared, keep = p.planned, was = p.trainingInSchedule
+                        let s = sug.first!
+                        p.planned = keep + [s]
+                        p.trainingInSchedule = false
+                        let off = AppState.shared.customEvents(on: s.start).contains { $0.title == s.title }
+                        p.trainingInSchedule = true
+                        let on = AppState.shared.customEvents(on: s.start).contains { $0.title == s.title }
+                        p.planned = keep; p.trainingInSchedule = was
+                        print("[træning] vis i skema: slået fra viser \(off), slået til viser \(on)")
+                    }
+                    await shot(TrainingWindow(page: .workout, setup: false), "training-pick2")
+                    await shot(ExerciseDetail(ex: TrainingProgram.exercise("squat")!), "exercise-detail")
+                    await shot(ExerciseLibrary(target: LibraryTarget(session: "A"), inSession: ["squat"]) { _ in } close: {}, "training-library")
+                    await shot(TrainingWindow(page: .progress, setup: false), "training-progress2")
+                    me.days = 4; me.place = .home
+                    await shot(TrainingSetup(step: .build, profile: me, built: true) { _ in }, "setup-done-home4")
+                    print("[træning] billeder: \(TrainingProgram.all.filter { Bundle.main.url(forResource: "\($0.id)-0", withExtension: "jpg", subdirectory: "Exercises") != nil }.count) af \(TrainingProgram.all.count) øvelser har foto")
+                    print("[træning] billeder i \(dir)")
+                }
+                fflush(stdout)
+                exit(0)
+            }
+        }
         if CommandLine.arguments.contains("--feature-test") {
             Task { @MainActor in
                 let s = AppState.shared, c = PanelController.shared
@@ -748,6 +884,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         // --open-search opens Søg at start (VIGGO_SEARCH fills in the search).
+        // For checking from Terminal: --open-training opens the Træning window at start.
+        if CommandLine.arguments.contains("--open-training") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { AppState.shared.openTraining() } }
+        }
         if CommandLine.arguments.contains("--open-search") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { AppState.shared.openSearch() } }
         }

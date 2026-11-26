@@ -109,9 +109,9 @@ struct MacLessonNotes: View {
     var body: some View {
         let note = store.note(for: e)
         VStack(alignment: .leading, spacing: 10) {
-            Text("Dine noter").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+            Text("Dine noter").font(.system(size: 11, weight: .semibold, design: Fomo.design)).foregroundStyle(.secondary)
             TextEditor(text: $text)
-                .font(.system(size: 13))
+                .font(.system(size: 13, design: Fomo.design))
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 64, maxHeight: 220)
                 .fixedSize(horizontal: false, vertical: true)
@@ -119,7 +119,7 @@ struct MacLessonNotes: View {
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
-                        Text("Skriv noter til timen").font(.system(size: 13)).foregroundStyle(.tertiary)
+                        Text("Skriv noter til timen").font(.system(size: 13, design: Fomo.design)).foregroundStyle(.tertiary)
                             .padding(.horizontal, 11).padding(.vertical, 6).allowsHitTesting(false)
                     }
                 }
@@ -149,8 +149,8 @@ struct MacLessonNotes: View {
                     .controlSize(.small)
                 Spacer()
             }
-            .font(.system(size: 12))
-            Text("Du kan også trække billeder herind.").font(.system(size: 10.5)).foregroundStyle(.tertiary)
+            .font(.system(size: 12, design: Fomo.design))
+            Text("Du kan også trække billeder herind.").font(.system(size: 10.5, design: Fomo.design)).foregroundStyle(.tertiary)
 
             if let last = store.previous(before: e) { lastTime(last) }
         }
@@ -209,9 +209,9 @@ struct MacLessonNotes: View {
     private func lastTime(_ n: LessonNote) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Sidste gang i \(n.subject), \(Self.dayF.string(from: n.date))", systemImage: "clock.arrow.circlepath")
-                .font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .semibold, design: Fomo.design)).foregroundStyle(.secondary)
             if !n.text.isEmpty {
-                Text(n.text).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(6).textSelection(.enabled)
+                Text(n.text).font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(6).textSelection(.enabled)
             }
             if !n.photos.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {

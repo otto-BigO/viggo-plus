@@ -71,6 +71,7 @@ final class AppState: ObservableObject {
     private var lessonWindow: NSWindow?
     private var settingsWindow: NSWindow?
     private var searchWindow: NSWindow?
+    private var trainingWindow: NSWindow?
     /// People to start a new message to, from a profile in Søg. Beskeder opens the compose sheet.
     @Published var composeTo: [Person]?
     #endif
@@ -1174,7 +1175,10 @@ final class AppState: ObservableObject {
 
     func customEvents(on day: Date) -> [ViggoEvent] {
         prefs.customItems.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
-            + prefs.planned.enumerated().compactMap { $0.element.event(on: day, index: $0.offset) }
+            + prefs.planned.enumerated().compactMap {
+                // "Vis i skema" off in Træning: the workouts stay planned but out of the day.
+                !prefs.trainingInSchedule && $0.element.from == TrainingPlanner.tag ? nil : $0.element.event(on: day, index: $0.offset)
+            }
     }
 
     /// Today's lessons/events plus the everyday items after school, as one list.
@@ -1316,6 +1320,7 @@ final class AppState: ObservableObject {
             focusActive = nil
             return
         }
+        FocusShortcuts.shared.ensure(FocusShortcuts.shared.mode(prefs.focusMode))
         let now = Date()
         let lessons = events.filter { $0.kind == .lesson && visible($0) && $0.end > now }
         let inLesson = lessons.contains { $0.start <= now }
@@ -1334,7 +1339,10 @@ final class AppState: ObservableObject {
     #if os(macOS)
     private func setFocus(_ on: Bool) {
         let fs = FocusShortcuts.shared
-        let n = FocusShortcuts.names(for: fs.mode(prefs.focusMode))
+        let m = fs.mode(prefs.focusMode)
+        let n = FocusShortcuts.names(for: m)
+        // Not made yet: ensure() is already asking Genveje, so no red line in the panel meanwhile.
+        guard fs.ready(m) else { return }
         Task {
             if let err = await fs.run(on ? n.on : n.off) {
                 fs.message = err
@@ -1635,7 +1643,7 @@ final class AppState: ObservableObject {
 
     /// Shows a lesson with the teacher's info and links.
     func openLesson(_ e: ViggoEvent) {
-        let host = NSHostingController(rootView: LessonDetailView(e: e))
+        let host = NSHostingController(rootView: ThemeRoot { LessonDetailView(e: e) })
         if let w = lessonWindow {
             w.contentViewController = host
         } else {
@@ -1651,7 +1659,7 @@ final class AppState: ObservableObject {
 
     func openWeek() {
         if weekWindow == nil {
-            let w = NSWindow(contentViewController: NSHostingController(rootView: WeekView().environmentObject(self)))
+            let w = NSWindow(contentViewController: NSHostingController(rootView: ThemeRoot { WeekView() }.environmentObject(self)))
             w.title = "Uge-overblik"
             w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
             w.titlebarAppearsTransparent = true
@@ -1666,7 +1674,7 @@ final class AppState: ObservableObject {
     func openMessages(thread: Int? = nil) {
         if let thread { Inbox.shared.selected = thread }
         if messagesWindow == nil {
-            let w = NSWindow(contentViewController: NSHostingController(rootView: MessagesWindow().environmentObject(self)))
+            let w = NSWindow(contentViewController: NSHostingController(rootView: ThemeRoot { MessagesWindow() }.environmentObject(self)))
             w.title = "Beskeder"
             w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
             w.isReleasedWhenClosed = false
@@ -1677,10 +1685,25 @@ final class AppState: ObservableObject {
         if let w = messagesWindow { showBesidePanel(w) }
     }
 
+    /// Træning: the week's workouts in the schedule and the workout itself, like the Strong app.
+    func openTraining() {
+        if trainingWindow == nil {
+            let w = NSWindow(contentViewController: NSHostingController(rootView: ThemeRoot { TrainingWindow() }.environmentObject(self)))
+            w.title = "Træning"
+            w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
+            w.titlebarAppearsTransparent = true
+            w.isReleasedWhenClosed = false
+            w.setContentSize(NSSize(width: 900, height: 700))
+            w.setFrameAutosaveName("ViggoTraining")
+            trainingWindow = w
+        }
+        if let w = trainingWindow { showBesidePanel(w) }
+    }
+
     /// Søg, like the iPhone's: people, groups, messages, lessons, homework and posts.
     func openSearch() {
         if searchWindow == nil {
-            let w = NSWindow(contentViewController: NSHostingController(rootView: SearchWindow().environmentObject(self)))
+            let w = NSWindow(contentViewController: NSHostingController(rootView: ThemeRoot { SearchWindow() }.environmentObject(self)))
             w.title = "Søg"
             w.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
             w.isReleasedWhenClosed = false
@@ -1704,6 +1727,8 @@ final class AppState: ObservableObject {
     #else
     func openViggo(_ url: URL = Config.baseURL) { Platform.open(url) }
     func openMessages(thread: Int? = nil) { openViggo() }
+    /// Træning is Mac only for now.
+    func openTraining() {}
     /// The iPhone shows a lesson's details as a sheet.
     func openLesson(_ e: ViggoEvent) { shownLesson = e }
     #endif

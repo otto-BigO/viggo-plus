@@ -42,7 +42,8 @@ struct PlannedItem: Codable, Identifiable, Hashable {
     func event(on day: Date, index: Int) -> ViggoEvent? {
         guard DateUtil.cal.isDate(start, inSameDayAs: day), end > start else { return nil }
         return ViggoEvent(id: -(2_000_000_000 + index), rawName: title, start: start, end: end, room: "",
-                          notes: from.isEmpty ? "" : "Fra beskeden \"\(from)\"", kind: .custom, teachers: [], groups: [])
+                          notes: from.isEmpty ? "" : from == TrainingPlanner.tag ? from : "Fra beskeden \"\(from)\"",
+                          kind: .custom, teachers: [], groups: [])
     }
 }
 

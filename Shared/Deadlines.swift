@@ -378,7 +378,7 @@ struct DeadlineSuggestion: View {
         let on = store.isActive(d)
         return HStack(spacing: 10) {
             Image(systemName: on ? "pin.fill" : "pin.slash")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold, design: Fomo.design))
                 .foregroundStyle(on ? Fomo.warn : Color.secondary)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(Fomo.warn.opacity(on ? 0.16 : 0.07)))
@@ -419,20 +419,20 @@ struct DeadlineRow: View {
         HStack(spacing: compact ? 8 : 12) {
             Button { withAnimation(.viggo) { store.toggleDone(d) } } label: {
                 Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: compact ? 15 : 20))
+                    .font(.system(size: compact ? 15 : 20, design: Fomo.design))
                     .foregroundStyle(isDone ? Fomo.green : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 1) {
-                Text(d.title).font(compact ? .system(size: 12, weight: .medium) : .subheadline.weight(.semibold))
+                Text(d.title).font(compact ? .system(size: 12, weight: .medium, design: Fomo.design) : .subheadline.weight(.semibold))
                     .strikethrough(isDone).lineLimit(1)
                 Text(d.from.isEmpty ? d.sourceTitle : d.from)
-                    .font(compact ? .system(size: 10) : .caption).foregroundStyle(.secondary).lineLimit(1)
+                    .font(compact ? .system(size: 10, design: Fomo.design) : .caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 4)
             Text(late ? "Overskredet" : d.whenText())
-                .font(compact ? .system(size: 11, weight: .semibold) : .caption.weight(.semibold))
+                .font(compact ? .system(size: 11, weight: .semibold, design: Fomo.design) : .caption.weight(.semibold))
                 .foregroundStyle(late ? Fomo.red : soon ? Fomo.warn : Color.secondary)
                 .lineLimit(1)
         }

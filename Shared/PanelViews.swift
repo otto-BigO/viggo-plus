@@ -59,7 +59,7 @@ struct Avatar: View {
                 Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
             } else {
                 Circle().fill(tint.gradient)
-                    .overlay(Text(initials).font(.system(size: size * 0.38, weight: .semibold)).foregroundStyle(.white))
+                    .overlay(Text(initials).font(.system(size: size * 0.38, weight: .semibold, design: Fomo.design)).foregroundStyle(.white))
             }
         }
         .frame(width: size, height: size)
@@ -164,7 +164,7 @@ struct SectionHeader: View {
     @ObservedObject var p = Prefs.shared
     var body: some View {
         Text(title.uppercased())
-            .font(.system(size: 10 * (p.panelLarge ? 1.15 : 1), weight: .semibold))
+            .font(.system(size: 10 * (p.panelLarge ? 1.15 : 1), weight: .semibold, design: Fomo.design))
             .tracking(0.6)
             .foregroundStyle(.tertiary)
             .padding(.top, 4)
@@ -174,7 +174,7 @@ struct SectionHeader: View {
 /// Font sizes that follow the "Stor tekst" setting.
 struct Sz {
     static var k: CGFloat { Prefs.shared.panelLarge ? 1.18 : 1 }
-    static func f(_ base: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: base * k, weight: w) }
+    static func f(_ base: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: base * k, weight: w, design: Fomo.design) }
     static func mono(_ base: CGFloat) -> Font { .system(size: base * k, weight: .regular, design: .monospaced) }
 }
 
@@ -189,7 +189,7 @@ struct TimelineRow: View {
     var tappable = true
     /// Rows with a note from the teacher open in place, so you can read it right in the panel.
     @State private var expanded = ProcessInfo.processInfo.environment["VIGGO_EXPAND_NOTES"] != nil
-    private var hasNote: Bool { e.hasInfo || !e.links.isEmpty }
+    private var hasNote: Bool { !e.isTraining && (e.hasInfo || !e.links.isEmpty) }
     /// Middag and Aftensmad carry the day's food as their note.
     private var isFood: Bool {
         let t = e.title.lowercased()
@@ -207,6 +207,7 @@ struct TimelineRow: View {
             Text(DateUtil.hm(e.start)).font(Sz.mono(10.5))
                 .foregroundStyle(current ? Color.primary : Fomo.text2.opacity(0.7))
                 .frame(width: 42 * Sz.k, alignment: .leading)
+            Color.clear.frame(width: 3, height: 1)
             Text("Pause · \(mins) min").font(Sz.f(10.5, current ? .semibold : .regular)).foregroundStyle(current ? .secondary : .tertiary)
             Spacer()
         }
@@ -246,9 +247,12 @@ struct TimelineRow: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .surface(10)
-        .padding(.leading, 52 * Sz.k)
+        .padding(.leading, TimelineRow.titleInset)
         .padding(.bottom, 2)
     }
+
+    /// Where every title starts: time column, colour bar and the gaps between them.
+    static var titleInset: CGFloat { 42 * Sz.k + 23 }
 
     /// Everyday routines (aftensmad, godnat) are shown a little smaller, so the lessons stand out.
     private var quiet: Bool { e.kind == .routine }
@@ -270,9 +274,9 @@ struct TimelineRow: View {
                     .font(Sz.mono(quiet ? 11 : 12))
                     .foregroundStyle(current ? e.subjectColor : .secondary)
                     .frame(width: 42 * Sz.k, alignment: .leading)
-                if !quiet {
-                    RoundedRectangle(cornerRadius: 1.5).fill(e.subjectColor).frame(width: 3, height: 13 * Sz.k)
-                }
+                // Routines get an empty slot where lessons have their colour bar, so every title
+                // starts at the same line instead of two ragged columns.
+                RoundedRectangle(cornerRadius: 1.5).fill(quiet ? Color.clear : e.subjectColor).frame(width: 3, height: 13 * Sz.k)
                 Text(e.shortTitle)
                     .font(Sz.f(quiet ? 12 : 13, current ? .semibold : .regular))
                     .foregroundStyle(quiet && !current ? .secondary : .primary)
@@ -285,6 +289,9 @@ struct TimelineRow: View {
                         .contentTransition(.symbolEffect(.replace))
                         .help(expanded ? "Skjul info" : "Der er info fra læreren")
                 }
+                if e.isTraining {
+                    Image(systemName: "dumbbell.fill").font(Sz.f(10, .bold)).foregroundStyle(Fomo.green).help("Åbn træningen")
+                }
                 if LessonNotes.shared.hasNote(e) {
                     Image(systemName: "note.text").font(Sz.f(10, .semibold)).foregroundStyle(.secondary).help("Du har noter til timen")
                 }
@@ -295,7 +302,8 @@ struct TimelineRow: View {
             .opacity(past ? 0.35 : 1)
             .contentShape(Rectangle())
             .onTapGesture {
-                if hasNote { withAnimation(.unfold) { expanded.toggle() } }
+                if e.isTraining { AppState.shared.openTraining() }
+                else if hasNote { withAnimation(.unfold) { expanded.toggle() } }
                 else if e.kind != .custom { AppState.shared.openLesson(e) }
             }
             if isFood {
@@ -306,7 +314,7 @@ struct TimelineRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                 }
-                .padding(.leading, 52 * Sz.k)
+                .padding(.leading, TimelineRow.titleInset)
                 .opacity(past ? 0.35 : 1)
                 .contentShape(Rectangle())
                 .onTapGesture { withAnimation(.unfold) { expanded.toggle() } }
@@ -320,7 +328,7 @@ struct TimelineRow: View {
         .onReceive(NotificationCenter.default.publisher(for: .viggoToggleNote)) { n in
             if (n.object as? Int) == e.id, hasNote { withAnimation(.unfold) { expanded.toggle() } }
         }
-        .help(e.kind == .custom ? "Dit eget punkt" : isFood ? "Dagens mad fra madplanen" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
+        .help(e.isTraining ? "Åbn træningen" : e.kind == .custom ? "Dit eget punkt" : isFood ? "Dagens mad fra madplanen" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
     }
 }
 
@@ -338,7 +346,7 @@ struct NowCard: View {
 
     private func bigNumber(_ v: (String, String), suffix: String) -> some View {
         VStack(alignment: .trailing, spacing: 0) {
-            Text(v.0).font(.system(size: 26 * Sz.k, weight: .semibold)).monospacedDigit()
+            Text(v.0).font(.system(size: 26 * Sz.k, weight: .semibold, design: Fomo.design)).monospacedDigit()
                 .contentTransition(.numericText(countsDown: true))
                 .animation(.viggo, value: v.0)
             Text("\(v.1) \(suffix)").font(Sz.f(10, .medium)).foregroundStyle(Fomo.text2)
@@ -438,6 +446,50 @@ struct PersonChip: View {
         }
         .buttonStyle(PressScale())
         .help(fullName ?? label)
+    }
+}
+
+/// You and your friends as one fixed group: overlapping faces in a capsule.
+/// The size never changes, so nothing moves when you pick someone.
+struct FriendGroup: View {
+    struct Person { let id: UUID?; let url: URL?; let name: String?; let label: String; var expired = false }
+    let people: [Person]
+    let selected: UUID?
+    var size: CGFloat = 24
+    var maxWidth: CGFloat = 150
+    let pick: (UUID?) -> Void
+    @State private var hover: UUID??
+
+    private var step: CGFloat {
+        guard people.count > 1 else { return size }
+        return min(size * 0.78, (maxWidth - 8 - size) / CGFloat(people.count - 1))
+    }
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            ForEach(Array(people.enumerated()), id: \.offset) { i, p in
+                let on = p.id == selected
+                Button { pick(p.id) } label: {
+                    Avatar(url: p.url, size: size, name: p.name)
+                        .opacity(p.expired && !on ? 0.45 : 1)
+                        .overlay(Circle().stroke(on ? Fomo.accent : Fomo.surface, lineWidth: on ? 2 : 1.5))
+                        .overlay(alignment: .topTrailing) {
+                            if p.expired { Circle().fill(Fomo.warn).frame(width: 7, height: 7).overlay(Circle().stroke(Fomo.surface, lineWidth: 1.5)) }
+                        }
+                        .scaleEffect(hover == .some(p.id) && !on ? 1.08 : 1)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(p.label)
+                .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hover = h ? .some(p.id) : (hover == .some(p.id) ? nil : hover) } }
+                .offset(x: CGFloat(i) * step)
+                .zIndex(on ? 100 : hover == .some(p.id) ? 50 : Double(people.count - i))
+            }
+        }
+        .frame(width: size + CGFloat(max(people.count - 1, 0)) * step, height: size, alignment: .leading)
+        .padding(4)
+        .background(Capsule().fill(Fomo.surface))
+        .animation(.viggo, value: selected)
     }
 }
 
@@ -599,7 +651,7 @@ struct DayPanel: View {
                         Image(systemName: "list.clipboard.fill").foregroundStyle(Fomo.accent)
                         Text("\(state.questionnaireCount) spørgeskema\(state.questionnaireCount == 1 ? "" : "er") venter på dig").font(Sz.f(12))
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(.tertiary)
+                        Image(systemName: "chevron.right").font(.system(size: 10, design: Fomo.design)).foregroundStyle(.tertiary)
                     }
                     .contentShape(Rectangle())
                 }
@@ -691,9 +743,9 @@ struct LessonDetailContent: View {
             HStack(alignment: .top, spacing: 10) {
                 RoundedRectangle(cornerRadius: 2).fill(tint).frame(width: 4, height: 40)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(e.title).font(.system(size: 20, weight: .bold)).fixedSize(horizontal: false, vertical: true)
+                    Text(e.title).font(.system(size: 20, weight: .bold, design: Fomo.design)).fixedSize(horizontal: false, vertical: true)
                     Text("\(DateUtil.longDayF.string(from: e.start).capFirst) · \(DateUtil.hm(e.start))–\(DateUtil.hm(e.end))")
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary)
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
@@ -704,32 +756,32 @@ struct LessonDetailContent: View {
                 }
                 if !e.groups.isEmpty, e.groups.count <= 3 { Label(e.groups.joined(separator: ", "), systemImage: "person.3") }
             }
-            .font(.system(size: 12)).foregroundStyle(.secondary)
+            .font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary)
 
             if e.hasInfo {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(e.kind == .routine && ["middag", "aftensmad"].contains(where: { e.title.lowercased().hasPrefix($0) }) ? "Dagens mad" : "Info fra læreren").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
-                    Text(e.notes).font(.system(size: 13)).textSelection(.enabled)
+                    Text(e.kind == .routine && ["middag", "aftensmad"].contains(where: { e.title.lowercased().hasPrefix($0) }) ? "Dagens mad" : "Info fra læreren").font(.system(size: 11, weight: .semibold, design: Fomo.design)).foregroundStyle(.secondary)
+                    Text(e.notes).font(.system(size: 13, design: Fomo.design)).textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
             } else {
-                Text("Ingen info fra læreren til denne time.").font(.system(size: 12)).foregroundStyle(.tertiary)
+                Text("Ingen info fra læreren til denne time.").font(.system(size: 12, design: Fomo.design)).foregroundStyle(.tertiary)
             }
 
             if !e.links.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Links").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                    Text("Links").font(.system(size: 11, weight: .semibold, design: Fomo.design)).foregroundStyle(.secondary)
                     ForEach(e.links, id: \.self) { u in
                         Link(destination: u) {
                             HStack(spacing: 8) {
                                 Image(systemName: linkIcon(u)).frame(width: 16)
-                                Text(linkLabel(u)).font(.system(size: 12, weight: .medium))
-                                Text(u.path.count > 1 ? u.path : "").font(.system(size: 11)).foregroundStyle(.tertiary).lineLimit(1)
+                                Text(linkLabel(u)).font(.system(size: 12, weight: .medium, design: Fomo.design))
+                                Text(u.path.count > 1 ? u.path : "").font(.system(size: 11, design: Fomo.design)).foregroundStyle(.tertiary).lineLimit(1)
                                 Spacer()
-                                Image(systemName: "arrow.up.right").font(.system(size: 10)).foregroundStyle(.tertiary)
+                                Image(systemName: "arrow.up.right").font(.system(size: 10, design: Fomo.design)).foregroundStyle(.tertiary)
                             }
                             .padding(8)
                             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
@@ -879,7 +931,7 @@ struct LoginCard: View {
                 Circle().fill(tint.opacity(0.14)).frame(width: 76, height: 76)
                     .scaleEffect(done ? 1.08 : 1)
                 Image(systemName: symbol)
-                    .font(.system(size: 36, weight: .semibold))
+                    .font(.system(size: 36, weight: .semibold, design: Fomo.design))
                     .foregroundStyle(tint.gradient)
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.pulse, options: .repeating, isActive: !done && !failed)
@@ -887,9 +939,9 @@ struct LoginCard: View {
                     .symbolEffect(.bounce, value: failed)
             }
             VStack(spacing: 4) {
-                Text(title).font(.system(size: 15, weight: .semibold))
+                Text(title).font(.system(size: 15, weight: .semibold, design: Fomo.design))
                 Text(stage.text)
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .contentTransition(.opacity)
                     .id(stage.text)
@@ -906,7 +958,7 @@ struct LoginCard: View {
                 Button("OK") { state.dismissLoginCard() }.keyboardShortcut(.defaultAction)
             } else {
                 Label("Krypteret forbindelse til SkoleIT", systemImage: "lock.fill")
-                    .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    .font(.system(size: 10, design: Fomo.design)).foregroundStyle(.tertiary)
             }
         }
         #if os(macOS)

@@ -62,7 +62,7 @@ struct QuietLoginAvatar: View {
             }
             if q.done || q.failed {
                 Image(systemName: q.done ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .font(.system(size: size * 0.42, weight: .bold))
+                    .font(.system(size: size * 0.42, weight: .bold, design: Fomo.design))
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, tint)
                     .background(Circle().fill(.background).padding(1))
@@ -102,9 +102,9 @@ struct QuietLoginBadges: View {
         HStack(spacing: 8) {
             QuietLoginAvatar(q: q, size: compact ? 20 : 26)
             VStack(alignment: .leading, spacing: 0) {
-                Text(q.title).font(.system(size: compact ? 11 : 13, weight: .semibold))
+                Text(q.title).font(.system(size: compact ? 11 : 13, weight: .semibold, design: Fomo.design))
                     .contentTransition(.opacity)
-                Text(q.detail).font(.system(size: compact ? 9.5 : 11)).foregroundStyle(.secondary)
+                Text(q.detail).font(.system(size: compact ? 9.5 : 11, design: Fomo.design)).foregroundStyle(.secondary)
                     .contentTransition(.opacity)
             }
             .lineLimit(1)

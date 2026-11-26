@@ -73,7 +73,7 @@ struct WeekView: View {
         let week = DateUtil.cal.component(.weekOfYear, from: monday)
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Text("Uge \(week)").font(.system(size: 22, weight: .bold)).monospacedDigit()
+                Text("Uge \(week)").font(.system(size: 22, weight: .bold, design: Fomo.design)).monospacedDigit()
                     .contentTransition(.numericText())
                 Text("\(DateUtil.day(monday)) til \(DateUtil.day(DateUtil.add(.day, 6, monday)))")
                     .monospacedDigit().foregroundStyle(Fomo.text2)

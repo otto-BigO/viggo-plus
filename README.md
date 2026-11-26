@@ -26,6 +26,10 @@ Hele ugen med timer, middag, pauser mellem klassens timer og dine egne punkter.
   <img src="docs/screens/week.png" alt="Uge-overblik" width="800">
 </p>
 
+## Træning
+
+Svar på et par spørgsmål (vægt, mål, hvor du træner og hvor mange dage), så laver Viggo+ et program med øvelser, sæt og gentagelser og finder tider i dit skema. Hver øvelse har billeder, der viser hvordan den laves. Du kan bytte, flytte og rette øvelser, logge sæt som i en træningsapp og følge din vægt og fremgang. "Vis i skema" bestemmer om træningerne står i panelet og Uge-overblikket.
+
 ## Opdateringer
 
 <p align="center">
@@ -90,6 +94,12 @@ Klik på en side for at se den.
 <summary><b>Venner</b>: Dine venner, fri samtidig og tilføj ven.</summary>
 <br>
 <p align="center"><img src="docs/screens/settings-venner.png" alt="Venner" width="680"></p>
+</details>
+
+<details>
+<summary><b>Udseende og haptik</b>: Tema (Rolig, Kontrast eller Klassisk), haptik og animationer.</summary>
+<br>
+<p align="center"><img src="docs/screens/settings-udseende-og-haptik.png" alt="Udseende og haptik" width="680"></p>
 </details>
 
 <sub>Billederne bruger opdigtede navne og et opdigtet skema. De laves med `./build.sh && build/Viggo+.app/Contents/MacOS/ViggoPlus --render-docs docs/screens`.</sub>
@@ -202,3 +212,5 @@ Kræver Xcode Command Line Tools (`xcode-select --install`).
 ## Licens
 
 MIT. Se [LICENSE](LICENSE).
+
+Øvelsesbillederne i `Resources/Exercises` kommer fra [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain, Unlicense).

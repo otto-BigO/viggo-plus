@@ -24,15 +24,42 @@ final class FocusShortcuts: ObservableObject {
     init() { reload() }
 
     func reload() {
-        modes = Self.readModes(dbDir.appendingPathComponent("ModeConfigurations.json"))
+        // macOS keeps the Focus list from apps without Full Disk Access, so usually only
+        // Forstyr ikke is known. Its name always comes from the system, never from the file.
+        let read = Self.readModes(dbDir.appendingPathComponent("ModeConfigurations.json"))
+            .map { $0.id == Self.defaultMode ? Mode(id: $0.id, name: Self.defaultName) : $0 }
+        modes = read.isEmpty ? [Mode(id: Self.defaultMode, name: Self.defaultName)] : read
         installed = Self.list()
     }
 
+    /// Makes the shortcuts by itself when Fokus i timerne is on and they are missing, so you only
+    /// click Tilføj genvej. Once per Focus per launch, so a closed import window is not reopened forever.
+    private var asked: Set<String> = []
+    func ensure(_ m: Mode) {
+        guard !ready(m), !asked.contains(m.id) else { return }
+        asked.insert(m.id)
+        Task { await install(m) }
+    }
+
     func mode(_ id: String) -> Mode {
-        modes.first { $0.id == id } ?? Mode(id: id, name: id == Self.defaultMode ? "Do Not Disturb" : id)
+        modes.first { $0.id == id } ?? Mode(id: id, name: id == Self.defaultMode ? Self.defaultName : id)
     }
 
     static let defaultMode = "com.apple.donotdisturb.mode.default"
+
+    /// The Mac's own name for Forstyr ikke, in the Mac's language. Genveje finds a Focus by this
+    /// name, so "Do Not Disturb" on a Danish Mac failed with "findes ikke på denne enhed".
+    static let defaultName: String = {
+        // Localizable.loctable is one plist: language to strings.
+        let url = URL(fileURLWithPath: "/System/Library/PrivateFrameworks/DoNotDisturb.framework/Resources/Localizable.loctable")
+        if let data = try? Data(contentsOf: url),
+           let table = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: [String: String]],
+           let lang = Bundle.preferredLocalizations(from: Array(table.keys), forPreferences: Locale.preferredLanguages).first,
+           let name = table[lang]?["MODE_NAME_DEFAULT"], !name.isEmpty {
+            return name
+        }
+        return Locale.preferredLanguages.first?.hasPrefix("da") == true ? "Forstyr ikke" : "Do Not Disturb"
+    }()
 
     /// One pair of shortcuts per Focus, so picking another Focus never collides with the old ones.
     static func names(for m: Mode) -> (on: String, off: String) {
@@ -76,7 +103,15 @@ final class FocusShortcuts: ObservableObject {
                 message = "Genveje kunne ikke signere genvejen: \(r.err.isEmpty ? "ukendt fejl" : r.err)"
                 return
             }
-            NSWorkspace.shared.open(signed) // imported under the file's name
+            // Imported under the file's name. Genveje is brought to the front: opened in the
+            // background, the Tilføj genvej window hid behind other windows and was never clicked.
+            let cfg = NSWorkspace.OpenConfiguration()
+            cfg.activates = true
+            if let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.shortcuts") {
+                _ = try? await NSWorkspace.shared.open([signed], withApplicationAt: app, configuration: cfg)
+            } else {
+                NSWorkspace.shared.open(signed)
+            }
             message = "Tryk Tilføj genvej i Genveje" + (missing.count > 1 ? " (\(i + 1) af \(missing.count))." : ".")
             var added = false
             for _ in 0..<150 {

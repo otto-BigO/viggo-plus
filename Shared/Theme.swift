@@ -75,16 +75,16 @@ struct StatusPillView: View {
                         case .failed: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Fomo.red)
                         }
                     }
-                    .font(.system(size: compact ? 12 : 14, weight: .semibold))
+                    .font(.system(size: compact ? 12 : 14, weight: .semibold, design: Fomo.design))
                     .transition(.scale(scale: 0.5).combined(with: .opacity))
                     Text(pill.text)
-                        .font(.system(size: compact ? 12 : 14, weight: .semibold))
+                        .font(.system(size: compact ? 12 : 14, weight: .semibold, design: Fomo.design))
                         .lineLimit(1)
                         .contentTransition(.interpolate)
                     if pill.canUndo {
                         Button("Fortryd") { pill.runUndo() }
                             .buttonStyle(.plain)
-                            .font(.system(size: compact ? 12 : 14, weight: .semibold))
+                            .font(.system(size: compact ? 12 : 14, weight: .semibold, design: Fomo.design))
                             .foregroundStyle(Fomo.accent)
                             .padding(.leading, 2)
                             .transition(.opacity.combined(with: .offset(x: 6)))
@@ -211,7 +211,7 @@ struct AvatarStack: View {
             }
             if faces.count > max {
                 Text("+\(faces.count - max)")
-                    .font(.system(size: size * 0.36, weight: .bold)).monospacedDigit()
+                    .font(.system(size: size * 0.36, weight: .bold, design: Fomo.design)).monospacedDigit()
                     .foregroundStyle(Fomo.text2)
                     .frame(width: size, height: size)
                     .background(Circle().fill(Fomo.surface2))
@@ -275,9 +275,15 @@ struct GlideBar: View {
             GeometryReader { g in
                 ZStack(alignment: .leading) {
                     Capsule().fill(track)
+                    // The clock only moves where the bar ends (linear, second by second). The fill-in
+                    // is a separate mask, so a clock tick can never take over the opening animation.
                     Capsule().fill(color)
-                        .frame(width: max(height, g.size.width * (grown || reduce ? f : 0)))
-                        .animation(grown ? .linear(duration: 1) : nil, value: f)
+                        .frame(width: max(height, g.size.width * f))
+                        .animation(.linear(duration: 1), value: f)
+                        .mask(alignment: .leading) {
+                            Capsule().frame(width: grown || reduce ? g.size.width : height)
+                                .animation(grown ? GlideBar.reveal : nil, value: grown)
+                        }
                 }
             }
         }
@@ -296,8 +302,12 @@ struct GlideBar: View {
     private func grow() {
         guard !grown else { return }
         if reduce || !Prefs.shared.drawIn || CommandLine.arguments.contains("--render-docs") { grown = true; return }
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.9).delay(0.08)) { grown = true }
+        grown = true
     }
+
+    /// Fast out, soft landing (an ease-out like iOS uses for things sliding in): most of the way
+    /// in the first tenth of a second, all of it in under half a second.
+    static let reveal = Animation.timingCurve(0.16, 1, 0.3, 1, duration: 0.45)
 }
 
 extension Notification.Name {

@@ -396,7 +396,7 @@ struct RosterCard: View {
         let on = slots.allSatisfy { planned(h, $0) }
         return HStack(spacing: 10) {
             Image(systemName: on ? "calendar.badge.checkmark" : "person.text.rectangle")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold, design: Fomo.design))
                 .foregroundStyle(on ? Fomo.green : Fomo.accent)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(Fomo.surface2))

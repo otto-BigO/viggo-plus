@@ -111,7 +111,7 @@ struct PanelSearch: View {
         let ps = people, gs = groups, ts = threads, ls = lessons, xs = textHits
         if ps.isEmpty && gs.isEmpty && ts.isEmpty && ls.isEmpty && xs.isEmpty {
             VStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").font(.system(size: 22)).foregroundStyle(.tertiary)
+                Image(systemName: "magnifyingglass").font(.system(size: 22, design: Fomo.design)).foregroundStyle(.tertiary)
                 Text(dir.loading ? "Henter personer…" : "Intet fundet for \"\(query)\"").font(Sz.f(12)).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity).padding(.top, 30)
@@ -129,7 +129,7 @@ struct PanelSearch: View {
             SectionHeader(title: "Grupper")
             ForEach(gs) { g in
                 row { remember(); SearchBridge.shared.open(query: query, found: .group(g.id)) } content: {
-                    Image(systemName: g.kind.symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                    Image(systemName: g.kind.symbol).font(.system(size: 12, weight: .semibold, design: Fomo.design)).foregroundStyle(.white)
                         .frame(width: 26, height: 26).background(Circle().fill(g.kind.color.gradient))
                     VStack(alignment: .leading, spacing: 0) {
                         Text(g.name).font(Sz.f(13, .medium)).lineLimit(1)
@@ -315,15 +315,15 @@ struct TextHitRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: compact ? 10 : 8) {
             Image(systemName: h.file == nil ? "text.bubble" : "doc.text")
-                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Fomo.accent)
+                .font(.system(size: 12, weight: .semibold, design: Fomo.design)).foregroundStyle(Fomo.accent)
                 .frame(width: compact ? 26 : 28, height: compact ? 26 : 28)
                 .background(Circle().fill(Fomo.accent.opacity(0.12)))
             VStack(alignment: .leading, spacing: 1) {
                 Text(h.file.map { ($0 as NSString).deletingPathExtension } ?? h.subject)
-                    .font(compact ? Sz.f(13, .medium) : .system(size: 12, weight: .semibold)).lineLimit(1)
-                Text(marked).font(compact ? Sz.f(10.5) : .system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                    .font(compact ? Sz.f(13, .medium) : .system(size: 12, weight: .semibold, design: Fomo.design)).lineLimit(1)
+                Text(marked).font(compact ? Sz.f(10.5) : .system(size: 11, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(2)
                 if h.file != nil {
-                    Text("I \"\(h.subject)\"").font(compact ? Sz.f(10) : .system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
+                    Text("I \"\(h.subject)\"").font(compact ? Sz.f(10) : .system(size: 10, design: Fomo.design)).foregroundStyle(.tertiary).lineLimit(1)
                 }
             }
         }

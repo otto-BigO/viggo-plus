@@ -102,13 +102,13 @@ private struct MacThreadRow: View {
                 }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(title ?? t.sender).font(.system(size: 13, weight: t.unread ? .bold : .semibold)).lineLimit(1)
-                    if title == nil, t.others > 0 { Text("+\(t.others)").font(.system(size: 11)).foregroundStyle(.secondary) }
+                    Text(title ?? t.sender).font(.system(size: 13, weight: t.unread ? .bold : .semibold, design: Fomo.design)).lineLimit(1)
+                    if title == nil, t.others > 0 { Text("+\(t.others)").font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary) }
                     Spacer()
-                    Text(t.when).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    Text(t.when).font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(1)
                 }
-                Text(t.subject).font(.system(size: 12, weight: t.unread ? .semibold : .regular)).lineLimit(1)
-                Text(t.preview).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
+                Text(t.subject).font(.system(size: 12, weight: t.unread ? .semibold : .regular, design: Fomo.design)).lineLimit(1)
+                Text(t.preview).font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary).lineLimit(2)
             }
         }
         .padding(.vertical, 4)
@@ -146,10 +146,10 @@ private struct MacThreadView: View {
                     if let d = detail {
                         VStack(alignment: .leading, spacing: 14) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(d.subject).font(.system(size: 22, weight: .bold)).textSelection(.enabled)
+                                Text(d.subject).font(.system(size: 22, weight: .bold, design: Fomo.design)).textSelection(.enabled)
                                 if !d.to.isEmpty {
                                     Text("Til \(d.to.prefix(4).joined(separator: ", "))\(d.to.count > 4 ? " og \(d.to.count - 4) andre" : "")")
-                                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                                        .font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary)
                                 }
                             }
                             .padding(.bottom, 4)
@@ -202,14 +202,14 @@ private struct MacThreadView: View {
             HStack(alignment: .bottom, spacing: 10) {
                 TextField(kind == .all ? "Svar alle" : "Svar \(firstSender)", text: $draft, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+                    .font(.system(size: 13, design: Fomo.design))
                     .lineLimit(1...8)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.primary.opacity(0.06)))
                     .onSubmit { Task { await send() } }
                 Button { Task { await send() } } label: {
                     if sending { ProgressView().controlSize(.small).frame(width: 26, height: 26) }
-                    else { Image(systemName: "arrow.up.circle.fill").font(.system(size: 26)) }
+                    else { Image(systemName: "arrow.up.circle.fill").font(.system(size: 26, design: Fomo.design)) }
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Fomo.accent)
@@ -249,10 +249,10 @@ struct MacBubble: View {
         HStack(alignment: .bottom, spacing: 8) {
             if mine { Spacer(minLength: 80) } else { Avatar(url: m.image, size: 28, name: m.author) }
             VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
-                Text(mine ? m.date : "\(m.author) · \(m.date)").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(mine ? m.date : "\(m.author) · \(m.date)").font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary)
                 if let p = m.privateWith {
                     Label(mine ? "Privat til \(p)" : "Privat besked til dig", systemImage: "lock.fill")
-                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(.indigo)
+                        .font(.system(size: 11, weight: .semibold, design: Fomo.design)).foregroundStyle(.indigo)
                 }
                 ForEach(m.files.filter(\.isImage)) { f in MacFileImage(f: f) }
                 ForEach(m.files.filter { !$0.isImage }) { f in MacFileChip(f: f) }
@@ -265,7 +265,7 @@ struct MacBubble: View {
                     ForEach(m.links, id: \.self) { u in
                         Link(destination: u) {
                             Label(u.host?.replacingOccurrences(of: "www.", with: "") ?? "Link", systemImage: "arrow.up.right.square")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 12, weight: .medium, design: Fomo.design))
                         }
                         .foregroundStyle(mine && !personal ? Color.white : Fomo.accent)
                     }
@@ -338,7 +338,7 @@ private struct MacFileChip: View {
         } label: {
             HStack(spacing: 8) {
                 if loading { ProgressView().controlSize(.small) } else { Image(systemName: "doc") }
-                Text(f.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                Text(f.name).font(.system(size: 12, weight: .medium, design: Fomo.design)).lineLimit(1)
             }
             .padding(.horizontal, 11).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.07)))
@@ -377,7 +377,7 @@ private struct MacCompose: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Ny besked").font(.system(size: 17, weight: .bold))
+            Text("Ny besked").font(.system(size: 17, weight: .bold, design: Fomo.design))
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Til:").foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
                 VStack(alignment: .leading, spacing: 6) {
@@ -387,7 +387,7 @@ private struct MacCompose: View {
                                 ForEach(to) { p in
                                     HStack(spacing: 5) {
                                         Avatar(url: p.image, size: 18, name: p.name)
-                                        Text(p.name).font(.system(size: 12, weight: .medium))
+                                        Text(p.name).font(.system(size: 12, weight: .medium, design: Fomo.design))
                                         Button { to.removeAll { $0 == p } } label: { Image(systemName: "xmark.circle.fill") }
                                             .buttonStyle(.plain).foregroundStyle(.secondary)
                                     }
@@ -409,7 +409,7 @@ private struct MacCompose: View {
                             HStack(spacing: 8) {
                                 Avatar(url: p.image, size: 24, name: p.name)
                                 Text(p.name)
-                                if !p.info.isEmpty { Text(p.info).font(.system(size: 11)).foregroundStyle(.secondary) }
+                                if !p.info.isEmpty { Text(p.info).font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary) }
                                 Spacer()
                             }
                             .padding(.horizontal, 6).padding(.vertical, 3)
@@ -425,7 +425,7 @@ private struct MacCompose: View {
                                 Image(systemName: "person.3.fill").frame(width: 24, height: 24)
                                     .background(Circle().fill(Fomo.accent.opacity(0.15)))
                                 Text(g.name)
-                                Text("\(g.members.count) personer").font(.system(size: 11)).foregroundStyle(.secondary)
+                                Text("\(g.members.count) personer").font(.system(size: 11, design: Fomo.design)).foregroundStyle(.secondary)
                                 Spacer()
                             }
                             .padding(.horizontal, 6).padding(.vertical, 3)
@@ -443,7 +443,7 @@ private struct MacCompose: View {
                 TextField("Hvad handler det om?", text: $subject).textFieldStyle(.roundedBorder)
             }
             TextEditor(text: $text)
-                .font(.system(size: 13))
+                .font(.system(size: 13, design: Fomo.design))
                 .scrollContentBackground(.hidden)
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 8).fill(.primary.opacity(0.05)))

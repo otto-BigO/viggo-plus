@@ -294,8 +294,8 @@ private struct StepRow: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle().fill(done ? Fomo.green : current ? Fomo.accent : Color.primary.opacity(0.1))
-                    if done { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(.white) }
-                    else { Text("\(n)").font(.system(size: 11, weight: .bold)).foregroundStyle(current ? .white : .secondary) }
+                    if done { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold, design: Fomo.design)).foregroundStyle(.white) }
+                    else { Text("\(n)").font(.system(size: 11, weight: .bold, design: Fomo.design)).foregroundStyle(current ? .white : .secondary) }
                 }
                 .frame(width: 22, height: 22)
                 .contentTransition(.symbolEffect(.replace))
@@ -360,7 +360,7 @@ private struct StatusCard: View {
         let left = rec.expires.timeIntervalSinceNow
         let color: Color = left < 0 ? Fomo.red : left < 86400 ? Fomo.warn : Fomo.green
         HStack(spacing: 14) {
-            Image(systemName: "iphone.gen3").font(.system(size: 30)).foregroundStyle(color)
+            Image(systemName: "iphone.gen3").font(.system(size: 30, design: Fomo.design)).foregroundStyle(color)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Viggo+ \(rec.version) på \(rec.name)").font(.headline)
                 Text(left < 0 ? "Udløbet \(PhoneInstaller.when(rec.expires))" : "Virker til \(PhoneInstaller.when(rec.expires))")

@@ -1,5 +1,17 @@
 # Ændringer
 
+## 1.30.0 (2026-11-26)
+
+- **Træning**: et nyt vindue med et program lavet til dig. Svar på et par spørgsmål (vægt, mål, erfaring, fitness eller hjemme, dage og minutter, hvad du vil fokusere på og hvornår du helst træner), så laver Viggo+ træningerne og finder ledige tider i dit skema. 38 øvelser med billeder, der viser hvordan de laves. Byt, flyt og ret sæt, gentagelser og pause, log dine sæt som i en træningsapp, og følg din kropsvægt og fremgang. "Vis i skema" bestemmer, om træningerne står i panelet, menubaren og Uge-overblikket.
+- **Tre temaer** under Udseende og haptik: Rolig (nyt og standard: blød grafit, varm tekst, rolige farver og afrundet skrift, nemt for øjnene), Kontrast (det mørke fra 1.28) og Klassisk (Mac'ens egne grå farver og et mat glas-panel som før 1.28). Du vælger med små billeder af panelet.
+- **Nye knapper i bunden af panelet**: Søg, Uge, Træning og Beskeder med navn under, og resten i Mere. Under Panel kan du vælge mellem Faner, Søgefelt, Pille og den gamle række ikoner.
+- **Venner samlet i én gruppe** i toppen af panelet, så intet rykker, når du vælger en ven. Kun fornavnet står i toppen.
+- **"Fri sammen" er slået fra som standard**. Slå det til under Venner.
+- **Nu-bjælken** fyldes hurtigt og blødt op, når panelet åbner, i stedet for langsomt og lige.
+- **Pænere panel**: lige margener i begge sider, og alle titler i tidslinjen starter på samme linje.
+- **Rettet**: Fokus i timerne virkede ikke på en dansk Mac, fordi genvejen ledte efter "Do Not Disturb" i stedet for "Forstyr ikke". Viggo+ bruger nu Mac'ens eget navn og laver selv genvejene, når du slår det til, og Genveje kommer frem foran, så du kan trykke Tilføj genvej.
+- **Rettet**: Indstillinger havde to forskellige baggrunde, hvor den ene tog farve fra skrivebordet.
+
 ## 1.29.1 og iPhone-app 1.18.3 (2026-11-23)
 
 - **Ét udseende overalt**: Beskeder, Søg, Venner og Indstillinger på iPhone har nu samme mørke baggrund og kort som I dag i stedet for systemets grå. Widgets og Live Activity bruger de samme farver som appen.

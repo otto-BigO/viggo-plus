@@ -219,22 +219,22 @@ struct UpdateView: View {
                       ?? NSApp.applicationIconImage)
                     .resizable().frame(width: 52, height: 52)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Viggo+ \(updater.available?.version ?? "") er klar").font(.system(size: 16, weight: .bold))
-                    Text("Du har version \(updater.current)").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text("Viggo+ \(updater.available?.version ?? "") er klar").font(.system(size: 16, weight: .bold, design: Fomo.design))
+                    Text("Du har version \(updater.current)").font(.system(size: 12, design: Fomo.design)).foregroundStyle(.secondary)
                 }
             }
             if let r = updater.available, !r.highlights.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(r.highlights, id: \.self) { h in
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Image(systemName: "sparkle").font(.system(size: 10)).foregroundStyle(Fomo.accent)
-                            Text(h).font(.system(size: 13))
+                            Image(systemName: "sparkle").font(.system(size: 10, design: Fomo.design)).foregroundStyle(Fomo.accent)
+                            Text(h).font(.system(size: 13, design: Fomo.design))
                         }
                     }
                 }
             }
             if let r = updater.available {
-                Link("Læs mere på GitHub", destination: r.page).font(.system(size: 12))
+                Link("Læs mere på GitHub", destination: r.page).font(.system(size: 12, design: Fomo.design))
             }
             if case .failed(let msg) = updater.phase {
                 Text("Opdateringen fejlede: \(msg)").font(.caption).foregroundStyle(Fomo.warn)
@@ -244,7 +244,7 @@ struct UpdateView: View {
                 switch updater.phase {
                 case .downloading, .installing:
                     ProgressView().controlSize(.small)
-                    Text(updater.phase == .downloading ? "Henter…" : "Installerer…").font(.system(size: 12))
+                    Text(updater.phase == .downloading ? "Henter…" : "Installerer…").font(.system(size: 12, design: Fomo.design))
                 default:
                     Button("Senere") { updater.later() }
                     Button("Opdater") { updater.install() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
