@@ -11,7 +11,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: minimal
-    MARKETING_VERSION: "1.18.3"
+    MARKETING_VERSION: "1.19.0"
     CURRENT_PROJECT_VERSION: "1"
     "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
 targets:
@@ -22,6 +22,10 @@ targets:
       - path: ../Shared
       - path: Sources
       - path: Assets.xcassets
+      # Exercise photos for Træning, the same folder the Mac app bundles.
+      - path: ../Resources/Exercises
+        type: folder
+        buildPhase: resources
       - path: Widget/WidgetData.swift
       - path: Widget/WidgetViews.swift
       - path: Widget/LiveData.swift

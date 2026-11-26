@@ -50,7 +50,6 @@ struct TrainingSetup: View {
             bottomBar
         }
         .background(Fomo.bg)
-        .frame(minWidth: 820, minHeight: 600)
     }
 
     // MARK: Bars
@@ -58,7 +57,7 @@ struct TrainingSetup: View {
     private var topBar: some View {
         HStack(spacing: 16) {
             Button { go(-1) } label: {
-                Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold, design: Fomo.design)).frame(width: 28, height: 28)
+                Image(systemName: "chevron.left").font(.system(size: 14 * Tk.k, weight: .semibold, design: Fomo.design)).frame(width: 28, height: 28)
                     .background(Circle().fill(Fomo.surface2))
             }
             .buttonStyle(PressScale()).opacity(step == .welcome || (step == .build && built) ? 0 : 1)
@@ -78,7 +77,7 @@ struct TrainingSetup: View {
                 Spacer()
             }
             Button(editing ? "Annuller" : "Senere") { done(nil) }
-                .buttonStyle(.plain).font(.system(size: 12.5, design: Fomo.design)).foregroundStyle(Fomo.text2)
+                .buttonStyle(.plain).font(.system(size: 12.5 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2)
                 .opacity(step == .build && built ? 0 : 1)
         }
         .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 6)
@@ -93,7 +92,7 @@ struct TrainingSetup: View {
                 if built {
                     primary("Læg i skemaet", icon: "calendar.badge.plus") { finish(plan: true) }
                     Button("Gem uden at lægge i skemaet") { finish(plan: false) }
-                        .buttonStyle(.plain).font(.system(size: 12.5, design: Fomo.design)).foregroundStyle(Fomo.accent)
+                        .buttonStyle(.plain).font(.system(size: 12.5 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.accent)
                 } else {
                     primary("Fortsæt") {}.opacity(0)
                 }
@@ -103,8 +102,8 @@ struct TrainingSetup: View {
                 primary("Fortsæt") { go(1) }.disabled(!valid).opacity(valid ? 1 : 0.45)
             }
         }
-        .padding(.bottom, 30).padding(.top, 8)
-        .frame(height: 110, alignment: .top)
+        .padding(.horizontal, 20).padding(.bottom, Tk.phone ? 12 : 30).padding(.top, 8)
+        .frame(height: Tk.phone ? 104 : 110, alignment: .top)
     }
 
     private func primary(_ title: String, icon: String? = nil, action: @escaping () -> Void) -> some View {
@@ -113,8 +112,8 @@ struct TrainingSetup: View {
                 if let icon { Image(systemName: icon) }
                 Text(title)
             }
-            .font(.system(size: 14, weight: .semibold, design: Fomo.design))
-            .frame(width: 320, height: 44)
+            .font(.system(size: 14 * Tk.k, weight: .semibold, design: Fomo.design))
+            .frame(maxWidth: 320).frame(height: 44 * Tk.k)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Fomo.accent))
             .foregroundStyle(.white)
         }
@@ -191,7 +190,7 @@ struct TrainingSetup: View {
                 }
             }
             .frame(maxWidth: 500)
-            .padding(.horizontal, 30).padding(.top, 26).padding(.bottom, 20)
+            .padding(.horizontal, Tk.phone ? 20 : 30).padding(.top, 26).padding(.bottom, 20)
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.never)
@@ -199,13 +198,13 @@ struct TrainingSetup: View {
 
     private func header(_ icon: String, _ color: Color, _ title: String, _ sub: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: icon).font(.system(size: 28, weight: .semibold, design: Fomo.design)).foregroundStyle(.white)
+            Image(systemName: icon).font(.system(size: 28 * Tk.k, weight: .semibold, design: Fomo.design)).foregroundStyle(.white)
                 .frame(width: 64, height: 64)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(LinearGradient(colors: [color.opacity(0.85), color], startPoint: .top, endPoint: .bottom)))
                 .shadow(color: color.opacity(0.35), radius: 12, y: 5)
-            Text(title).font(.system(size: 26, weight: .bold, design: Fomo.design)).multilineTextAlignment(.center)
-            Text(sub).font(.system(size: 13, design: Fomo.design)).foregroundStyle(Fomo.text2).multilineTextAlignment(.center)
+            Text(title).font(.system(size: 26 * Tk.k, weight: .bold, design: Fomo.design)).multilineTextAlignment(.center)
+            Text(sub).font(.system(size: 13 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2).multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.bottom, 4)
@@ -227,19 +226,19 @@ struct TrainingSetup: View {
 
     private func feature(_ icon: String, _ title: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon).font(.system(size: 24, design: Fomo.design)).foregroundStyle(Fomo.accent).frame(width: 36)
+            Image(systemName: icon).font(.system(size: 24 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.accent).frame(width: 36)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 14, weight: .semibold, design: Fomo.design))
-                Text(text).font(.system(size: 12.5, design: Fomo.design)).foregroundStyle(Fomo.text2).fixedSize(horizontal: false, vertical: true)
+                Text(title).font(.system(size: 14 * Tk.k, weight: .semibold, design: Fomo.design))
+                Text(text).font(.system(size: 12.5 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     private var privacy: some View {
         HStack(spacing: 8) {
-            Image(systemName: "lock.fill").font(.system(size: 11, design: Fomo.design)).foregroundStyle(Fomo.text2)
-            Text("Det du skriver, bliver på denne Mac. Viggo+ sender det ikke nogen steder hen.")
-                .font(.system(size: 11.5, design: Fomo.design)).foregroundStyle(Fomo.text2)
+            Image(systemName: "lock.fill").font(.system(size: 11 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2)
+            Text("Det du skriver, bliver på denne \(Tk.device). Viggo+ sender det ikke nogen steder hen.")
+                .font(.system(size: 11.5 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2)
         }
     }
 
@@ -260,12 +259,13 @@ struct TrainingSetup: View {
 
     private func field(_ label: String, _ text: Binding<String>, _ unit: String, _ hint: String) -> some View {
         HStack {
-            Text(label).font(.system(size: 14, design: Fomo.design))
+            Text(label).font(.system(size: 14 * Tk.k, design: Fomo.design))
             Spacer()
             TextField(hint, text: text)
+                .trKeyboard(decimal: unit != "år")
                 .textFieldStyle(.plain).multilineTextAlignment(.trailing)
-                .font(.system(size: 17, weight: .semibold, design: Fomo.design)).monospacedDigit().frame(width: 110)
-            Text(unit).font(.system(size: 13, design: Fomo.design)).foregroundStyle(Fomo.text2).frame(width: 26, alignment: .leading)
+                .font(.system(size: 17 * Tk.k, weight: .semibold, design: Fomo.design)).monospacedDigit().frame(width: 110)
+            Text(unit).font(.system(size: 13 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2).frame(width: 26, alignment: .leading)
         }
         .padding(.horizontal, 16).frame(height: 50)
     }
@@ -299,13 +299,13 @@ struct TrainingSetup: View {
             }
             let total = p.days * p.minutes
             Label("Cirka \(total / 60 > 0 ? "\(total / 60) t " : "")\(total % 60 > 0 ? "\(total % 60) min " : "")om ugen", systemImage: "clock")
-                .font(.system(size: 12.5, weight: .medium, design: Fomo.design)).foregroundStyle(Fomo.text2)
+                .font(.system(size: 12.5 * Tk.k, weight: .medium, design: Fomo.design)).foregroundStyle(Fomo.text2)
         }
     }
 
     private func section<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 10.5, weight: .semibold, design: Fomo.design)).foregroundStyle(Fomo.text2).padding(.leading, 4)
+            Text(title).font(.system(size: 10.5 * Tk.k, weight: .semibold, design: Fomo.design)).foregroundStyle(Fomo.text2).padding(.leading, 4)
             c()
         }
     }
@@ -313,8 +313,8 @@ struct TrainingSetup: View {
     private func tile(_ big: String, _ small: String, _ selected: Bool, _ action: @escaping () -> Void) -> some View {
         Button { withAnimation(.viggo) { action() } } label: {
             VStack(spacing: 4) {
-                Text(big).font(.system(size: 28, weight: .bold, design: Fomo.design)).monospacedDigit()
-                Text(small).font(.system(size: 11, design: Fomo.design)).multilineTextAlignment(.center)
+                Text(big).font(.system(size: 28 * Tk.k, weight: .bold, design: Fomo.design)).monospacedDigit()
+                Text(small).font(.system(size: 11 * Tk.k, design: Fomo.design)).multilineTextAlignment(.center)
                     .foregroundStyle(selected ? .white.opacity(0.9) : Fomo.text2)
             }
             .frame(maxWidth: .infinity).frame(height: 86)
@@ -339,8 +339,8 @@ struct TrainingSetup: View {
                         }
                     } label: {
                         VStack(spacing: 8) {
-                            Image(systemName: a.icon).font(.system(size: 22, design: Fomo.design))
-                            Text(a.title).font(.system(size: 12.5, weight: .medium, design: Fomo.design))
+                            Image(systemName: a.icon).font(.system(size: 22 * Tk.k, design: Fomo.design))
+                            Text(a.title).font(.system(size: 12.5 * Tk.k, weight: .medium, design: Fomo.design))
                         }
                         .frame(maxWidth: .infinity).frame(height: 86)
                         .foregroundStyle(on ? .white : .primary)
@@ -361,13 +361,13 @@ struct TrainingSetup: View {
             header("clock.fill", Fomo.green, "Hvornår passer det dig?", "Viggo+ leder efter en ledig time på det tidspunkt i dit skema.")
             choices(TimeOfDay.allCases, \.when)
             section("DAGE DU KAN TRÆNE") {
-                HStack(spacing: 8) {
+                HStack(spacing: Tk.phone ? 6 : 8) {
                     ForEach(Array(["M", "T", "O", "T", "F", "L", "S"].enumerated()), id: \.offset) { i, d in
                         let wd = i + 1, on = !p.skip.contains(wd)
                         Button {
                             withAnimation(.viggo) { if on { p.skip.append(wd) } else { p.skip.removeAll { $0 == wd } } }
                         } label: {
-                            Text(d).font(.system(size: 14, weight: .semibold, design: Fomo.design)).frame(width: 44, height: 44)
+                            Text(d).font(.system(size: 14 * Tk.k, weight: .semibold, design: Fomo.design)).frame(width: Tk.phone ? 40 : 44, height: Tk.phone ? 40 : 44)
                                 .background(Circle().fill(on ? Fomo.accent : Fomo.surface))
                                 .foregroundStyle(on ? .white : Fomo.text2)
                         }
@@ -377,7 +377,7 @@ struct TrainingSetup: View {
                 .frame(maxWidth: .infinity)
             }
             Text(p.place == .gym ? "Viggo+ lægger kun træning på dage, hvor du er på skolen." : "Hjemmetræning kan også ligge i weekender, hvor du er hjemme.")
-                .font(.system(size: 11.5, design: Fomo.design)).foregroundStyle(Fomo.text2)
+                .font(.system(size: 11.5 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2)
         }
     }
 
@@ -385,7 +385,7 @@ struct TrainingSetup: View {
         if !built {
             VStack(spacing: 26) {
                 ProgressView().controlSize(.large).padding(.top, 60)
-                Text("Laver dit program").font(.system(size: 22, weight: .bold, design: Fomo.design))
+                Text("Laver dit program").font(.system(size: 22 * Tk.k, weight: .bold, design: Fomo.design))
                 BuildChecklist()
             }
         } else {
@@ -394,10 +394,10 @@ struct TrainingSetup: View {
                 ForEach(program) { s in SessionPreview(session: s) }
                 if editing {
                     Label("Dit gamle program bliver skiftet ud. Din historik bliver.", systemImage: "info.circle")
-                        .font(.system(size: 11.5, design: Fomo.design)).foregroundStyle(Fomo.text2)
+                        .font(.system(size: 11.5 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2)
                 }
                 Text("Du kan bytte øvelser og ændre sæt bagefter under Program.")
-                    .font(.system(size: 11.5, design: Fomo.design)).foregroundStyle(Fomo.text2)
+                    .font(.system(size: 11.5 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2)
             }
             .transition(.opacity.combined(with: .scale(scale: 0.97)))
         }
@@ -415,7 +415,7 @@ private struct BuildChecklist: View {
                     Image(systemName: i < done ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(i < done ? Fomo.green : Color.secondary.opacity(0.4))
                         .contentTransition(.symbolEffect(.replace))
-                    Text(lines[i]).font(.system(size: 13, design: Fomo.design)).foregroundStyle(i < done ? .primary : Fomo.text2)
+                    Text(lines[i]).font(.system(size: 13 * Tk.k, design: Fomo.design)).foregroundStyle(i < done ? .primary : Fomo.text2)
                 }
             }
         }
@@ -433,23 +433,23 @@ struct SessionPreview: View {
     let session: TrainingSession
     var body: some View {
         HStack(spacing: 14) {
-            Text(session.id).font(.system(size: 17, weight: .bold, design: Fomo.design)).frame(width: 38, height: 38)
+            Text(session.id).font(.system(size: 17 * Tk.k, weight: .bold, design: Fomo.design)).frame(width: 38, height: 38)
                 .background(Circle().fill(Fomo.green.opacity(0.18))).foregroundStyle(Fomo.green)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text("Træning \(session.id)").font(.system(size: 13.5, weight: .semibold, design: Fomo.design))
-                    Text(session.name).font(.system(size: 12, design: Fomo.design)).foregroundStyle(Fomo.text2)
+                    Text("Træning \(session.id)").font(.system(size: 13.5 * Tk.k, weight: .semibold, design: Fomo.design))
+                    Text("\(session.name) · \(session.items.count) øvelser").font(.system(size: 12 * Tk.k, design: Fomo.design))
+                        .foregroundStyle(Fomo.text2).lineLimit(1)
                 }
                 HStack(spacing: 5) {
                     ForEach(session.items) { i in
                         if let ex = TrainingProgram.exercise(i.exercise) {
-                            ExerciseThumb(ex: ex, width: 44, height: 32).help(ex.name)
+                            ExerciseThumb(ex: ex, width: Tk.phone ? 38 : 44, height: Tk.phone ? 28 : 32).help(ex.name)
                         }
                     }
                 }
             }
-            Spacer()
-            Text("\(session.items.count) øvelser").font(.system(size: 11.5, design: Fomo.design)).foregroundStyle(Fomo.text2)
+            Spacer(minLength: 0)
         }
         .padding(12)
         .surface()
@@ -477,15 +477,15 @@ private struct Choice: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: icon).font(.system(size: 17, design: Fomo.design)).frame(width: 38, height: 38)
+                Image(systemName: icon).font(.system(size: 17 * Tk.k, design: Fomo.design)).frame(width: 38, height: 38)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(selected ? Fomo.accent : Fomo.accent.opacity(0.12)))
                     .foregroundStyle(selected ? .white : Fomo.accent)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 14, weight: .semibold, design: Fomo.design))
-                    Text(subtitle).font(.system(size: 12, design: Fomo.design)).foregroundStyle(Fomo.text2)
+                    Text(title).font(.system(size: 14 * Tk.k, weight: .semibold, design: Fomo.design))
+                    Text(subtitle).font(.system(size: 12 * Tk.k, design: Fomo.design)).foregroundStyle(Fomo.text2)
                 }
                 Spacer()
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(.system(size: 20, design: Fomo.design))
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(.system(size: 20 * Tk.k, design: Fomo.design))
                     .foregroundStyle(selected ? Fomo.accent : Color.secondary.opacity(0.35))
             }
             .padding(14)
@@ -496,14 +496,4 @@ private struct Choice: View {
         }
         .buttonStyle(PressScale(scale: 0.98))
     }
-}
-
-/// "81" or "80,5".
-func numText(_ d: Double) -> String {
-    d.rounded() == d ? "\(Int(d))" : String(format: "%.1f", d).replacingOccurrences(of: ".", with: ",")
-}
-
-/// Reads "80,5" and "80.5".
-func num(_ s: String) -> Double? {
-    Double(s.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
 }

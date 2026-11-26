@@ -63,6 +63,8 @@ final class AppState: ObservableObject {
     /// A day to show in Uge, from tapping a time or day in a message.
     @Published var showDay: Date?
     /// The Søg screen on the iPhone, opened from the magnifier on I dag and Beskeder.
+    /// The iPhone shows Indstillinger as a sheet from the profile menu on I dag.
+    @Published var showSettings = false
     @Published var showSearch = ProcessInfo.processInfo.environment["VIGGO_SEARCH"] != nil
     #endif
     #if os(macOS)
@@ -1727,8 +1729,8 @@ final class AppState: ObservableObject {
     #else
     func openViggo(_ url: URL = Config.baseURL) { Platform.open(url) }
     func openMessages(thread: Int? = nil) { openViggo() }
-    /// Træning is Mac only for now.
-    func openTraining() {}
+    /// Opens the Træning tab.
+    func openTraining() { NotificationCenter.default.post(name: .viggoOpenTraining, object: nil) }
     /// The iPhone shows a lesson's details as a sheet.
     func openLesson(_ e: ViggoEvent) { shownLesson = e }
     #endif

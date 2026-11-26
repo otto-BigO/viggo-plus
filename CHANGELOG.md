@@ -1,5 +1,12 @@
 # Ændringer
 
+## 1.31.0 og iPhone-app 1.19.0 (2026-11-26)
+
+- **Træning på iPhone**: en ny fane med Plan, Træn, Program og Fremgang. Opsætningen, programmet og øvelsesbillederne er de samme som på Mac. Kg og gentagelser skrives med talknapper, og tallet er markeret, når du trykker i feltet, så du bare skriver det nye.
+- **Pausen på iPhone**: når du krydser et sæt af, tæller pausen ned nederst på skærmen, og du får en notifikation når den er slut, også med telefonen i lommen. Skærmen slukker ikke, mens en træning er i gang.
+- **Indstillinger på iPhone** ligger nu bag dit billede øverst på I dag, så Træning kan være en af de fem faner.
+- **Rettet**: iPhone-appen fra 1.30.0 kunne ikke bygges, fordi en fil til Træning manglede i projektet. Øvelsesbillederne kommer nu også med.
+
 ## 1.30.0 (2026-11-26)
 
 - **Træning**: et nyt vindue med et program lavet til dig. Svar på et par spørgsmål (vægt, mål, erfaring, fitness eller hjemme, dage og minutter, hvad du vil fokusere på og hvornår du helst træner), så laver Viggo+ træningerne og finder ledige tider i dit skema. 38 øvelser med billeder, der viser hvordan de laves. Byt, flyt og ret sæt, gentagelser og pause, log dine sæt som i en træningsapp, og følg din kropsvægt og fremgang. "Vis i skema" bestemmer, om træningerne står i panelet, menubaren og Uge-overblikket.

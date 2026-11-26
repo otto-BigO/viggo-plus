@@ -15,6 +15,7 @@ mkdir -p "$SRC/iOS"
 XCODEGEN="$(command -v xcodegen || echo /opt/homebrew/bin/xcodegen)"
 if [ -x "$XCODEGEN" ]; then (cd "$DIR/iOS" && "$XCODEGEN" generate --quiet); fi
 cp -R "$DIR/Shared" "$SRC/Shared"
+mkdir -p "$SRC/Resources" && cp -R "$DIR/Resources/Exercises" "$SRC/Resources/Exercises"
 for f in Sources Widget Assets.xcassets ViggoPlusPhone.xcodeproj App-Info.plist App.entitlements Widget.entitlements project.yml; do
     cp -R "$DIR/iOS/$f" "$SRC/iOS/$f"
 done

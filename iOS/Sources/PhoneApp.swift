@@ -136,11 +136,14 @@ struct RootView: View {
                     Tab("Beskeder", systemImage: "bubble.left.and.bubble.right.fill", value: 2) { MessagesScreen().environment(\.zoomSpace, zoom2) }
                         .badge(unreadBadge)
                     Tab("Venner", systemImage: "person.2.fill", value: 3) { FriendsScreen().environment(\.zoomSpace, zoom3) }
-                    Tab("Indstillinger", systemImage: "gearshape.fill", value: 4) { SettingsScreen() }
+                    // Indstillinger is in the profile menu on I dag, so Træning fits in five tabs.
+                    Tab("Træning", systemImage: "dumbbell.fill", value: PhoneTabs.training) { TrainingScreen() }
                 }
                 .onChange(of: tab) { Haptic.select() }
                 .onChange(of: state.openThread) { if state.openThread != nil { tab = 2 } }
                 .onChange(of: state.showDay) { if state.showDay != nil { tab = 1 } }
+                .onReceive(NotificationCenter.default.publisher(for: .viggoOpenTraining)) { _ in tab = PhoneTabs.training }
+                .sheet(isPresented: $state.showSettings) { SettingsScreen().environmentObject(state) }
                 // VIGGO_PLAN_DEMO=1: a made-up message to tap a time in, without real messages.
                 .fullScreenCover(isPresented: .constant(planDemo)) { PlanDemoScreen { planDemo = false } }
             }

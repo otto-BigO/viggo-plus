@@ -251,6 +251,8 @@ struct TodayScreen: View {
                 ToolbarItem(placement: .topBarTrailing) { SearchButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button { state.showSettings = true } label: { Label("Indstillinger", systemImage: "gearshape") }
+                        Divider()
                         if state.profile != nil {
                             Button { showMe = true } label: { Label("Se din profil", systemImage: "person.crop.circle") }
                         }

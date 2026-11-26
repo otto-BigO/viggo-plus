@@ -418,6 +418,7 @@ struct FriendDayScreen: View {
 
 struct SettingsScreen: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var p = Prefs.shared
     @State private var showGuide = false
 
@@ -496,6 +497,7 @@ struct SettingsScreen: View {
             }
             .fomoList()
             .navigationTitle("Indstillinger")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Færdig") { dismiss() } } }
             .sheet(isPresented: $showGuide) { GuideSheet() }
         }
     }

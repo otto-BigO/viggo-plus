@@ -28,7 +28,7 @@ Hele ugen med timer, middag, pauser mellem klassens timer og dine egne punkter.
 
 ## Træning
 
-Svar på et par spørgsmål (vægt, mål, hvor du træner og hvor mange dage), så laver Viggo+ et program med øvelser, sæt og gentagelser og finder tider i dit skema. Hver øvelse har billeder, der viser hvordan den laves. Du kan bytte, flytte og rette øvelser, logge sæt som i en træningsapp og følge din vægt og fremgang. "Vis i skema" bestemmer om træningerne står i panelet og Uge-overblikket.
+Svar på et par spørgsmål (vægt, mål, hvor du træner og hvor mange dage), så laver Viggo+ et program med øvelser, sæt og gentagelser og finder tider i dit skema. Hver øvelse har billeder, der viser hvordan den laves. Du kan bytte, flytte og rette øvelser, logge sæt som i en træningsapp og følge din vægt og fremgang. "Vis i skema" bestemmer om træningerne står i panelet og Uge-overblikket. Træning findes også i iPhone-appen.
 
 ## Opdateringer
 
@@ -155,7 +155,8 @@ Der er også en iPhone-app i `iOS/`, med samme kode som Mac-appen (mappen `Share
 - **Beskeder**: din Viggo-indbakke i appen. Læs tråde som en chat, svar, og skriv nye beskeder med søgning på elever, lærere og grupper. Vedhæft billeder fra Fotos eller filer fra Filer. Personlige svar i en gruppetråd har en stiplet kant. Under din nyeste besked står om den er set, og af hvem, og listen viser Set ved trådene. Du får en besked, når nogen har set din besked.
 - **Søg**: søg efter personer, klasser, værelser, linjer, grupper, beskeder, skema, lektier og opslag. Personsider viser hvor personen er lige nu (time og lokale), klasse, linje, værelse, hvem man bor med, kontaktlærer, familie, fødselsdag og kontaktinfo. Tryk på en ven under Venner nu eller på dit eget billede for at åbne en personside. Tryk på billedet for at se det i fuld størrelse, og på linjen eller værelset for at se alle på linjen eller i huset. Grupper I har sammen er markeret med Fælles.
 - **Venner**: hvad dine venner har lige nu, og deres dag. Vælg en ven fra Viggo, så skal vennen ikke logge ind: Viggo+ finder timerne i Viggos lokaleoversigt. Fri sammen på I dag viser hvornår du og flere venner alle har fri.
-- **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner.
+- **Træning**: samme program som på Mac, i en fane med Plan, Træn, Program og Fremgang. Log sæt med store felter og talknapper, og få en notifikation når pausen er slut, også med telefonen i lommen. Skærmen slukker ikke, mens du træner.
+- **Indstillinger**: konto, I dag-skærmen, notifikationer, timer, egne punkter og venner. Ligger bag dit billede øverst på I dag.
 - **Opdateringer**: Viggo+ på Mac'en opdaterer sig selv og lægger nye versioner af iPhone-appen på telefonen, så snart den er på samme wifi. Appen viser hvad der er nyt.
 - **Widget** til hjemmeskærmen (lille, mellem og stor med hele dagen og lektier) og låseskærmen, med det du har nu og hvad der kommer bagefter.
 - **Lektie-widget**: dine lektier på hjemmeskærmen. Tryk på cirklen for at markere en som færdig, uden at åbne appen.

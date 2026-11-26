@@ -5,40 +5,6 @@ import SwiftUI
 // The Træning window: Plan (find time in the schedule), Træn (the workout, like the Strong app)
 // and Fremgang (history and charts). Data and the planner are in Shared/Training.swift.
 
-enum TrainingPage: String, CaseIterable {
-    case plan = "Plan", workout = "Træn", program = "Program", progress = "Fremgang"
-    var icon: String {
-        switch self {
-        case .plan: return "calendar"
-        case .program: return "list.bullet.rectangle"
-        case .workout: return "dumbbell.fill"
-        case .progress: return "chart.line.uptrend.xyaxis"
-        }
-    }
-}
-
-private func kgText(_ kg: Double) -> String {
-    kg.rounded() == kg ? "\(Int(kg))" : String(format: "%.1f", kg).replacingOccurrences(of: ".", with: ",")
-}
-
-private func setText(_ s: LoggedSet, _ ex: Exercise) -> String {
-    switch ex.unit {
-    case .seconds: return "\(s.reps) sek"
-    case _ where ex.bodyweight: return "\(s.reps) stk"
-    default: return "\(kgText(s.kg)) kg × \(s.reps)"
-    }
-}
-
-/// "torsdag 26. november" -> "Torsdag 26. november".
-private func cap(_ s: String) -> String { s.prefix(1).uppercased() + s.dropFirst() }
-
-private let longDay: DateFormatter = {
-    let f = DateFormatter(); f.locale = Locale(identifier: "da_DK"); f.timeZone = DateUtil.tz; f.dateFormat = "EEEE d. MMMM"; return f
-}()
-private let shortDay: DateFormatter = {
-    let f = DateFormatter(); f.locale = Locale(identifier: "da_DK"); f.timeZone = DateUtil.tz; f.dateFormat = "EEE d/M"; return f
-}()
-
 struct TrainingWindow: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var store = TrainingStore.shared
@@ -63,6 +29,7 @@ struct TrainingWindow: View {
                     setup = false
                 }
             }
+            .frame(minWidth: 820, minHeight: 600)
             .transition(.opacity)
         } else {
             main.transition(.opacity)
@@ -687,39 +654,6 @@ private struct ProgressPage: View {
     }
 }
 
-/// Start and end photos of an exercise from free-exercise-db (public domain), bundled in Resources/Exercises.
-enum ExercisePhotos {
-    static var cache: [String: NSImage] = [:]
-    static func image(_ id: String, _ frame: Int) -> NSImage? {
-        let key = "\(id)-\(frame)"
-        if let i = cache[key] { return i }
-        guard let url = Bundle.main.url(forResource: key, withExtension: "jpg", subdirectory: "Exercises"),
-              let img = NSImage(contentsOf: url) else { return nil }
-        cache[key] = img
-        return img
-    }
-}
-
-/// Small photo on the card header, the end position (like Strong's thumbnails). Falls back to the symbol.
-struct ExerciseThumb: View {
-    let ex: Exercise
-    var width: CGFloat = 60
-    var height: CGFloat = 44
-    var frame = 1
-    var body: some View {
-        Group {
-            if let img = ExercisePhotos.image(ex.id, frame) {
-                Image(nsImage: img).resizable().aspectRatio(contentMode: .fill)
-            } else {
-                Image(systemName: ex.symbol).font(.system(size: 18, design: Fomo.design)).foregroundStyle(Fomo.accent)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity).background(Fomo.accent.opacity(0.16))
-            }
-        }
-        .frame(width: width, height: height)
-        .clipShape(RoundedRectangle(cornerRadius: min(10, height / 5), style: .continuous))
-    }
-}
-
 /// A photo you can click to see the exercise moving, with the steps.
 struct ExercisePeek: View {
     let ex: Exercise
@@ -774,34 +708,4 @@ struct ExerciseDetail: View {
         .padding(16)
         .frame(width: 392)
     }
-}
-
-/// The exercise moving: start and end photo fade into each other every 1.2 s.
-struct ExerciseMotion: View {
-    let ex: Exercise
-    @State private var frame = 0
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            ForEach(0..<2, id: \.self) { n in
-                if let img = ExercisePhotos.image(ex.id, n) {
-                    Image(nsImage: img).resizable().aspectRatio(contentMode: .fill)
-                        .opacity(frame == n ? 1 : 0)
-                }
-            }
-            Text(frame == 0 ? "Start" : "Slut")
-                .font(.system(size: 10, weight: .bold, design: Fomo.design)).padding(.horizontal, 6).padding(.vertical, 2)
-                .background(Capsule().fill(.black.opacity(0.55))).foregroundStyle(.white).padding(6)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1.2))
-                withAnimation(.easeInOut(duration: 0.35)) { frame = 1 - frame }
-            }
-        }
-    }
-}
-
-extension Array {
-    subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
 }

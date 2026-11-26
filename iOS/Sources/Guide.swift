@@ -20,9 +20,9 @@ struct GuideSheet: View {
 
     private let pages: [Page] = [
         Page(icon: "hand.wave.fill", title: "Velkommen til Viggo+",
-             text: "I dag viser timen der er i gang, Uge hele ugen, og under Beskeder og Venner har du resten af Viggo."),
+             text: "I dag viser timen der er i gang, Uge hele ugen, og under Beskeder og Venner har du resten af Viggo. Træning laver et program og finder tider i dit skema."),
         Page(icon: "bell.badge.fill", title: "Få besked, når det betyder noget",
-             text: "Vælg hvad du vil have besked om. Det kan altid ændres under Indstillinger."),
+             text: "Vælg hvad du vil have besked om. Det kan altid ændres under Indstillinger, bag dit billede på I dag."),
         Page(icon: "square.grid.2x2.fill", title: "Widgets",
              text: "Se næste time og lektierne uden at åbne appen.",
              steps: ["Hold fingeren på hjemmeskærmen", "Tryk Rediger og så Tilføj widget", "Vælg Viggo+"]),

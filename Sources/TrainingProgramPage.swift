@@ -112,12 +112,6 @@ struct TrainingProgramPage: View {
         }
     }
 
-    private func targetText(_ ex: Exercise, _ item: PlanItem) -> String {
-        var e = ex
-        e.sets = item.sets; e.repsLow = item.repsLow; e.repsHigh = item.repsHigh
-        return e.target
-    }
-
     private func index(_ session: String) -> Int? { store.program.firstIndex { $0.id == session } }
 
     private func pick(_ id: String, for t: LibraryTarget) {
