@@ -259,7 +259,10 @@ struct GridBlock: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture { if e.kind != .custom { AppState.shared.openLesson(e) } }
+        .onTapGesture {
+            if e.isTraining { AppState.shared.openTraining(on: TrainingStore.shared.active != nil ? .workout : .program) }
+            else if e.kind != .custom { AppState.shared.openLesson(e) }
+        }
     }
 }
 

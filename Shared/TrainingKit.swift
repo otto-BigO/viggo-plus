@@ -17,7 +17,11 @@ enum Tk {
     #endif
 }
 
-extension Notification.Name { static let viggoOpenTraining = Notification.Name("viggoOpenTraining") }
+extension Notification.Name {
+    static let viggoOpenTraining = Notification.Name("viggoOpenTraining")
+    /// Træning turns to this page (the object is a TrainingPage).
+    static let viggoTrainingPage = Notification.Name("viggoTrainingPage")
+}
 
 enum TrainingPage: String, CaseIterable {
     case plan = "Plan", workout = "Træn", program = "Program", progress = "Fremgang"
@@ -170,5 +174,63 @@ extension View {
         #else
         self
         #endif
+    }
+}
+
+// MARK: - A workout opened in the schedule
+
+/// What a workout in the schedule holds: its exercises with sets and reps, and buttons to start it
+/// or see it in Træning. Shown when you fold a workout out in Dagen (panel and I dag).
+struct TrainingEventBox: View {
+    let e: ViggoEvent
+    @ObservedObject var store = TrainingStore.shared
+
+    /// Mac panel sizes, the iPhone's own text sizes.
+    private func font(_ mac: CGFloat, _ phone: Font, _ w: Font.Weight = .regular) -> Font {
+        Tk.phone ? phone.weight(w) : Sz.f(mac, w)
+    }
+
+    var body: some View {
+        let s = e.trainingSession ?? store.nextSession
+        let list = store.exercises(s)
+        let done = store.logs.contains { DateUtil.cal.isDate($0.started, inSameDayAs: e.start) && $0.session == s }
+        let running = store.active?.session == s
+        VStack(alignment: .leading, spacing: Tk.phone ? 10 : 7) {
+            HStack(spacing: 6) {
+                Text([store.session(s)?.name ?? "", "\(list.count) øvelser"].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(font(10.5, .footnote)).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                if done { Label("Klaret", systemImage: "checkmark").font(font(10.5, .footnote, .semibold)).foregroundStyle(Fomo.green) }
+            }
+            if list.isEmpty {
+                Text("Træning \(s) er ikke i dit program længere.").font(font(11.5, .subheadline)).foregroundStyle(.secondary)
+            }
+            ForEach(list) { ex in
+                HStack(spacing: Tk.phone ? 10 : 8) {
+                    ExerciseThumb(ex: ex, width: Tk.phone ? 44 : 34, height: Tk.phone ? 32 : 24)
+                    Text(ex.name).font(font(11.5, .subheadline)).lineLimit(Tk.phone ? 2 : 1).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 6)
+                    Text(ex.target).font(font(10.5, .footnote)).monospacedDigit().foregroundStyle(.secondary).fixedSize()
+                }
+            }
+            HStack(spacing: 8) {
+                if !list.isEmpty, !done, store.active == nil || running, DateUtil.cal.isDateInToday(e.start) {
+                    Button {
+                        if !running { store.start(s) }
+                        AppState.shared.openTraining(on: .workout)
+                    } label: {
+                        Label(running ? "Fortsæt træningen" : "Start træning \(s)", systemImage: running ? "play.fill" : "dumbbell.fill")
+                            .font(font(11, .subheadline, .semibold)).lineLimit(1).fixedSize()
+                            .padding(.horizontal, Tk.phone ? 14 : 10).frame(height: Tk.phone ? 36 : 24)
+                            .background(Capsule().fill(Fomo.green)).foregroundStyle(.white)
+                    }
+                    .buttonStyle(PressScale())
+                }
+                Spacer(minLength: 0)
+                Button("Se i Træning") { AppState.shared.openTraining(on: running ? .workout : .program) }
+                    .buttonStyle(.plain).font(font(10.5, .footnote, .medium)).foregroundStyle(Fomo.accent)
+            }
+            .padding(.top, 2)
+        }
     }
 }

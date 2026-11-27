@@ -1734,4 +1734,13 @@ final class AppState: ObservableObject {
     /// The iPhone shows a lesson's details as a sheet.
     func openLesson(_ e: ViggoEvent) { shownLesson = e }
     #endif
+
+    /// Opens Træning on a page, e.g. Træn after starting a workout from the schedule. The page is
+    /// sent a moment later, so a window or tab that only just appeared hears it.
+    func openTraining(on page: TrainingPage) {
+        openTraining()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            NotificationCenter.default.post(name: .viggoTrainingPage, object: page)
+        }
+    }
 }

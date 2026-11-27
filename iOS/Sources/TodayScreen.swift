@@ -639,6 +639,10 @@ struct DayRow: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 7).padding(.vertical, 3)
                     .background(Capsule().fill(e.subjectColor))
+                } else if e.isTraining {
+                    Image(systemName: open ? "chevron.up" : "dumbbell.fill").font(.footnote.weight(.bold))
+                        .foregroundStyle(open ? Fomo.accent : Fomo.green)
+                        .contentTransition(.symbolEffect(.replace))
                 } else if e.hasInfo && !isFood {
                     Image(systemName: open ? "chevron.up" : "text.alignleft").font(.footnote.weight(.bold)).foregroundStyle(.tint)
                 }
@@ -646,7 +650,15 @@ struct DayRow: View {
                     Image(systemName: "note.text").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                 }
             }
-            if open && e.hasInfo && !isFood {
+            .opacity(past ? 0.4 : 1)
+            if open && e.isTraining {
+                // The workout's exercises, so you can see what to do without opening Træning.
+                TrainingEventBox(e: e)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Fomo.surface2))
+                    .transition(.opacity)
+            } else if open && e.hasInfo && !isFood {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(e.notes).font(.subheadline).textSelection(.enabled)
                     HStack(spacing: 8) {
@@ -675,11 +687,10 @@ struct DayRow: View {
             if current { NowGlow(color: e.subjectColor) }
         }
         .padding(.horizontal, current ? -10 : 0)
-        .opacity(past ? 0.4 : 1)
         .contentShape(Rectangle())
         .zoomSource(e.id)
         .onTapGesture {
-            if e.hasInfo { Haptic.tap(); withAnimation(.unfold) { open.toggle() } }
+            if e.hasInfo || e.isTraining { Haptic.tap(); withAnimation(.unfold) { open.toggle() } }
             else if e.kind != .custom { state.openLesson(e) }
         }
     }

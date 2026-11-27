@@ -955,4 +955,6 @@ enum TrainingPlanner {
 extension ViggoEvent {
     /// A workout Viggo+ put in the schedule.
     var isTraining: Bool { kind == .custom && notes == TrainingPlanner.tag }
+    /// "Træning B" -> "B".
+    var trainingSession: String? { isTraining ? rawName.split(separator: " ").last.map(String.init) : nil }
 }

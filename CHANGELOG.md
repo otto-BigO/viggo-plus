@@ -1,5 +1,11 @@
 # Ændringer
 
+## 1.32.0 og iPhone-app 1.20.0 (2026-11-27)
+
+- **Træning i skemaet**: tryk på en træning i Dagen, så folder den sig ud og viser øvelserne med billede og sæt × gentagelser, så du kan se hvad du skal. Herfra kan du starte træningen med det samme eller trykke Se i Træning for at åbne programmet. Det virker i panelet på Mac og i I dag og Uge på iPhone.
+- **Ugeskemaet på Mac**: et tryk på en træning åbner Træning direkte.
+- En træning viser ikke længere "Træning i Viggo+" som note, når den foldes ud.
+
 ## 1.31.0 og iPhone-app 1.19.0 (2026-11-26)
 
 - **Træning på iPhone**: en ny fane med Plan, Træn, Program og Fremgang. Opsætningen, programmet og øvelsesbillederne er de samme som på Mac. Kg og gentagelser skrives med talknapper, og tallet er markeret, når du trykker i feltet, så du bare skriver det nye.

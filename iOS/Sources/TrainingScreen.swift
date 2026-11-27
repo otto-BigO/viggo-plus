@@ -46,6 +46,9 @@ struct TrainingScreen: View {
         .onReceive(NotificationCenter.default.publisher(for: .viggoTabAgain)) { n in
             if (n.object as? Int) == PhoneTabs.training, !setup, store.active != nil { withAnimation(.viggo) { page = .workout } }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .viggoTrainingPage)) { n in
+            if let p = n.object as? TrainingPage, !setup { withAnimation(.viggo) { page = p } }
+        }
         .onChange(of: store.active != nil) { _, on in trKeepAwake(on) }
         .onAppear { trKeepAwake(store.active != nil) }
     }

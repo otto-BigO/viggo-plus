@@ -22,17 +22,22 @@ struct TrainingWindow: View {
     }
 
     var body: some View {
-        if setup {
-            TrainingSetup(profile: store.profile) { next in
-                withAnimation(.viggo) {
-                    if let next { page = next }
-                    setup = false
+        Group {
+            if setup {
+                TrainingSetup(profile: store.profile) { next in
+                    withAnimation(.viggo) {
+                        if let next { page = next }
+                        setup = false
+                    }
                 }
+                .frame(minWidth: 820, minHeight: 600)
+                .transition(.opacity)
+            } else {
+                main.transition(.opacity)
             }
-            .frame(minWidth: 820, minHeight: 600)
-            .transition(.opacity)
-        } else {
-            main.transition(.opacity)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .viggoTrainingPage)) { n in
+            if let p = n.object as? TrainingPage, !setup { withAnimation(.viggo) { page = p } }
         }
     }
 

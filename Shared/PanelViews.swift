@@ -290,7 +290,9 @@ struct TimelineRow: View {
                         .help(expanded ? "Skjul info" : "Der er info fra læreren")
                 }
                 if e.isTraining {
-                    Image(systemName: "dumbbell.fill").font(Sz.f(10, .bold)).foregroundStyle(Fomo.green).help("Åbn træningen")
+                    Image(systemName: expanded ? "chevron.up" : "dumbbell.fill").font(Sz.f(10, .bold))
+                        .foregroundStyle(expanded ? Fomo.accent : Fomo.green)
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 if LessonNotes.shared.hasNote(e) {
                     Image(systemName: "note.text").font(Sz.f(10, .semibold)).foregroundStyle(.secondary).help("Du har noter til timen")
@@ -302,8 +304,7 @@ struct TimelineRow: View {
             .opacity(past ? 0.35 : 1)
             .contentShape(Rectangle())
             .onTapGesture {
-                if e.isTraining { AppState.shared.openTraining() }
-                else if hasNote { withAnimation(.unfold) { expanded.toggle() } }
+                if e.isTraining || hasNote { withAnimation(.unfold) { expanded.toggle() } }
                 else if e.kind != .custom { AppState.shared.openLesson(e) }
             }
             if isFood {
@@ -318,6 +319,16 @@ struct TimelineRow: View {
                 .opacity(past ? 0.35 : 1)
                 .contentShape(Rectangle())
                 .onTapGesture { withAnimation(.unfold) { expanded.toggle() } }
+            } else if expanded && e.isTraining {
+                // The workout's exercises, so you can see what to do without opening Træning.
+                TrainingEventBox(e: e)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .surface(10)
+                    .padding(.leading, TimelineRow.titleInset)
+                    .padding(.bottom, 2)
+                    .transition(.asymmetric(insertion: .opacity.animation(.easeOut(duration: 0.22).delay(0.1)),
+                                            removal: .opacity.animation(.easeIn(duration: 0.1))))
             } else if expanded && hasNote {
                 // The room opens first, then the text fades in, so it never slides over the rows below.
                 noteBox.transition(.asymmetric(insertion: .opacity.animation(.easeOut(duration: 0.22).delay(0.1)),
@@ -328,7 +339,7 @@ struct TimelineRow: View {
         .onReceive(NotificationCenter.default.publisher(for: .viggoToggleNote)) { n in
             if (n.object as? Int) == e.id, hasNote { withAnimation(.unfold) { expanded.toggle() } }
         }
-        .help(e.isTraining ? "Åbn træningen" : e.kind == .custom ? "Dit eget punkt" : isFood ? "Dagens mad fra madplanen" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
+        .help(e.isTraining ? (expanded ? "" : "Se øvelserne") : e.kind == .custom ? "Dit eget punkt" : isFood ? "Dagens mad fra madplanen" : hasNote ? (expanded ? "" : "Læs info fra læreren") : "Se detaljer")
     }
 }
 

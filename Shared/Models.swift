@@ -61,7 +61,8 @@ struct ViggoEvent: Codable, Hashable, Identifiable {
     var links: [URL] = []
 
     /// The teacher's description: what to do, read or bring.
-    var hasInfo: Bool { !notes.isEmpty }
+    /// A note from the teacher. A workout's "Træning i Viggo+" tag is not one: it shows its exercises instead.
+    var hasInfo: Bool { !notes.isEmpty && !isTraining }
 
     var key: String { "\(kind.rawValue)-\(id)" }
     /// The name you gave this lesson in Indstillinger › Timer, otherwise Viggo's.
